@@ -1,0 +1,77 @@
+﻿{
+  "schemaVersion": 2,
+  "edition": "Official",
+  "language": "es-MX",
+  "display": {
+    "targetMonitor": "auto",
+    "preference": "secondary",
+    "referenceWidth": 1711,
+    "referenceHeight": 1023,
+    "safeMarginPx": 4,
+    "pixelShift": { "enabled": true, "intervalSeconds": 120, "maxOffsetPx": 3 }
+  },
+  "hardware": {
+    "preferredGpu": "auto",
+    "preferredStorage": "system"
+  },
+  "dataSource": {
+    "provider": "HWiNFO",
+    "bridgePort": 27843,
+    "pollIntervalMs": 1000,
+    "unavailableValue": -1,
+    "showUnavailableAs": "N/D",
+    "sensorOverrides": {
+      "gpuTemperature": null,
+      "gpuUsage": null,
+      "cpuTemperature": null,
+      "cpuUsage": null,
+      "storageTemperature": null,
+      "coreMaximumTemperature": null,
+      "vramUsed": null,
+      "vramFree": null,
+      "fps": null,
+      "frameTime": null,
+      "cpuThermal": null,
+      "gpuThermal": null,
+      "cpuPower": null,
+      "gpuPower": null,
+      "cores": []
+    }
+  },
+  "labels": {
+    "appTitle": "ALIENGAMER MODE",
+    "signature": "by Alienmau",
+    "subtitleSuffix": "MONITOR TÉRMICO EN VIVO",
+    "notAvailable": "N/D"
+  },
+  "appearance": {
+    "background": "0,0,0,255",
+    "performanceCore": "255,45,220,255",
+    "efficiencyCore": "40,235,255,255",
+    "genericCore": "155,255,50,255",
+    "nvidiaGreen": "118,185,0,255"
+  },
+  "features": {
+    "clock": true,
+    "ram": true,
+    "vram": true,
+    "fps": true,
+    "frameTime": true,
+    "perLogicalProcessor": true,
+    "thermalAlerts": true,
+    "powerLimitAlert": true,
+    "fanSpeeds": false
+  },
+  "installation": {
+    "desktopShortcut": true,
+    "startMenuShortcut": true,
+    "startWithWindows": false,
+    "launchAfterInstall": true
+  },
+  "behavior": {
+    "disableDefaultRainmeterSkins": true,
+    "startHWiNFOHidden": true,
+    "closeOnlyOwnedProcesses": true,
+    "startupTimeoutSeconds": 35
+  }
+}

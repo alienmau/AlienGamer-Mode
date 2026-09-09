@@ -1,0 +1,25 @@
+# Compilaciones y pruebas generadas
+build/
+
+# Configuración y estado local
+AlienGamerMode.json
+profile.json
+discovery.json
+agent-state.json
+recording-state.json
+*.local.json
+
+# Registros y reportes del usuario
+*.log
+*.csv
+*.xlsx
+
+# Archivos temporales y editores
+*.tmp
+*.bak
+*.swp
+*~
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini

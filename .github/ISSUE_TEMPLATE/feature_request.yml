@@ -1,0 +1,29 @@
+name: Proponer una mejora
+description: Sugiere una función o ajuste para AlienGamer Mode
+title: "[Mejora]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Necesidad
+      description: Explica el problema o situación que quieres resolver.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Propuesta
+      description: Describe cómo debería funcionar y verse.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware relacionado
+      description: Indica si la mejora depende de una CPU, GPU, sensor o pantalla particular.

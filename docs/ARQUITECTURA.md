@@ -1,0 +1,82 @@
+﻿# Arquitectura de mantenimiento
+
+## Flujo de arranque
+
+```text
+Agente de bandeja
+  ├─ inicia HWiNFO oculto y espera Shared Memory
+  ├─ Discover-AlienGamerHardware.ps1
+  ├─ Resolve-AlienGamerProfile.ps1
+  ├─ Build-AdaptiveSkin.ps1
+  ├─ AlienGamerBridge.ps1 (127.0.0.1:27843)
+  └─ activa AlienGamerMode en Rainmeter
+```
+
+## Contrato de sensores
+
+El lector procesa el encabezado y las tablas publicadas en `Global\HWiNFO_SENS_SM2`. Conserva nombre original, nombre personalizado, unidad, IDs y valores. El resolvedor puntúa coincidencias por:
+
+1. etiqueta original o localizada;
+2. unidad;
+3. grupo de sensor;
+4. GPU o unidad elegida;
+5. IDs únicamente como dato de diagnóstico.
+
+El endpoint `/v2/status` devuelve JSON con nombres estables. El endpoint `/` conserva una cadena posicional generada dinámicamente para WebParser de Rainmeter. Su longitud es `14 + procesadores monitorizados`, de modo que ya no existe la deuda técnica de 30/38 campos fijos.
+
+Antes de mostrar la skin se validan la etiqueta canónica, la fuente, la unidad y el rango de cada sensor. Las métricas de juego usan exclusivamente `Framerate Presented (avg)` y `Frame Time Presented (avg)` de PresentMon; además se comprueba que el tiempo de cuadro sea coherente con `1000 / FPS`. El puente repite la validación de rangos y coherencia en cada lectura. Una asociación inexistente, ambigua o incoherente se publica como `N/D`, nunca como cero ni como un estado positivo.
+
+La skin generada se guarda en Unicode UTF-16 LE, formato compatible con Rainmeter para conservar correctamente acentos, signos y textos como `¡EXCELENTE!`, `ATENCIÓN`, `TÉRMICO` y `NÚCLEOS FÍSICOS`.
+
+El reloj matricial declara físicamente las 35 celdas Shape dentro de cada uno de sus seis dígitos. No depende de crear formas durante la ejecución ni únicamente de heredarlas mediante `MeterStyle`. `MatrixClock.lua` sólo cambia posición y color sobre opciones que Rainmeter ya cargó. Este archivo debe conservarse en UTF-8 sin BOM: el intérprete Lua integrado no ejecuta el script cuando encuentra la marca `EF BB BF` al inicio.
+
+El botón OFF tiene cierre redundante: `AlienGamerModeCommand.ps1` desactiva la skin inmediatamente, el evento local solicita al agente cerrar el puente y los procesos que inició, y `FinishAction` vuelve a garantizar la desactivación visual si el agente tarda o no está disponible.
+
+Los botones de la skin ejecutan PowerShell directamente mediante `LeftMouseUpAction`; no dependen del complemento `RunCommand`. El agente consulta el estado visible de Rainmeter y `%LOCALAPPDATA%\AlienGamerMode\recording-state.json` para actualizar la bandeja. La grabación distingue `recording` de `finalizing`, evitando iniciar otra captura mientras se genera o guarda el reporte.
+
+La interfaz se actualiza visualmente a 10 FPS para suavizar las transiciones, pero `HWiNFO_BRIDGE` usa `UpdateRate=10` y las medidas de sensores llevan divisores equivalentes: los datos continúan consultándose una vez por segundo. `MatrixClock.lua` sólo reconstruye los dígitos cuando cambia el segundo. El mismo script interpola el ancho y color del botón Grabar, el hover de OFF y el pulso de opacidad del testigo rojo. Al activar la grabación, el borde derecho permanece fijo y el botón crece 60 unidades de referencia hacia la izquierda para no invadir el margen exterior.
+
+`RingAnimator.lua` crea una medida visual independiente por anillo. Lee el valor relativo validado de la medida fuente y recorre el cambio con interpolación exponencial a 10 FPS; el número continúa enlazado a la medida fuente real. Esto suaviza RAM, VRAM, uso y temperatura de CPU/GPU, almacenamiento, temperatura máxima y procesadores lógicos sin inventar lecturas intermedias como datos de sensores. Cuando GPU/CPU, temperatura máxima o RAM entran en el umbral que ya se representa en rojo, `MatrixClock.lua` modula suavemente brillo y opacidad del trazo. No se aplica alarma roja por una carga alta aislada de un núcleo, pues durante un juego puede ser normal.
+
+El instalador muestra una sola confirmación final y no inicia el agente hasta que esa ventana y el formulario principal se cerraron. PowerShell recibe `-WindowStyle Hidden` para ocultar únicamente la consola; no debe usarse `runhidden` en Inno Setup porque también oculta el formulario WinForms y deja al empaquetador esperando una ventana invisible. El asistente se mantiene al frente. Después se envían dos pulsos idempotentes de activación separados por 1.5 segundos, de modo que la orden no se pierda mientras el agente crea por primera vez su evento local y su icono de bandeja.
+
+La firma `by Alienmau` se renderizó localmente desde Dali como `assets\AlienmauSignature.png` con transparencia y resolución 487 × 192. La skin la muestra a 122 × 48 unidades de referencia, en la misma relación de aspecto y anclada 20 unidades después del título. No se incluye ni instala `dali___.ttf`, porque no se dispone de una licencia explícita de redistribución. El recurso gráfico evita sustituciones tipográficas y conserva nitidez mediante reducción desde una imagen cuatro veces mayor.
+
+El estado activo se determina mediante el PID vivo de `AlienGamerBridge`, porque `Active` en `Rainmeter.ini` puede no reflejar inmediatamente una skin visible. Las zonas de captura de OFF y Grabar se generan al final del archivo, por encima del resto, y usan coordenadas físicas ya escaladas; así el área de ratón coincide con el botón dibujado incluso cuando el diseño usa `TransformationMatrix` por resolución o DPI.
+
+## Diseño adaptable
+
+La referencia visual mide 1711 × 1023. El generador calcula:
+
+```text
+escala = min(anchoEfectivoRainmeter / 1711, altoEfectivoRainmeter / 1023)
+```
+
+Después centra el lienzo y aplica una matriz a cada elemento. El fondo negro siempre cubre el monitor completo. Los procesadores se reparten en 1 a 4 filas según la cantidad real y reducen su tamaño dentro de límites legibles.
+
+Las dimensiones se obtienen en coordenadas efectivas de Windows, no en píxeles físicos. Esto evita aplicar dos veces el escalado en configuraciones con DPI mixto; por ejemplo, una pantalla física de 2560×1600 al 150 % se entrega a Rainmeter como 1707×1067. La posición se escribe en la configuración persistente y también se fuerza después de activar y refrescar la skin, para impedir que Rainmeter reutilice las coordenadas de otro monitor.
+
+El generador valida que no se pierdan los encabezados `[MeterBackground]`, `[HWiNFO_BRIDGE]` ni los ocho campos posteriores a los procesadores. Así se conserva el contrato dinámico completo de `14 + procesadores monitorizados` y se evitan lecturas literales como `%1` o valores vacíos.
+
+## Clasificación P/E
+
+Windows expone `EfficiencyClass` mediante `GetSystemCpuSetInformation`. Cuando hay varias clases, la superior se trata como rendimiento y las demás como eficiencia. Si Windows no lo distingue, la etiqueta es `CORE`; nunca se inventa P-CORE/E-CORE.
+
+## Protección OLED
+
+- negro puro en toda la ventana;
+- desplazamiento cada 120 segundos de sólo el contenido, no de la ventana;
+- amplitud de ±2 píxeles;
+- el fondo permanece fijo para no revelar una franja del escritorio;
+- sin grandes superficies blancas;
+- contornos y texto con luminancia contenida.
+
+El pixel shift reduce la permanencia exacta de elementos, pero no sustituye las funciones de cuidado del panel, salvapantallas ni apagado automático del fabricante.
+
+## Migración a la edición oficial
+
+El instalador usa exclusivamente la identidad `AlienGamerMode`: skin `AlienGamerMode`, puerto local `27843`, datos en `%LOCALAPPDATA%\AlienGamerMode` y programa en `%PROGRAMDATA%\AlienGamerMode\App`. Antes de instalar detiene agentes y tareas anteriores, archiva sus datos y skins en `%LOCALAPPDATA%\AlienGamerModeLegacyBackup`, migra la configuración compatible y retira accesos duplicados.
+
+## Compatibilidad futura
+
+Ante una estructura de memoria HWiNFO desconocida, el lector falla con un mensaje explícito y conserva el inventario/log. No debe adivinar offsets ni convertir ausencia en cero. Una actualización futura puede añadir un adaptador de proveedor sin cambiar el frontend ni el JSON v2.
