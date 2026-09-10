@@ -2,9 +2,28 @@
 
 **Monitoreo adaptable de sensores y componentes del equipo para Windows.**
 
-![Panel principal de AlienGamer Mode](docs/images/AlienGamerMode-dashboard.png)
+![AlienGamer Mode: monitoreo inteligente para gamers](docs/images/AlienGamerMode-social-preview.png)
+
+[![Última versión](https://img.shields.io/github/v/release/alienmau/AlienGamer-Mode?style=for-the-badge&color=ff7a00)](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
+[![Descargas](https://img.shields.io/github/downloads/alienmau/AlienGamer-Mode/total?style=for-the-badge&color=22d3ee)](https://github.com/alienmau/AlienGamer-Mode/releases)
+[![Licencia MIT](https://img.shields.io/github/license/alienmau/AlienGamer-Mode?style=for-the-badge&color=84cc16)](LICENSE)
+[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-2563eb?style=for-the-badge)](#requisitos)
+
+**[Descargar la última versión](https://github.com/alienmau/AlienGamer-Mode/releases/latest)** · **[Guía de instalación](docs/GUIA-INSTALACION-MANUAL.md)** · **[Reportar un problema](https://github.com/alienmau/AlienGamer-Mode/issues/new/choose)**
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
+
+## ¿Por qué AlienGamer Mode?
+
+Un contador de FPS dice que algo ocurrió; AlienGamer Mode ayuda a conservar el contexto técnico del momento. Si notas un tirón, congelamiento, teletransporte o caída de fluidez, puedes iniciar una grabación y obtener un reporte que relacione el comportamiento del juego con temperaturas, carga, memoria, tiempo de cuadro y alertas disponibles.
+
+- **Adaptable:** detecta el hardware real y reorganiza los módulos disponibles.
+- **Honesto con los datos:** un sensor ausente se oculta o muestra `N/D`; nunca se inventa como cero.
+- **Útil para investigar:** registra el intervalo exacto donde percibiste el problema.
+- **Local y abierto:** no envía telemetría y su código puede auditarse.
+- **Pensado para OLED:** realiza pequeños desplazamientos para reducir elementos estáticos prolongados.
+
+![Panel principal de AlienGamer Mode en ejecución](docs/images/AlienGamerMode-dashboard.png)
 
 ## Funciones principales
 
@@ -28,6 +47,12 @@ AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hard
 - Microsoft Excel es opcional; solo se necesita para abrir directamente los reportes `.xlsx`.
 
 Rainmeter y HWiNFO son productos externos y no se distribuyen dentro de este repositorio.
+
+## Compatibilidad
+
+El instalador permite elegir pantalla, GPU y almacenamiento principal. La skin se construye según la resolución, escala DPI y sensores detectados. El proyecto nació en un Lenovo Legion, pero no está limitado a esa marca.
+
+La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo pruebas en otro equipo, abre un **Reporte de compatibilidad** desde [Issues](https://github.com/alienmau/AlienGamer-Mode/issues/new/choose); incluso un resultado correcto ayuda a documentar hardware confirmado.
 
 ## Instalación
 
@@ -91,6 +116,8 @@ Los problemas de seguridad deben reportarse siguiendo [SECURITY.md](SECURITY.md)
 ## Contribuir
 
 Las correcciones y propuestas son bienvenidas. Lee [CONTRIBUTING.md](CONTRIBUTING.md) antes de abrir una incidencia o enviar cambios.
+
+Si deseas compartir el proyecto, encontrarás publicaciones listas para adaptar, enlaces de imágenes y una guía para evitar spam en [Difusión y lanzamiento](docs/DIFUSION.md).
 
 ## Licencia
 

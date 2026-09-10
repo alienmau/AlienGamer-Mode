@@ -1,0 +1,56 @@
+name: Reporte de compatibilidad
+description: Confirma el funcionamiento o informa diferencias en otro equipo
+title: "[Compatibilidad]: "
+labels:
+  - compatibility
+body:
+  - type: dropdown
+    id: result
+    attributes:
+      label: Resultado general
+      options:
+        - Funciona correctamente
+        - Funciona con diferencias visuales
+        - Faltan sensores
+        - No inicia
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de AlienGamer Mode
+      placeholder: 1.0.9
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: CPU, GPU, RAM y unidad de almacenamiento principal.
+    validations:
+      required: true
+  - type: textarea
+    id: display
+    attributes:
+      label: Pantallas
+      description: Resolución, escala DPI, cantidad de monitores y monitor seleccionado.
+    validations:
+      required: true
+  - type: input
+    id: dependencies
+    attributes:
+      label: Versiones de Rainmeter y HWiNFO
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Observaciones
+      description: Indica qué módulos funcionaron, qué sensores faltaron y cualquier detalle visual.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacidad
+      options:
+        - label: Revisé las capturas y registros para no publicar información privada.
+          required: true
