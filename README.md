@@ -39,6 +39,20 @@ Rainmeter y HWiNFO son productos externos y no se distribuyen dentro de este rep
 
 Consulta [Requisitos previos](docs/REQUISITOS-PREVIOS.md) y la [Guía de instalación manual](docs/GUIA-INSTALACION-MANUAL.md) si necesitas configurar HWiNFO o resolver un problema.
 
+## Grabar un evento de rendimiento
+
+Si durante una partida notas tirones, congelamientos, teletransportes, caídas de fluidez o cualquier comportamiento extraño, pulsa **Grabar evento** en el panel o en el icono de la bandeja. El botón cambia a **Finalizar grabación** mientras la captura está activa.
+
+AlienGamer Mode toma muestras durante ese intervalo y conserva, cuando el equipo dispone de ellas, métricas como FPS, *frame time*, uso y temperatura de CPU y GPU, VRAM, RAM, temperatura del almacenamiento, carga por núcleo y señales de límite térmico o de potencia. Al finalizar, solicita dónde guardar un reporte de Excel con:
+
+- cronología de las muestras;
+- resumen estadístico y valores máximos;
+- alertas observadas durante el evento;
+- procesos activos y contexto del equipo;
+- una interpretación preliminar basada en la evidencia disponible.
+
+El reporte permite relacionar el instante del problema con temperaturas elevadas, saturación de recursos, límites térmicos o de potencia y variaciones anormales del tiempo de cuadro. Puede aportar datos técnicos valiosos a un especialista y ayudar a detectar una condición antes de que se vuelva recurrente. Es una herramienta de orientación: no sustituye los registros internos del juego, diagnósticos SMART detallados, análisis de red ni trazas especializadas, y por sí sola no confirma una falla de hardware.
+
 ## Estructura del proyecto
 
 - `assets/`: logotipo, icono y firma convertida a imagen.
@@ -70,7 +84,7 @@ Antes de publicar una versión se recomienda probarla en equipos NVIDIA, AMD e I
 
 ## Privacidad y seguridad
 
-El monitor trabaja localmente. Los registros solo se crean cuando el usuario inicia una grabación y se guardan en la ubicación elegida. No publiques reportes que contengan información que consideres privada.
+El monitor trabaja localmente. Los registros solo se crean cuando el usuario inicia una grabación y se guardan en la ubicación elegida. El reporte puede incluir nombres de procesos y características del equipo; revísalo antes de compartirlo y no publiques información que consideres privada.
 
 Los problemas de seguridad deben reportarse siguiendo [SECURITY.md](SECURITY.md), no como una incidencia pública.
 

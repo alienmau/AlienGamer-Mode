@@ -35,6 +35,16 @@ Mientras el agente está abierto, el logotipo aparece en los iconos ocultos de W
 
 **Detener monitor** desactiva la skin y cierra el puente, pero conserva el agente en la bandeja para poder activarlo nuevamente. **Cerrar AlienGamer Mode** también retira el agente. HWiNFO y Rainmeter sólo se cierran automáticamente cuando fueron iniciados por esta edición. Si existe una grabación, se finaliza antes de detener el monitor.
 
+## Grabar evento
+
+Usa **Grabar evento** justo cuando notes tirones, congelamientos, saltos, teletransportes, caídas de FPS o una respuesta anormal del juego. Durante la captura el control cambia a **Finalizar grabación** y el testigo rojo indica que se están tomando muestras.
+
+Al finalizar, el programa solicita dónde guardar un libro de Excel. El reporte reúne la línea temporal de FPS, *frame time*, RAM, VRAM, uso y temperatura de CPU/GPU, temperatura del almacenamiento, carga por procesador lógico y alertas térmicas o de potencia que estén disponibles. También contiene un resumen, máximos, percentiles, procesos activos y una interpretación preliminar.
+
+Este documento puede ayudar a relacionar el momento exacto del problema con calentamiento, saturación, *throttling*, límites de potencia o inestabilidad del tiempo de cuadro. Resulta útil para que un técnico investigue con más contexto y para detectar tendencias antes de que sean recurrentes. No representa un diagnóstico definitivo: algunas causas requieren además registros del juego, red, controladores, SMART detallado o trazas especializadas.
+
+Si la creación del libro falla, la captura CSV se conserva en `%LOCALAPPDATA%\AlienGamerMode\GrabacionesPendientes` para no perder la evidencia.
+
 ## Diagnóstico
 
 Los archivos de diagnóstico se guardan en `%LOCALAPPDATA%\AlienGamerMode`:
