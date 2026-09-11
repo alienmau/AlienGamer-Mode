@@ -49,6 +49,19 @@ function Set-IniSetting([string]$Path, [string]$Key, [string]$Value) {
     $content | Set-Content -LiteralPath $Path -Encoding ASCII
 }
 
+function Merge-MissingConfiguration($Target, $Defaults) {
+    foreach ($property in $Defaults.PSObject.Properties) {
+        $existing = $Target.PSObject.Properties[$property.Name]
+        if (-not $existing) {
+            $Target | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
+            continue
+        }
+        if ($existing.Value -is [Management.Automation.PSCustomObject] -and $property.Value -is [Management.Automation.PSCustomObject]) {
+            Merge-MissingConfiguration $existing.Value $property.Value
+        }
+    }
+}
+
 function New-Shortcut([string]$Path, [string]$Target, [string]$Arguments, [string]$Icon) {
     $shell = New-Object -ComObject WScript.Shell
     $shortcut = $shell.CreateShortcut($Path)
@@ -228,6 +241,8 @@ $installButton.Add_Click({
         $configPath = Join-Path $dataRoot 'AlienGamerMode.json'
         if (-not (Test-Path $configPath)) { Copy-Item $defaultConfig $configPath }
         $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        $configDefaults = Get-Content $defaultConfig -Raw | ConvertFrom-Json
+        Merge-MissingConfiguration $config $configDefaults
         $selectedMonitor = @($discovery.monitors)[$monitorBox.SelectedIndex]
         $selectedGpu = @($discovery.gpus)[$gpuBox.SelectedIndex]
         $selectedStorage = @($discovery.storage)[$storageBox.SelectedIndex]

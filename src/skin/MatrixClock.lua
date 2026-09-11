@@ -24,6 +24,7 @@ local alertRings = {
     {meter = "Ring_CPU_TEMP", measure = "CPU_TEMP", warning = 60, critical = 85, low = "55,170,255,255", middle = "255,170,35,255"},
     {meter = "Ring_CPU_USE", measure = "CPU_USE", warning = 50, critical = 85, low = "95,70,255,255", middle = "255,170,35,255"},
     {meter = "Ring_CORE_MAX", measure = "CORE_MAX", warning = 60, critical = 85, low = "55,170,255,255", middle = "255,170,35,255"},
+    {meter = "Ring_SSD_TEMP", measure = "SSD_TEMP", warning = 45, critical = 60, low = "255,235,145,255", middle = "255,190,35,255"},
     {meter = "Ring_MeasureRAM", measure = "MeasureRAM", warning = 60, critical = 80, low = "40,220,255,255", middle = "255,170,35,255", relative = true}
 }
 
@@ -161,11 +162,12 @@ local function updateAlertPulses()
             end
             local high = value ~= nil and value == value and value >= config.critical
             if high then
+                -- Destello sólido entre dos rojos saturados: nunca aclara hacia
+                -- rosa/blanco ni reduce opacidad, por lo que conserva contraste.
                 local color = string.format(
-                    "255,%d,%d,%d",
-                    mix(25, 105, pulse),
-                    mix(35, 115, pulse),
-                    mix(185, 255, pulse)
+                    "%d,0,%d,255",
+                    mix(195, 255, pulse),
+                    mix(12, 28, pulse)
                 )
                 SKIN:Bang("!SetOption", config.meter, "LineColor", color)
                 SKIN:Bang("!UpdateMeter", config.meter)

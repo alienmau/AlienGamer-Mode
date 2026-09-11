@@ -48,3 +48,5 @@ El asistente obtiene automáticamente el hardware, pero solicita una selección 
 5. fijado manual a la barra de tareas, si se desea.
 
 No es necesario editar la skin. La configuración personal queda en `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` y se conserva durante actualizaciones.
+
+El fondo dinámico no escucha, captura ni procesa audio. No requiere complementos de visualización adicionales.

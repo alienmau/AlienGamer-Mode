@@ -7,6 +7,7 @@ Este archivo contiene textos listos para copiar y adaptar. Antes de publicar, re
 - Proyecto: https://github.com/alienmau/AlienGamer-Mode
 - Descarga: https://github.com/alienmau/AlienGamer-Mode/releases/latest
 - Portada horizontal: https://raw.githubusercontent.com/alienmau/AlienGamer-Mode/main/docs/images/AlienGamerMode-social-preview.png
+- Vista compacta: https://raw.githubusercontent.com/alienmau/AlienGamer-Mode/main/docs/images/AlienGamerMode-compact.png
 - Imagen cuadrada: https://raw.githubusercontent.com/alienmau/AlienGamer-Mode/main/docs/images/AlienGamerMode-social-square.png
 
 ## Mensaje breve en español
@@ -22,6 +23,8 @@ Hola. Soy el creador de **AlienGamer Mode**, un proyecto gratuito y de código a
 Muestra RAM, VRAM, CPU, GPU, temperaturas, carga por núcleo, FPS y *frame time*. Además, cuando notas tirones, congelamientos, teletransportes o caídas de fluidez, puedes pulsar **Grabar evento**. Al finalizar genera un reporte con la cronología de sensores, máximos, alertas y una interpretación preliminar que puede aportar contexto técnico para investigar lo ocurrido.
 
 El instalador detecta el hardware disponible, permite seleccionar monitor, GPU y almacenamiento, y oculta los sensores ausentes en lugar de inventarlos como cero. También incorpora desplazamiento periódico para reducir elementos estáticos en pantallas OLED.
+
+La versión 1.1.0 añade un fondo ambiental de luciérnagas configurable y permite ocultar de forma persistente los procesadores, el panel de FPS/alertas y el reloj para crear una vista compacta sin dejar de registrar esos sensores. En la medición del equipo de desarrollo, el conjunto completo utilizó aproximadamente 457 MB de RAM y 5.4% de CPU con la animación al máximo; se recomiendan 8 GB de RAM, o 16 GB si se jugará en el mismo equipo.
 
 Actualmente busco personas con equipos diferentes que quieran probarlo y reportar compatibilidad. Rainmeter y HWiNFO son requisitos externos y se instalan desde sus sitios oficiales.
 
@@ -61,6 +64,8 @@ It displays RAM, VRAM, CPU/GPU load and temperatures, per-core activity, FPS and
 
 The installer detects available hardware, lets the user choose the target display, GPU and primary storage device, and hides unavailable sensors instead of presenting invented zeroes. It also includes subtle periodic movement intended to reduce long-lived static elements on OLED displays.
 
+Version 1.1.0 adds a configurable firefly-style ambient background and persistent visibility controls for the processor panel, FPS/alerts panel and clock. Hidden modules remain available to event reports. On the development machine, the complete stack averaged about 457 MB RAM and 5.4% total CPU with the visual effect at its maximum setting; actual usage varies by hardware and configuration.
+
 The project is public and I am looking for testers with different NVIDIA, AMD and Intel configurations, resolutions and DPI scales.
 
 Repository and latest release: https://github.com/alienmau/AlienGamer-Mode
@@ -78,6 +83,8 @@ AlienGamer Mode: adaptive Rainmeter dashboard and HWiNFO event-report workflow
 Hello. I am sharing **AlienGamer Mode**, an open-source Windows dashboard that consumes HWiNFO Shared Memory through a local bridge and renders an adaptive Rainmeter skin.
 
 The project validates sensor labels, source, units, ranges and FPS/frame-time coherence before publishing values. Missing or ambiguous sensors are reported as unavailable rather than converted to zero. The generated layout adapts to the detected logical processors, selected GPU/storage device, monitor resolution and DPI scale.
+
+Version 1.1.0 also adds a configurable lightweight firefly background and persistent module visibility without interrupting the HWiNFO bridge.
 
 It also includes a user-triggered event recorder. During a perceived gameplay problem, the user records a bounded interval and receives an Excel report with time-series samples, percentiles, maximum values, active processes and available thermal or power-limit flags. The report is intended as diagnostic context, not as a definitive hardware diagnosis.
 

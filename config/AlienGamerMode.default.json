@@ -49,7 +49,17 @@
     "performanceCore": "255,45,220,255",
     "efficiencyCore": "40,235,255,255",
     "genericCore": "155,255,50,255",
-    "nvidiaGreen": "118,185,0,255"
+    "nvidiaGreen": "118,185,0,255",
+    "backgroundEffect": {
+      "enabled": true,
+      "particleCount": 26,
+      "speed": 0.65,
+      "sizeScale": 1.0,
+      "color": "255,112,20",
+      "updateFps": 10,
+      "minimumParticles": 8,
+      "maximumParticles": 48
+    }
   },
   "features": {
     "clock": true,
@@ -58,6 +68,8 @@
     "fps": true,
     "frameTime": true,
     "perLogicalProcessor": true,
+    "processorPanelVisible": true,
+    "performancePanelVisible": true,
     "thermalAlerts": true,
     "powerLimitAlert": true,
     "fanSpeeds": false

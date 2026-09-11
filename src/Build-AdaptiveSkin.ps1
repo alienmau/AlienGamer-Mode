@@ -17,6 +17,20 @@ $offsetX = [Math]::Floor(([double]$monitor.width - $referenceWidth * $scale) / 2
 $offsetY = [Math]::Floor(([double]$monitor.height - $referenceHeight * $scale) / 2)
 $matrix = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, $offsetX, $offsetY)
 
+$backgroundEffect = if ($profile.appearance -and $profile.appearance.backgroundEffect) { $profile.appearance.backgroundEffect } else { $null }
+$backgroundEnabled = if ($null -ne $backgroundEffect -and $null -ne $backgroundEffect.enabled) { [bool]$backgroundEffect.enabled } else { $true }
+$backgroundParticleCount = if ($backgroundEffect -and $null -ne $backgroundEffect.particleCount) { [Math]::Max(8, [Math]::Min(48, [int]$backgroundEffect.particleCount)) } else { 26 }
+$backgroundSpeed = if ($backgroundEffect -and $null -ne $backgroundEffect.speed) { [Math]::Max(0.2, [Math]::Min(1.5, [double]$backgroundEffect.speed)) } else { 0.65 }
+$backgroundSizeScale = if ($backgroundEffect -and $null -ne $backgroundEffect.sizeScale) { [Math]::Max(0.7, [Math]::Min(1.6, [double]$backgroundEffect.sizeScale)) } else { 1.0 }
+$backgroundColor = if ($backgroundEffect -and ([string]$backgroundEffect.color) -match '^\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*$') {
+    '{0},{1},{2}' -f [Math]::Min(255,[int]$Matches[1]), [Math]::Min(255,[int]$Matches[2]), [Math]::Min(255,[int]$Matches[3])
+} else { '255,112,20' }
+$backgroundFps = if ($backgroundEffect -and $null -ne $backgroundEffect.updateFps) { [Math]::Max(2, [Math]::Min(10, [int]$backgroundEffect.updateFps)) } else { 10 }
+$backgroundDivider = [Math]::Max(1, [Math]::Round(10 / $backgroundFps))
+$processorPanelVisible = if ($profile.features -and $null -ne $profile.features.processorPanelVisible) { [bool]$profile.features.processorPanelVisible } else { $true }
+$performancePanelVisible = if ($profile.features -and $null -ne $profile.features.performancePanelVisible) { [bool]$profile.features.performancePanelVisible } else { $true }
+$clockVisible = if ($profile.features -and $null -ne $profile.features.clock) { [bool]$profile.features.clock } else { $true }
+
 # La interfaz anima a 10 FPS, pero sensores y cálculos conservan su cadencia
 # original. ClockScript queda a 10 FPS y evita reconstruir dígitos sin cambios.
 $text = [regex]::Replace($text, '(?m)^UpdateDivider=(\d+)$', {
@@ -24,6 +38,7 @@ $text = [regex]::Replace($text, '(?m)^UpdateDivider=(\d+)$', {
     'UpdateDivider=' + ([int]$match.Groups[1].Value * 10)
 })
 $text = [regex]::Replace($text, '(?ms)(^\[ClockScript\].*?^UpdateDivider=)\d+', '${1}1', 1)
+$text = [regex]::Replace($text, '(?ms)(^\[BackgroundScript\].*?^UpdateDivider=)\d+', { param($m) $m.Groups[1].Value + $backgroundDivider }, 1)
 $text = [regex]::Replace($text, '(?ms)(^\[SMOOTH_[^\]]+\].*?^UpdateDivider=)\d+', '${1}1')
 
 $text = $text -replace '(?m)^WindowX=.*$', ('WindowX={0}' -f [int]$monitor.x)
@@ -65,6 +80,30 @@ if ($profile.appearance) {
         if ($value) { $text = [regex]::Replace($text, '(?m)^' + $entry.Key + '=.*$', ($entry.Key + '=' + $value), 1) }
     }
 }
+$text = [regex]::Replace($text, '(?m)^BackgroundEffectEnabled=.*$', ('BackgroundEffectEnabled=' + $(if ($backgroundEnabled) { '1' } else { '0' })), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundParticleCount=.*$', ('BackgroundParticleCount=' + $backgroundParticleCount), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundParticleSpeed=.*$', ('BackgroundParticleSpeed=' + $backgroundSpeed.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundParticleSize=.*$', ('BackgroundParticleSize=' + $backgroundSizeScale.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundParticleColor=.*$', ('BackgroundParticleColor=' + $backgroundColor), 1)
+
+$particleMeters = New-Object Text.StringBuilder
+foreach ($particleIndex in 1..48) {
+    [void]$particleMeters.AppendLine(@"
+[Particle$particleIndex]
+Meter=Image
+ImageName=#@#ParticleGlow.png
+X=-100
+Y=-100
+W=12
+H=12
+ImageTint=#BackgroundParticleColor#
+ImageAlpha=0
+PreserveAspectRatio=1
+Group=AmbientParticles
+DynamicVariables=1
+"@)
+}
+$text = $text.Replace(';__PARTICLE_METERS__', $particleMeters.ToString().TrimEnd())
 
 $coreCount = @($profile.cores).Count
 $totalFields = 14 + $coreCount
@@ -198,6 +237,31 @@ AntiAlias=1
     $text += $generated.ToString()
 }
 
+# Mark optional visual modules before applying the common responsive transform.
+$processorMeters = '^(?:Block_CORES|Tab_CORES|MeterCoresTitle|MeterCoresLegend|Outline_CORE\d+|Ring_CORETEMP\d+|Value_CORETEMP\d+|Label_CORETEMP\d+)$'
+$performanceMeters = '^(?:GameStatusBackground|FPSLabel|FPSValue|FrameTimeLabel|FrameTimeValue|FrameTimeStatus|FrameTimeHelpCircle|FrameTimeHelpText|AlertCPUText|AlertGPUText|AlertPowerText|AlertCPUBackground|AlertGPUBackground|AlertPowerBackground|AlertCPUActive|AlertGPUActive|AlertPowerActive)$'
+$clockMeters = '^(?:ClockDigit[1-6]|ClockColons)$'
+$text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
+    param($match)
+    $block = $match.Value
+    $sectionName = $match.Groups[1].Value
+    $moduleGroup = $null
+    $moduleVisible = $true
+    if ($sectionName -match $processorMeters) { $moduleGroup = 'ProcessorPanel'; $moduleVisible = $processorPanelVisible }
+    elseif ($sectionName -match $performanceMeters) { $moduleGroup = 'PerformancePanel'; $moduleVisible = $performancePanelVisible }
+    elseif ($sectionName -match $clockMeters) { $moduleGroup = 'ClockPanel'; $moduleVisible = $clockVisible }
+    if ($moduleGroup -and $block -match '(?m)^Meter=') {
+        if ($block -match '(?m)^Group=') { $block = [regex]::Replace($block, '(?m)^Group=[^\r\n]*', { param($m) $m.Value + '|' + $moduleGroup }, 1) }
+        else { $block = $block.TrimEnd("`r","`n") + "`r`nGroup=$moduleGroup`r`n" }
+        if (-not $moduleVisible) {
+            if ($block -match '(?m)^Hidden=') { $block = [regex]::Replace($block, '(?m)^Hidden=.*$', 'Hidden=1', 1) }
+            else { $block = $block.TrimEnd("`r","`n") + "`r`nHidden=1`r`n" }
+        }
+        return $block.TrimEnd("`r","`n") + "`r`n`r`n"
+    }
+    return $block
+})
+
 # Transform every visual meter as one responsive canvas. The full-screen black
 # background remains fixed; content gets a shared group for safe OLED shifting.
 $text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
@@ -205,7 +269,7 @@ $text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
     $block = $match.Value
     $sectionName = $match.Groups[1].Value
     if ($block -match '(?m)^Meter=' -and $sectionName -ne 'MeterBackground') {
-        if ($block -match '(?m)^Group=(.*)$') { $block = [regex]::Replace($block, '(?m)^Group=(.*)$', 'Group=$1|OLEDShift', 1) }
+        if ($block -match '(?m)^Group=') { $block = [regex]::Replace($block, '(?m)^Group=[^\r\n]*', { param($m) $m.Value + '|OLEDShift' }, 1) }
         else { $block = $block.TrimEnd("`r","`n") + "`r`nGroup=OLEDShift`r`n" }
         if ($block -notmatch '(?m)^TransformationMatrix=') { $block = $block.TrimEnd("`r","`n") + "`r`nTransformationMatrix=$matrix`r`n" }
         return $block.TrimEnd("`r","`n") + "`r`n`r`n"
@@ -286,6 +350,14 @@ $outputIni = Join-Path $OutputDirectory 'AlienGamerMode.ini'
 $text | Set-Content -LiteralPath $outputIni -Encoding Unicode
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'skin\MatrixClock.lua') -Destination (Join-Path $resources 'MatrixClock.lua') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'skin\RingAnimator.lua') -Destination (Join-Path $resources 'RingAnimator.lua') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'skin\BackgroundAnimator.lua') -Destination (Join-Path $resources 'BackgroundAnimator.lua') -Force
+$particleAssetCandidates = @(
+    (Join-Path $InstallRoot 'assets\ParticleGlow.png'),
+    (Join-Path $PSScriptRoot '..\assets\ParticleGlow.png')
+)
+$particleAsset = $particleAssetCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $particleAsset) { throw 'Falta el recurso gráfico ParticleGlow.png.' }
+Copy-Item -LiteralPath $particleAsset -Destination (Join-Path $resources 'ParticleGlow.png') -Force
 $signatureCandidates = @(
     (Join-Path $InstallRoot 'assets\AlienmauSignature.png'),
     (Join-Path $PSScriptRoot '..\assets\AlienmauSignature.png')

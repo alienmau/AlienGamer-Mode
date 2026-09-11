@@ -191,6 +191,7 @@ $profile = [ordered]@{
     sourceConfig = $ConfigPath
     labels = $config.labels
     appearance = $config.appearance
+    features = $config.features
 }
 
 $parent = Split-Path -Parent $OutputPath

@@ -58,6 +58,24 @@ Las dimensiones se obtienen en coordenadas efectivas de Windows, no en píxeles 
 
 El generador valida que no se pierdan los encabezados `[MeterBackground]`, `[HWiNFO_BRIDGE]` ni los ocho campos posteriores a los procesadores. Así se conserva el contrato dinámico completo de `14 + procesadores monitorizados` y se evitan lecturas literales como `%1` o valores vacíos.
 
+### Fondo ambiental
+
+`BackgroundAnimator.lua` controla hasta 48 medidores de imagen pequeños basados en `ParticleGlow.png`, un degradado radial blanco que Rainmeter tiñe con el color configurado. Por defecto se muestran 26. Cada partícula mantiene estado propio de posición, profundidad, tamaño, velocidad, deriva de dos frecuencias, pulso luminoso y altura de desaparición. En cada nacimiento se asigna una probabilidad del 70% de recorrer hasta el 75% de la altura y del 30% de completar el 100%. El máximo de tamaño anterior se normalizó como la nueva referencia de 100%, ajustable entre 70% y 160%. La animación trabaja a 10 FPS y utiliza `smoothstep` para entradas, salidas y cambios del factor global de tamaño. Los medidores reciben la misma `TransformationMatrix` que la interfaz, por lo que escalan y se centran junto con los módulos.
+
+Las variaciones aleatorias se generan localmente al iniciar. Los cambios de brillo usan objetivos e interpolación progresiva para evitar parpadeos bruscos. Los contenedores usan rellenos oscuros semitransparentes y bordes de baja luminancia para simular cristal ahumado sin depender de complementos externos de desenfoque.
+
+El fondo no consulta la salida de audio. El agente de bandeja persiste `enabled`, `particleCount`, `speed`, `sizeScale` y `color` dentro de `appearance.backgroundEffect`, y actualiza las variables de Rainmeter en vivo. Al desactivarlo, `BackgroundScript` oculta el grupo `AmbientParticles` y deja de calcular trayectorias; conserva únicamente una comprobación mínima de estado para poder reactivarse sin recargar la skin.
+
+## Módulos visibles y persistencia
+
+La configuración `features.processorPanelVisible` controla el contenedor, encabezado y medidores de procesadores lógicos agrupados como `ProcessorPanel`. `features.performancePanelVisible` controla el panel flotante completo de FPS, *frame time* y alertas, agrupado como `PerformancePanel`. `features.clock` controla los seis dígitos y separadores agrupados como `ClockPanel`. Los tres valores son `true` por defecto y se administran desde **Módulos visibles** en la bandeja.
+
+En el rango crítico, los anillos de uso de CPU/GPU, RAM y temperaturas de CPU, GPU, núcleo máximo y almacenamiento mantienen opacidad completa. `MatrixClock.lua` produce el destello alternando suavemente entre rojo base `195,0,12` y rojo intenso `255,0,28`; no interpola hacia blanco, rosa ni transparencia.
+
+Al cambiar una opción, el agente guarda primero el JSON del usuario y, si el monitor está activo, actualiza las preferencias del perfil ya validado y regenera la skin sin reiniciar HWiNFO ni el puente de sensores. Esta regeneración conserva correctamente los estados internos de las alertas; al abrir el programa de nuevo, la skin nace ya con los medidores elegidos visibles u ocultos. Los sensores ocultos continúan capturándose en los reportes de eventos.
+
+La selección se aplica primero al grupo visual para que ocultar sea perceptible de inmediato y se presenta una ventana temporal de progreso mientras se reconstruye la skin. El perfil reutiliza las asociaciones de sensores ya validadas; no repite el descubrimiento del hardware. El puente trata las solicitudes que Rainmeter cancela durante un refresco como desconexiones normales del cliente, evitando que una actualización visual detenga la fuente de datos o produzca ceros y `N/D` transitorios.
+
 ## Clasificación P/E
 
 Windows expone `EfficiencyClass` mediante `GetSystemCpuSetInformation`. Cuando hay varias clases, la superior se trata como rendimiento y las demás como eficiencia. Si Windows no lo distingue, la etiqueta es `CORE`; nunca se inventa P-CORE/E-CORE.
@@ -70,6 +88,8 @@ Windows expone `EfficiencyClass` mediante `GetSystemCpuSetInformation`. Cuando h
 - el fondo permanece fijo para no revelar una franja del escritorio;
 - sin grandes superficies blancas;
 - contornos y texto con luminancia contenida.
+- partículas y trazadores con brillo limitado, desplazamiento continuo y áreas luminosas pequeñas;
+- fondo configurable y desactivable para reducir actividad visual.
 
 El pixel shift reduce la permanencia exacta de elementos, pero no sustituye las funciones de cuidado del panel, salvapantallas ni apagado automático del fabricante.
 

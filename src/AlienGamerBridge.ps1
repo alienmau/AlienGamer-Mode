@@ -108,8 +108,10 @@ try {
     $listener.Start()
     "$(Get-Date -Format o) AlienGamer bridge listening on 127.0.0.1:$Port" | Set-Content -LiteralPath $logFile -Encoding UTF8
     while ($true) {
-        $client = $listener.AcceptTcpClient()
+        $client = $null
+        $reader = $null
         try {
+            $client = $listener.AcceptTcpClient()
             $stream = $client.GetStream()
             $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::ASCII, $false, 2048, $true)
             $requestLine = $reader.ReadLine()
@@ -124,10 +126,17 @@ try {
                 }
             } catch {
                 "$(Get-Date -Format o) $($_.Exception.Message)" | Add-Content -LiteralPath $logFile -Encoding UTF8
-                Send-Response $stream 503 'application/json' (([ordered]@{ok=$false; error=$_.Exception.Message}) | ConvertTo-Json -Compress)
+                try { Send-Response $stream 503 'application/json' (([ordered]@{ok=$false; error=$_.Exception.Message}) | ConvertTo-Json -Compress) }
+                catch { "$(Get-Date -Format o) Cliente desconectado antes de recibir la respuesta." | Add-Content -LiteralPath $logFile -Encoding UTF8 }
             }
-            $reader.Dispose()
-        } finally { $client.Dispose() }
+        } catch {
+            # Rainmeter puede cancelar una solicitud durante !Refresh. Esa
+            # desconexión pertenece sólo al cliente y nunca debe cerrar el puente.
+            "$(Get-Date -Format o) Solicitud interrumpida: $($_.Exception.Message)" | Add-Content -LiteralPath $logFile -Encoding UTF8
+        } finally {
+            if ($reader) { $reader.Dispose() }
+            if ($client) { $client.Dispose() }
+        }
     }
 } finally {
     $listener.Stop()
