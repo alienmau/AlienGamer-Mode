@@ -4,6 +4,14 @@ Este archivo contiene textos listos para copiar y adaptar. Antes de publicar, re
 
 La estrategia de la versión 1.1.0 prioriza comunidades hispanohablantes de Latinoamérica porque la interfaz actual está en español. Rainmeter y HWiNFO pueden recibir una publicación técnica bilingüe como difusión secundaria, indicando claramente el idioma de la interfaz. La difusión internacional general se ampliará cuando la siguiente versión planificada incorpore inglés.
 
+## Publicaciones realizadas para 1.1.0
+
+- Reddit, comunidad `r/PC_Gamer` (español): https://www.reddit.com/r/PC_Gamer/comments/1we2ksb/cre%C3%A9_aliengamer_mode_monitor_de_sensores_que/
+- Rainmeter Forums, System Monitoring (bilingüe): https://forum.rainmeter.net/viewtopic.php?t=46037
+- HWiNFO Forum, 3rd Party Extensions, Plug-ins, Gadgets (bilingüe): https://www.hwinfo.com/forum/threads/aliengamer-mode-1-1-0-%E2%80%94-monitor-en-espa%C3%B1ol-with-validated-hwinfo-event-reports.11325/
+
+La publicación en la comunidad de Lenovo en español queda pendiente porque el servidor rechazó temporalmente el acceso automatizado. No duplicar los tres mensajes anteriores al continuar la difusión.
+
 ## Enlaces oficiales
 
 - Proyecto: https://github.com/alienmau/AlienGamer-Mode
