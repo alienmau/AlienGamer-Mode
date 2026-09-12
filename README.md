@@ -137,6 +137,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-AlienGamerM
 
 Antes de publicar una versión se recomienda probarla en equipos NVIDIA, AMD e Intel; CPU híbrida y convencional; varias resoluciones y escalas DPI; y configuraciones con sensores opcionales ausentes.
 
+## Próxima mejora planificada
+
+La siguiente evolución prevista es incorporar soporte multidioma. El español continuará como idioma predeterminado y se añadirá inglés como primera traducción. La implementación deberá centralizar los textos del monitor, agente de bandeja, configurador, instalador, mensajes y reportes en archivos de idioma; detectar inicialmente el idioma de Windows; permitir cambiarlo manualmente; y conservar la selección del usuario.
+
 ## Privacidad y seguridad
 
 El monitor trabaja localmente. Los registros solo se crean cuando el usuario inicia una grabación y se guardan en la ubicación elegida. El reporte puede incluir nombres de procesos y características del equipo; revísalo antes de compartirlo y no publiques información que consideres privada.

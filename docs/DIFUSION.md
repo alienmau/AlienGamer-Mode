@@ -2,6 +2,8 @@
 
 Este archivo contiene textos listos para copiar y adaptar. Antes de publicar, revisa las reglas de cada comunidad, declara que eres el creador y evita repetir el mismo mensaje en varios espacios el mismo día.
 
+La estrategia de la versión 1.1.0 prioriza comunidades hispanohablantes de Latinoamérica porque la interfaz actual está en español. Rainmeter y HWiNFO pueden recibir una publicación técnica bilingüe como difusión secundaria, indicando claramente el idioma de la interfaz. La difusión internacional general se ampliará cuando la siguiente versión planificada incorpore inglés.
+
 ## Enlaces oficiales
 
 - Proyecto: https://github.com/alienmau/AlienGamer-Mode

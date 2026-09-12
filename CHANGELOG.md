@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## Próxima versión — planificada
+
+- Incorporar un sistema de internacionalización sin duplicar la lógica de la skin ni del agente.
+- Mantener español como idioma predeterminado y añadir inglés como segunda opción.
+- Traducir el monitor, menús de bandeja, configurador, instalador, avisos, reportes y documentación orientada al usuario.
+- Detectar inicialmente el idioma de Windows, permitir cambiarlo manualmente y conservar la selección entre sesiones.
+- Centralizar todos los textos traducibles en archivos de idioma para facilitar futuras traducciones sin modificar código.
+
 ## 1.1.0 — 11 de septiembre de 2026
 
 - Añade el submenú persistente **Módulos visibles** para mostrar u ocultar procesadores, el bloque flotante de FPS y alertas, y el reloj.
