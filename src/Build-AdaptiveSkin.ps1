@@ -6,7 +6,10 @@
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Localization.psm1') -Force
 $profile = Get-Content -LiteralPath $ProfilePath -Raw | ConvertFrom-Json
+$language = Resolve-AGLanguage $(if ($profile.language) { [string]$profile.language } else { 'es-MX' })
+$ui = Get-AGTranslations -Language $language
 $text = Get-Content -LiteralPath $TemplatePath -Raw -Encoding UTF8
 $referenceWidth = 1711.0
 $referenceHeight = 1023.0
@@ -65,14 +68,36 @@ $text = [regex]::Replace($text, '(?ms)(^\[MeterBackground\].*?^Shape=Rectangle )
 
 $model = ("$($profile.computer.manufacturer) $($profile.computer.model)").Trim().ToUpperInvariant()
 if (-not $model) { $model = $profile.computer.name.ToUpperInvariant() }
-$subtitleSuffix = if ($profile.labels.subtitleSuffix) { [string]$profile.labels.subtitleSuffix } else { 'MONITOR TÉRMICO EN VIVO' }
-$subtitleSuffix = $subtitleSuffix -replace '(?i)\bTERMICO\b', 'TÉRMICO'
+$subtitleSuffix = [string]$ui.skin.subtitle
 $appTitle = if ($profile.labels.appTitle) { [string]$profile.labels.appTitle } else { 'ALIENGAMER MODE' }
 $signature = if ($profile.labels.signature) { [string]$profile.labels.signature } else { 'by Alienmau' }
 $text = [regex]::Replace($text, '(?ms)(^\[MeterTitle\].*?^Text=)[^\r\n]*', { param($m) $m.Groups[1].Value + $appTitle }, 1)
 $text = [regex]::Replace($text, '(?ms)(^\[MeterSignature\].*?^Text=)[^\r\n]*', { param($m) $m.Groups[1].Value + $signature }, 1)
 $text = [regex]::Replace($text, '(?ms)(^\[MeterSubtitle\].*?^Text=)[^\r\n]*', { param($m) $m.Groups[1].Value + $model + '  /  ' + $subtitleSuffix }, 1)
-$text = $text -replace '(?m)^Text=SSD$', ('Text={0}' -f $profile.storageLabel)
+$storageLabel = if ($profile.storageLabel -eq 'UNIDAD') { [string]$ui.skin.storageFallback } else { [string]$profile.storageLabel }
+$text = $text -replace '(?m)^Text=SSD$', ('Text={0}' -f $storageLabel)
+
+function Set-MeterText([string]$Section,[string]$Value) {
+    $script:text = [regex]::Replace($script:text, '(?ms)(^\[' + [regex]::Escape($Section) + '\].*?^Text=)[^\r\n]*', { param($m) $m.Groups[1].Value + $Value }, 1)
+}
+function Set-MeterTooltip([string]$Section,[string]$Value) {
+    $script:text = [regex]::Replace($script:text, '(?ms)(^\[' + [regex]::Escape($Section) + '\].*?^ToolTipText=)[^\r\n]*', { param($m) $m.Groups[1].Value + $Value }, 1)
+}
+Set-MeterText 'MeterUseGroup' ([string]$ui.skin.systemUse)
+Set-MeterText 'MeterTempGroup3' ([string]$ui.skin.temperatures)
+Set-MeterText 'MeterCoresTitle' ([string]$ui.skin.processorsLoad)
+Set-MeterText 'FrameTimeStatus' ([string]$ui.skin.notAvailable)
+Set-MeterText 'MeterRecordLabel' ([string]$ui.skin.recordEvent)
+Set-MeterTooltip 'FrameTimeHelpCircle' ([string]$ui.skin.frameTimeHelp)
+Set-MeterTooltip 'FrameTimeHelpText' ([string]$ui.skin.frameTimeHelp)
+Set-MeterTooltip 'MeterRecordButton' ([string]$ui.skin.recordTooltip)
+Set-MeterTooltip 'MeterOffButton' ([string]$ui.skin.offTooltip)
+Set-MeterTooltip 'MeterOffLabel' ([string]$ui.skin.offTooltip)
+$text = $text.Replace('Text "N/D"', ('Text "' + [string]$ui.skin.notAvailable + '"'))
+$text = $text.Replace('Text "¡EXCELENTE!"', ('Text "' + [string]$ui.skin.excellent + '"'))
+$text = $text.Replace('Text "FLUIDO"', ('Text "' + [string]$ui.skin.smooth + '"'))
+$text = $text.Replace('Text "ATENCIÓN"', ('Text "' + [string]$ui.skin.attention + '"'))
+$text = $text.Replace('Text "BAJA FLUIDEZ"', ('Text "' + [string]$ui.skin.lowFluidity + '"'))
 if ($profile.appearance) {
     $colorMap = [ordered]@{ Bg='background'; PCore='performanceCore'; ECore='efficiencyCore'; Green='genericCore'; NvidiaGreen='nvidiaGreen' }
     foreach ($entry in $colorMap.GetEnumerator()) {
@@ -125,9 +150,9 @@ $monitored = $coreCount
 $pPhysical = [int]$profile.displaySummary.performancePhysicalCores
 $ePhysical = [int]$profile.displaySummary.efficiencyPhysicalCores
 $legend = if ($pPhysical + $ePhysical -gt 0) {
-    "$physical NÚCLEOS FÍSICOS / $logical HILOS  |  $pPhysical NÚCLEOS DE RENDIMIENTO  |  $ePhysical NÚCLEOS EFICIENTES"
+    "$physical $($ui.skin.physicalCores) / $logical $($ui.skin.threads)  |  $pPhysical $($ui.skin.performanceCores)  |  $ePhysical $($ui.skin.efficiencyCores)"
 } else {
-    "$physical NÚCLEOS FÍSICOS / $logical HILOS  |  $monitored PROCESADORES LÓGICOS MONITORIZADOS"
+    "$physical $($ui.skin.physicalCores) / $logical $($ui.skin.threads)  |  $monitored $($ui.skin.logicalProcessors)"
 }
 $text = [regex]::Replace($text, '(?ms)(^\[MeterCoresLegend\].*?^Text=)[^\r\n]*', { param($m) $m.Groups[1].Value + $legend }, 1)
 
@@ -139,7 +164,7 @@ foreach ($measureName in @('GPU_TEMP','GPU_USE','CPU_TEMP','CPU_USE','SSD_TEMP',
     $text = [regex]::Replace($text, $sectionPattern, {
         param($match)
         if ($match.Value -match '(?m)^Substitute=') { return $match.Value }
-        return $match.Value.TrimEnd("`r","`n") + "`r`nSubstitute=`"-1`":`"N/D`"`r`n`r`n"
+        return $match.Value.TrimEnd("`r","`n") + "`r`nSubstitute=`"-1`":`"$($ui.skin.notAvailable)`"`r`n`r`n"
     }, 1)
 }
 
@@ -323,7 +348,7 @@ LeftMouseUpAction=["C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -
 MouseOverAction=[!SetVariable RecordHover 1]
 MouseLeaveAction=[!SetVariable RecordHover 0]
 MouseActionCursor=1
-ToolTipText=Iniciar o finalizar la grabación de un evento
+ToolTipText=$($ui.skin.recordTooltip)
 DynamicVariables=1
 
 [HitArea_Off]
@@ -337,7 +362,7 @@ LeftMouseUpAction=["C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -
 MouseOverAction=[!SetVariable OffHover 1]
 MouseLeaveAction=[!SetVariable OffHover 0]
 MouseActionCursor=1
-ToolTipText=Desactivar AlienGamer Mode
+ToolTipText=$($ui.skin.offTooltip)
 DynamicVariables=1
 "@
 

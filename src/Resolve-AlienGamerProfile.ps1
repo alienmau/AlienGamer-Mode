@@ -164,6 +164,7 @@ if ($fpsReading -and $frameReading -and [double]$fpsReading.Value -gt 0.5 -and [
 $storageLabel = if ($storage.busType -eq 'NVMe') { 'NVME' } elseif ($storage.mediaType -eq 'SSD') { 'SSD' } elseif ($storage.mediaType -eq 'HDD') { 'HDD' } else { 'UNIDAD' }
 $profile = [ordered]@{
     schemaVersion = 2
+    language = if ($config.language) { [string]$config.language } else { 'es-MX' }
     generatedAt = (Get-Date).ToString('o')
     bridgePort = [int]$config.dataSource.bridgePort
     unavailableValue = [double]$config.dataSource.unavailableValue

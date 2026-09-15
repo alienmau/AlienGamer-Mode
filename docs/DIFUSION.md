@@ -2,7 +2,7 @@
 
 Este archivo contiene textos listos para copiar y adaptar. Antes de publicar, revisa las reglas de cada comunidad, declara que eres el creador y evita repetir el mismo mensaje en varios espacios el mismo día.
 
-La estrategia de la versión 1.1.0 prioriza comunidades hispanohablantes de Latinoamérica porque la interfaz actual está en español. Rainmeter y HWiNFO pueden recibir una publicación técnica bilingüe como difusión secundaria, indicando claramente el idioma de la interfaz. La difusión internacional general se ampliará cuando la siguiente versión planificada incorpore inglés.
+Desde la versión 1.2.0 la interfaz permite elegir español o inglés durante la instalación y cambiar el idioma desde el icono de bandeja. La difusión continúa priorizando comunidades hispanohablantes de Latinoamérica, pero Rainmeter, HWiNFO y otras comunidades internacionales ya pueden recibir publicaciones en inglés sin advertir una limitación de idioma.
 
 ## Publicaciones realizadas para 1.1.0
 

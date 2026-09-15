@@ -15,16 +15,23 @@ $StopPath = Join-Path $RuntimeRoot 'recording.stop'
 $Rainmeter = 'C:\Program Files\Rainmeter\Rainmeter.exe'
 $PendingRoot = Join-Path $env:LOCALAPPDATA 'AlienGamerMode\GrabacionesPendientes'
 Add-Type -AssemblyName Microsoft.VisualBasic
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Localization.psm1') -Force
+$language = 'es-MX'
+try {
+    $language = Resolve-AGLanguage ([string](Get-Content (Join-Path $RuntimeRoot 'AlienGamerMode.json') -Raw | ConvertFrom-Json).language)
+} catch { }
+$ui = Get-AGTranslations -Language $language
+function T([string]$Path) { return Get-AGText -Translations $ui -Path $Path }
 
 function Set-RainmeterRecordingState([bool]$Recording) {
     if (-not (Test-Path -LiteralPath $Rainmeter)) { return }
     if ($Recording) {
         & $Rainmeter '!SetVariable' 'RecordingActive' '1' $RainmeterConfig
-        & $Rainmeter '!SetOption' 'MeterRecordLabel' 'Text' 'FINALIZAR GRABACIÓN' $RainmeterConfig
+        & $Rainmeter '!SetOption' 'MeterRecordLabel' 'Text' (T 'skin.finishRecording') $RainmeterConfig
         & $Rainmeter '!ShowMeter' 'MeterRecordingDot' $RainmeterConfig
     } else {
         & $Rainmeter '!SetVariable' 'RecordingActive' '0' $RainmeterConfig
-        & $Rainmeter '!SetOption' 'MeterRecordLabel' 'Text' 'GRABAR EVENTO' $RainmeterConfig
+        & $Rainmeter '!SetOption' 'MeterRecordLabel' 'Text' (T 'skin.recordEvent') $RainmeterConfig
         & $Rainmeter '!HideMeter' 'MeterRecordingDot' $RainmeterConfig
     }
     & $Rainmeter '!UpdateMeter' 'MeterRecordButton' $RainmeterConfig
@@ -366,10 +373,10 @@ function Finish-Recording([string]$CsvPath, [string]$MetadataPath, [datetime]$St
     $dialog.InitialDirectory = [Environment]::GetFolderPath('MyDocuments')
     if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         New-ExcelReport $CsvPath $MetadataPath $dialog.FileName
-        [System.Windows.Forms.MessageBox]::Show("Reporte guardado correctamente en:`n$($dialog.FileName)", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.saved')`n$($dialog.FileName)", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
         Remove-Item -LiteralPath $CsvPath,$MetadataPath -Force -ErrorAction SilentlyContinue
     } else {
-        [System.Windows.Forms.MessageBox]::Show("No se perdió la captura. Los datos pendientes permanecen en:`n$CsvPath", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.pending')`n$CsvPath", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
     }
 }
 
@@ -401,7 +408,7 @@ if ($Worker) {
         Finish-Recording $state.CsvPath $state.MetadataPath $startedAt $startProcesses
     } catch {
         Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
-        [System.Windows.Forms.MessageBox]::Show("No fue posible completar el reporte:`n$($_.Exception.Message)`n`nLa captura CSV se conserva en:`n$($state.CsvPath)", 'AlienGamer Mode', 'OK', 'Error') | Out-Null
+        [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.failed')`n$($_.Exception.Message)`n`n$(T 'recorder.csvPreserved')`n$($state.CsvPath)", 'AlienGamer Mode', 'OK', 'Error') | Out-Null
     } finally {
         Remove-Item -LiteralPath $StatePath,$StopPath -Force -ErrorAction SilentlyContinue
         Set-RainmeterRecordingState $false

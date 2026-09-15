@@ -30,7 +30,7 @@ La skin generada se guarda en Unicode UTF-16 LE, formato compatible con Rainmete
 
 El reloj matricial declara físicamente las 35 celdas Shape dentro de cada uno de sus seis dígitos. No depende de crear formas durante la ejecución ni únicamente de heredarlas mediante `MeterStyle`. `MatrixClock.lua` sólo cambia posición y color sobre opciones que Rainmeter ya cargó. Este archivo debe conservarse en UTF-8 sin BOM: el intérprete Lua integrado no ejecuta el script cuando encuentra la marca `EF BB BF` al inicio.
 
-El botón OFF tiene cierre redundante: `AlienGamerModeCommand.ps1` desactiva la skin inmediatamente, el evento local solicita al agente cerrar el puente y los procesos que inició, y `FinishAction` vuelve a garantizar la desactivación visual si el agente tarda o no está disponible.
+El botón OFF tiene cierre redundante: `AlienGamerModeCommand.ps1` escribe una solicitud local y también intenta el evento rápido. El agente recoge cualquiera de las dos vías y ejecuta la misma función `Stop-Monitor` que usa la bandeja, cerrando skin, puente y procesos propios en orden. La solicitud escrita evita perder la orden cuando Rainmeter y el agente tienen niveles de permisos diferentes; la desactivación visual directa queda como respaldo si el agente no responde.
 
 Los botones de la skin ejecutan PowerShell directamente mediante `LeftMouseUpAction`; no dependen del complemento `RunCommand`. El agente consulta el estado visible de Rainmeter y `%LOCALAPPDATA%\AlienGamerMode\recording-state.json` para actualizar la bandeja. La grabación distingue `recording` de `finalizing`, evitando iniciar otra captura mientras se genera o guarda el reporte.
 
@@ -75,6 +75,14 @@ En el rango crítico, los anillos de uso de CPU/GPU, RAM y temperaturas de CPU, 
 Al cambiar una opción, el agente guarda primero el JSON del usuario y, si el monitor está activo, actualiza las preferencias del perfil ya validado y regenera la skin sin reiniciar HWiNFO ni el puente de sensores. Esta regeneración conserva correctamente los estados internos de las alertas; al abrir el programa de nuevo, la skin nace ya con los medidores elegidos visibles u ocultos. Los sensores ocultos continúan capturándose en los reportes de eventos.
 
 La selección se aplica primero al grupo visual para que ocultar sea perceptible de inmediato y se presenta una ventana temporal de progreso mientras se reconstruye la skin. El perfil reutiliza las asociaciones de sensores ya validadas; no repite el descubrimiento del hardware. El puente trata las solicitudes que Rainmeter cancela durante un refresco como desconexiones normales del cliente, evitando que una actualización visual detenga la fuente de datos o produzca ceros y `N/D` transitorios.
+
+## Localización
+
+`AlienGamer.Localization.psm1` normaliza el idioma y carga los recursos JSON de `src/locales/`. La versión 1.2.0 incluye `es-MX.json` y `en-US.json`. El código consulta claves semánticas como `tray.stopMonitor`, `skin.frameTimeHelp` o `installer.complete`; para añadir otro idioma se crea un archivo con la misma estructura, sin duplicar la lógica del agente o la skin.
+
+Inno Setup muestra siempre su selector de idioma y pasa `{language}` al instalador WinForms. El instalador guarda el código normalizado en `language` dentro de `AlienGamerMode.json`. `Resolve-AlienGamerProfile.ps1` lo copia al perfil validado y `Build-AdaptiveSkin.ps1` genera los textos adecuados conservando UTF-16 LE.
+
+El submenú **Idioma / Language** actualiza el JSON, el perfil y los textos de la bandeja. Cuando la skin está activa se reconstruye y refresca reutilizando las asociaciones de sensores existentes; no reinicia HWiNFO ni el puente. Cuando está detenida, sólo se guarda la preferencia y se aplica en la siguiente activación.
 
 ## Clasificación P/E
 

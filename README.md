@@ -1,5 +1,7 @@
 # AlienGamer Mode
 
+**Español** · [English](README.en.md)
+
 **Monitoreo adaptable de sensores y componentes del equipo para Windows.**
 
 ![AlienGamer Mode: monitoreo inteligente para gamers](docs/images/AlienGamerMode-social-preview.png)
@@ -41,6 +43,7 @@ Un contador de FPS dice que algo ocurrió; AlienGamer Mode ayuda a conservar el 
 - Agente de bandeja para activar, detener, grabar y cerrar el monitor.
 - Módulos opcionales persistentes para mostrar u ocultar **Procesadores / carga**, **FPS, frame time y alertas**, y el **Reloj**.
 - Selección de monitor, GPU y unidad principal durante la instalación.
+- Interfaz en español e inglés, seleccionable durante la instalación o desde el icono de bandeja sin reiniciar los sensores.
 
 ## Requisitos
 
@@ -78,7 +81,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.1.1.exe`.
+3. Ejecuta `AlienGamerMode-Setup-1.2.0.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -91,6 +94,12 @@ El fondo utiliza pequeñas partículas con degradado radial: el centro conserva 
 Desde el icono de AlienGamer Mode en la bandeja se puede activar o desactivar **Fondo dinámico** y abrir **Configurar luciérnagas...**. El panel permite elegir entre 8 y 48 partículas, ajustar velocidad y tamaño, y seleccionar cualquier color mediante el selector completo de Windows. El mayor tamaño de la calibración anterior ahora equivale al valor base de 100%; la nueva barra permite ajustarlo entre 70% y 160%, con vista previa gradual. Los valores también se conservan en `appearance.backgroundEffect` dentro de `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json`.
 
 El submenú **Módulos visibles** permite ocultar por separado **Procesadores / carga**, **FPS, frame time y alertas** y el **Reloj**. Los tres aparecen en una instalación nueva. La selección se guarda en `features.processorPanelVisible`, `features.performancePanelVisible` y `features.clock`, por lo que se conserva al detener el monitor, cerrar el agente o reiniciar Windows. Ocultar un módulo no elimina sus sensores: siguen disponibles para la grabación técnica de eventos.
+
+## Idioma
+
+El instalador 1.2.0 permite elegir español o inglés. Después de instalar, abre el menú del icono de bandeja y selecciona **Idioma → Español** o **Language → English**. La preferencia se guarda en `language` dentro de `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json`.
+
+Si el monitor está activo, la skin se regenera y refresca sin detener HWiNFO ni el puente de sensores. Si está detenido, el idioma se aplicará en la siguiente activación. No es necesario reiniciar Windows.
 
 ![Vista compacta con Procesadores / carga y reloj ocultos](docs/images/AlienGamerMode-compact.png)
 
@@ -136,10 +145,6 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-AlienGamerM
 ```
 
 Antes de publicar una versión se recomienda probarla en equipos NVIDIA, AMD e Intel; CPU híbrida y convencional; varias resoluciones y escalas DPI; y configuraciones con sensores opcionales ausentes.
-
-## Próxima mejora planificada
-
-La siguiente evolución prevista es incorporar soporte multidioma. El español continuará como idioma predeterminado y se añadirá inglés como primera traducción. La implementación deberá centralizar los textos del monitor, agente de bandeja, configurador, instalador, mensajes y reportes en archivos de idioma; detectar inicialmente el idioma de Windows; permitir cambiarlo manualmente; y conservar la selección del usuario.
 
 ## Privacidad y seguridad
 

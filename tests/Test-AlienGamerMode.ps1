@@ -11,6 +11,21 @@ foreach ($file in Get-ChildItem $root -Recurse -Include *.ps1,*.psm1) {
 
 $config = Get-Content (Join-Path $root 'config\AlienGamerMode.default.json') -Raw | ConvertFrom-Json
 Assert ($config.schemaVersion -eq 2) 'La configuración no usa schemaVersion 2.'
+Assert ($config.language -eq 'es-MX') 'El idioma predeterminado debe ser español de México.'
+Assert ((Test-Path (Join-Path $root 'src\locales\es-MX.json')) -and (Test-Path (Join-Path $root 'src\locales\en-US.json')) -and (Test-Path (Join-Path $root 'src\AlienGamer.Localization.psm1'))) 'Faltan los recursos centrales de idioma.'
+Assert (Test-Path (Join-Path $root 'README.en.md')) 'Falta la documentación principal en inglés.'
+$spanishLocale = Get-Content (Join-Path $root 'src\locales\es-MX.json') -Raw | ConvertFrom-Json
+$englishLocale = Get-Content (Join-Path $root 'src\locales\en-US.json') -Raw | ConvertFrom-Json
+function Get-LocalePaths($Object,[string]$Prefix='') {
+    $paths = @()
+    foreach ($property in $Object.PSObject.Properties) {
+        $path = if ($Prefix) { "$Prefix.$($property.Name)" } else { $property.Name }
+        if ($property.Value -is [Management.Automation.PSCustomObject]) { $paths += Get-LocalePaths $property.Value $path }
+        else { $paths += $path }
+    }
+    return $paths
+}
+Assert (@(Compare-Object (Get-LocalePaths $spanishLocale) (Get-LocalePaths $englishLocale)).Count -eq 0) 'Los archivos de idioma no contienen el mismo conjunto de claves.'
 Assert ($config.dataSource.bridgePort -eq 27843) 'La edición oficial debe usar el puerto local 27843.'
 Assert ($config.appearance.backgroundEffect.enabled -eq $true -and $config.appearance.backgroundEffect.updateFps -le 10) 'El fondo ambiental no tiene una configuración equilibrada y personalizable.'
 Assert ($config.appearance.backgroundEffect.particleCount -ge 8 -and $config.appearance.backgroundEffect.particleCount -le 48 -and $config.appearance.backgroundEffect.speed -ge 0.2 -and $config.appearance.backgroundEffect.sizeScale -ge 0.7 -and $config.appearance.backgroundEffect.sizeScale -le 1.6 -and $config.appearance.backgroundEffect.color -match '^\d+,\d+,\d+$') 'Las luciérnagas no tienen cantidad, velocidad, tamaño y color configurables dentro de límites seguros.'
@@ -29,7 +44,8 @@ Assert ($installerSource -match 'Settings\.Compatibility\s*=\s*2') 'La tarea deb
 Assert ($installerSource -notmatch 'UseUnifiedSchedulingEngine\s*=') 'No se debe tocar UseUnifiedSchedulingEngine porque actualiza la tarea a Win7.'
 Assert ($installerSource -match 'Set-Content -LiteralPath \$Path -Encoding ASCII') 'El INI de HWiNFO debe guardarse como ASCII sin BOM.'
 Assert ($installerSource -match 'function Merge-MissingConfiguration' -and $installerSource -match 'Merge-MissingConfiguration \$config \$configDefaults') 'Las actualizaciones no incorporan parámetros nuevos a configuraciones existentes.'
-Assert ($installerSource -match 'Desinstalar AlienGamer Mode\.lnk' -and $installerSource -match 'installedDocs') 'El paquete no instala documentación o acceso de desinstalación.'
+Assert ($installerSource -match '\$config\.language = \$Language' -and $innoSource -match 'Name: "english"' -and $innoSource -match 'Name: "spanish"' -and $innoSource -match 'ShowLanguageDialog=yes' -and $innoSource -match '-Language ""\{language\}""') 'El instalador no permite seleccionar y guardar español o inglés.'
+Assert ($installerSource -match 'installer\.uninstallShortcut' -and $installerSource -match 'installedDocs') 'El paquete no instala documentación o acceso de desinstalación.'
 Assert ($installerSource -match '(?s)\$form\.ShowDialog\(\).*?if \(\$script:launchAfterClose\)' -and $installerSource -notmatch '\$taskbarCheck\.Checked\) \{ \[Windows\.Forms\.MessageBox\]::Show\(''Windows 11') 'El agente o los avisos todavía pueden superponerse al instalador.'
 Assert ($innoSource -match '-WindowStyle Hidden' -and $innoSource -notmatch 'Flags:[^\r\n]*runhidden' -and $installerSource -match '\$form\.TopMost\s*=\s*\$true') 'El empaquetador puede ocultar nuevamente el formulario de configuración.'
 Assert ($uninstallerSource -match "ProgramData 'AlienGamerMode\\App'" -and $uninstallerSource -match 'SkinPath=') 'El desinstalador no apunta a las rutas reales de programa y skin.'
@@ -61,7 +77,7 @@ Assert ($backgroundAnimatorSource -match 'math\.random\(\)\s*<\s*0\.30' -and $ba
 $testRoot = Join-Path $root 'build\tests'
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
 $syntheticProfile = [ordered]@{
-    schemaVersion=2; bridgePort=27843; unavailableValue=-1
+    schemaVersion=2; language='es-MX'; bridgePort=27843; unavailableValue=-1
     computer=[ordered]@{manufacturer='Equipo';model='Prueba';name='TEST'}
     cpu=[ordered]@{name='CPU de prueba';physicalCores=6;logicalProcessors=8}
     gpu=[ordered]@{name='GPU de prueba'}
@@ -118,11 +134,12 @@ Assert ($commandSource -match '(?s)if \(\$Stop.*?!DeactivateConfig.*?AlienGamerM
 Assert ($commandSource -match 'stop-monitor\.request\.json' -and $agentSource -match 'Test-StopRequest') 'OFF no cuenta con un canal alterno fiable entre Rainmeter y el agente.'
 Assert ($agentSource -match 'if \(\$stopEvent\.WaitOne\(0\) -or \(Test-StopRequest\)\) \{ Stop-Monitor \}') 'El agente no procesa la solicitud de OFF mediante la misma función que el menú de bandeja.'
 Assert ($recorderSource -match "LOCALAPPDATA 'AlienGamerMode'" -and $recorderSource -match "Status = 'recording'" -and $recorderSource -match "Status = 'finalizing'") 'La grabación no conserva un estado compartido y persistente.'
-Assert ($agentSource -match "'Detener monitor'" -and $agentSource -match "'Finalizar grabación'" -and $agentSource -match "'Finalizando reporte\.\.\.'") 'La bandeja no refleja los estados dinámicos del monitor y la grabación.'
-Assert ($agentSource -match "'Fondo dinámico'" -and $agentSource -match "'Configurar luciérnagas\.\.\.'" -and $agentSource -match 'Show-BackgroundSettings' -and $agentSource -match 'BackgroundParticleSize' -and $agentSource -match 'Windows\.Forms\.TrackBar' -and $agentSource -match 'Windows\.Forms\.ColorDialog') 'La bandeja no permite activar y personalizar cantidad, velocidad, tamaño y color del fondo.'
-Assert ($agentSource -match "'Módulos visibles'" -and $agentSource -match "'Procesadores / carga'" -and $agentSource -match "'FPS, frame time y alertas'" -and $agentSource -match "Add\('Reloj'\)" -and $agentSource -match 'Set-ModuleVisibility') 'La bandeja no permite personalizar y guardar los módulos visibles.'
-Assert ($agentSource -match 'Espera un momento\.\.\. Aplicando la selección al monitor\.' -and $agentSource -match "'!HideMeterGroup'" -and $agentSource -match '\$profile\.features = \$config\.features') 'El cambio de módulos no informa progreso o sigue rehaciendo la detección completa.'
-Assert ($agentSource -notmatch "Items\.Add\('Salir del modo'\)" -and $agentSource -match "Cerrar AlienGamer Mode") 'La bandeja conserva acciones redundantes o nombres ambiguos.'
+Assert ($agentSource -match "tray\.stopMonitor" -and $agentSource -match "tray\.finishRecording" -and $agentSource -match "tray\.finalizingReport") 'La bandeja no refleja los estados dinámicos del monitor y la grabación.'
+Assert ($agentSource -match "tray\.dynamicBackground" -and $agentSource -match "tray\.configureFireflies" -and $agentSource -match 'Show-BackgroundSettings' -and $agentSource -match 'BackgroundParticleSize' -and $agentSource -match 'Windows\.Forms\.TrackBar' -and $agentSource -match 'Windows\.Forms\.ColorDialog') 'La bandeja no permite activar y personalizar cantidad, velocidad, tamaño y color del fondo.'
+Assert ($agentSource -match "tray\.visibleModules" -and $agentSource -match "tray\.processorsLoad" -and $agentSource -match "tray\.performanceAlerts" -and $agentSource -match "tray\.clock" -and $agentSource -match 'Set-ModuleVisibility') 'La bandeja no permite personalizar y guardar los módulos visibles.'
+Assert ($agentSource -match "dialog\.waitApply" -and $agentSource -match "'!HideMeterGroup'" -and $agentSource -match '\$profile\.features = \$config\.features') 'El cambio de módulos no informa progreso o sigue rehaciendo la detección completa.'
+Assert ($agentSource -notmatch "Items\.Add\('Salir del modo'\)" -and $agentSource -match "tray\.closeApp") 'La bandeja conserva acciones redundantes o nombres ambiguos.'
+Assert ($agentSource -match 'function Set-AppLanguage' -and $agentSource -match "Set-AppLanguage 'es-MX'" -and $agentSource -match "Set-AppLanguage 'en-US'" -and $agentSource -match 'Build-AdaptiveSkin\.ps1') 'La bandeja no permite cambiar el idioma en caliente y conservarlo.'
 Assert ($agentSource -match "bridge\.pid" -and $agentSource -match 'function Test-MonitorActive') 'La bandeja no usa el proceso real del puente para detectar el monitor activo.'
 Assert ($ini -match '(?m)^\[MeterSubtitle\]$' -and $ini -match 'EQUIPO PRUEBA') 'No generó el modelo dinámico del equipo.'
 Assert ($ini -match '(?ms)^\[MeterSignature\]\r?\nMeter=Image.*?^ImageName=#@#AlienmauSignature\.png$' -and $ini -notmatch '(?ms)^\[MeterSignature\].*?FontFace=Dali') 'La firma todavía depende de instalar o redistribuir Dali.'
@@ -146,6 +163,16 @@ Assert ($recordHitBlock -match ('W=' + [regex]::Escape(([string][math]::Ceiling(
 Assert ($recordHitBlock -notmatch 'TransformationMatrix=' -and $offHitBlock -notmatch 'TransformationMatrix=') 'Las zonas clicables no deben volver a escalarse con TransformationMatrix.'
 Assert ($ini.TrimEnd().EndsWith($offHitBlock.TrimEnd())) 'Las zonas clicables no quedaron por encima de todos los medidores.'
 
+$syntheticProfile.language = 'en-US'
+$englishProfilePath = Join-Path $testRoot 'profile-en.json'
+$englishSkinRoot = Join-Path $testRoot 'EnglishSkin\AlienGamerMode'
+$syntheticProfile | ConvertTo-Json -Depth 8 | Set-Content $englishProfilePath -Encoding UTF8
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'src\Build-AdaptiveSkin.ps1') -ProfilePath $englishProfilePath -OutputDirectory $englishSkinRoot | Out-Null
+$englishIni = Get-Content (Join-Path $englishSkinRoot 'AlienGamerMode.ini') -Raw
+Assert ($englishIni -match 'LIVE THERMAL MONITOR' -and $englishIni -match 'SYSTEM USAGE' -and $englishIni -match 'PHYSICAL CORES' -and $englishIni -match 'RECORD EVENT' -and $englishIni -match 'LOW FLUIDITY') 'La skin inglesa conserva textos en español o no se generó correctamente.'
+Assert ($englishIni -notmatch 'MONITOR TÉRMICO|USO DEL SISTEMA|NÚCLEOS FÍSICOS|GRABAR EVENTO|BAJA FLUIDEZ') 'La skin inglesa contiene textos visibles importantes sin traducir.'
+
+$syntheticProfile.language = 'es-MX'
 $syntheticProfile.features.processorPanelVisible = $false
 $syntheticProfile.features.performancePanelVisible = $false
 $syntheticProfile.features.clock = $false

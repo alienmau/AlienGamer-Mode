@@ -1,4 +1,4 @@
-﻿param([switch]$NoLaunch)
+﻿param([switch]$NoLaunch,[string]$Language = 'es-MX')
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -7,7 +7,7 @@ Add-Type -AssemblyName System.Drawing
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Language `"$Language`""
     if ($NoLaunch) { $arguments += ' -NoLaunch' }
     Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments
     exit
@@ -15,6 +15,10 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 
 $packageRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $packageRoot 'src'
+Import-Module (Join-Path $sourceRoot 'AlienGamer.Localization.psm1') -Force
+$Language = Resolve-AGLanguage $Language
+$ui = Get-AGTranslations -Language $Language -LocalesRoot (Join-Path $sourceRoot 'locales')
+function T([string]$Path) { return Get-AGText -Translations $ui -Path $Path }
 $assetRoot = Join-Path $packageRoot 'assets'
 $docRoot = Join-Path $packageRoot 'docs'
 $defaultConfig = Join-Path $packageRoot 'config\AlienGamerMode.default.json'
@@ -156,7 +160,7 @@ function Backup-And-RemovePreviousEditions {
 }
 
 $form = New-Object Windows.Forms.Form
-$form.Text = 'Instalar AlienGamer Mode · by Alienmau'
+$form.Text = T 'installer.windowTitle'
 $form.Size = New-Object Drawing.Size(690,650)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
@@ -181,53 +185,53 @@ $rainVersion = Get-MajorMinorVersion $rainmeterPath
 $hwVersion = Get-MajorMinorVersion $hwinfoPath
 $rainOk = (Test-Path $rainmeterPath) -and $rainVersion -ge [version]'4.5'
 $hwOk = (Test-Path $hwinfoPath) -and $hwVersion -ge [version]'7.34'
-$requirements.Text = "Requisitos detectados:`r`nRainmeter ${rainVersion}: $(if($rainOk){'OK'}else{'REQUIERE 4.5 O POSTERIOR'})`r`nHWiNFO64 ${hwVersion}: $(if($hwOk){'OK'}else{'REQUIERE 7.34 O POSTERIOR'})"
+$requirements.Text = "$(T 'installer.requirements')`r`nRainmeter ${rainVersion}: $(if($rainOk){'OK'}else{((T 'installer.requiresOrLater') -f '4.5')})`r`nHWiNFO64 ${hwVersion}: $(if($hwOk){'OK'}else{((T 'installer.requiresOrLater') -f '7.34')})"
 $requirements.SetBounds(30,72,350,62)
 $form.Controls.Add($requirements)
 $links = New-Object Windows.Forms.LinkLabel
-$links.Text = 'Abrir descargas oficiales de Rainmeter y HWiNFO'
+$links.Text = T 'installer.officialDownloads'
 $links.SetBounds(385,91,270,28)
 $links.Add_LinkClicked({ Start-Process 'https://www.rainmeter.net/'; Start-Process 'https://www.hwinfo.com/download/' })
 $form.Controls.Add($links)
 
 function Add-Label([string]$Text,[int]$Y) { $l=New-Object Windows.Forms.Label; $l.Text=$Text; $l.SetBounds(30,$Y,625,22); $form.Controls.Add($l); return $l }
-[void](Add-Label 'Monitor donde aparecerá el panel:' 155)
+[void](Add-Label (T 'installer.monitor') 155)
 $monitorBox = New-Object Windows.Forms.ComboBox
 $monitorBox.DropDownStyle = 'DropDownList'; $monitorBox.SetBounds(30,178,625,29)
-foreach ($m in @($discovery.monitors)) { [void]$monitorBox.Items.Add("$($m.deviceName) · $($m.width)x$($m.height) · $(if($m.primary){'principal'}else{'secundario'})") }
+foreach ($m in @($discovery.monitors)) { [void]$monitorBox.Items.Add("$($m.deviceName) · $($m.width)x$($m.height) · $(if($m.primary){T 'installer.primary'}else{T 'installer.secondary'})") }
 if ($monitorBox.Items.Count) { $monitorBox.SelectedIndex = if ($monitorBox.Items.Count -gt 1) { 1 } else { 0 } }
 $form.Controls.Add($monitorBox)
 
-[void](Add-Label 'GPU que se monitorizará:' 220)
+[void](Add-Label (T 'installer.gpu') 220)
 $gpuBox = New-Object Windows.Forms.ComboBox
 $gpuBox.DropDownStyle='DropDownList'; $gpuBox.SetBounds(30,243,625,29)
 foreach ($g in @($discovery.gpus)) { [void]$gpuBox.Items.Add($g.name) }
 if ($gpuBox.Items.Count) { $gpuBox.SelectedIndex=0 }; $form.Controls.Add($gpuBox)
 
-[void](Add-Label 'Unidad principal que se mostrará:' 285)
+[void](Add-Label (T 'installer.storage') 285)
 $storageBox = New-Object Windows.Forms.ComboBox
 $storageBox.DropDownStyle='DropDownList'; $storageBox.SetBounds(30,308,625,29)
 foreach ($d in @($discovery.storage)) { [void]$storageBox.Items.Add("$($d.friendlyName) · $($d.busType) · $([Math]::Round($d.sizeBytes/1GB)) GB") }
 if ($storageBox.Items.Count) { $storageBox.SelectedIndex=0 }; $form.Controls.Add($storageBox)
 
-$desktopCheck = New-Object Windows.Forms.CheckBox; $desktopCheck.Text='Crear acceso en el Escritorio'; $desktopCheck.Checked=$true; $desktopCheck.SetBounds(30,365,280,25); $form.Controls.Add($desktopCheck)
-$startMenuCheck = New-Object Windows.Forms.CheckBox; $startMenuCheck.Text='Agregar al menú Inicio'; $startMenuCheck.Checked=$true; $startMenuCheck.SetBounds(330,365,280,25); $form.Controls.Add($startMenuCheck)
-$startupCheck = New-Object Windows.Forms.CheckBox; $startupCheck.Text='Iniciar el agente con Windows'; $startupCheck.SetBounds(30,398,280,25); $form.Controls.Add($startupCheck)
-$taskbarCheck = New-Object Windows.Forms.CheckBox; $taskbarCheck.Text='Quiero fijarlo a la barra de tareas (paso manual)'; $taskbarCheck.SetBounds(330,398,320,25); $form.Controls.Add($taskbarCheck)
+$desktopCheck = New-Object Windows.Forms.CheckBox; $desktopCheck.Text=T 'installer.desktopShortcut'; $desktopCheck.Checked=$true; $desktopCheck.SetBounds(30,365,280,25); $form.Controls.Add($desktopCheck)
+$startMenuCheck = New-Object Windows.Forms.CheckBox; $startMenuCheck.Text=T 'installer.startMenu'; $startMenuCheck.Checked=$true; $startMenuCheck.SetBounds(330,365,280,25); $form.Controls.Add($startMenuCheck)
+$startupCheck = New-Object Windows.Forms.CheckBox; $startupCheck.Text=T 'installer.startWindows'; $startupCheck.SetBounds(30,398,280,25); $form.Controls.Add($startupCheck)
+$taskbarCheck = New-Object Windows.Forms.CheckBox; $taskbarCheck.Text=T 'installer.pinTaskbar'; $taskbarCheck.SetBounds(330,398,320,25); $form.Controls.Add($taskbarCheck)
 
 $note = New-Object Windows.Forms.Label
-$note.Text = "Esta edición oficial reemplaza instalaciones anteriores y conserva un respaldo local.`r`nLos sensores ausentes se ocultan o muestran N/D; nunca se inventan como cero."
+$note.Text = (T 'installer.note').Replace('\r\n',"`r`n")
 $note.ForeColor = [Drawing.Color]::DimGray; $note.SetBounds(30,445,625,48); $form.Controls.Add($note)
 
 $installButton = New-Object Windows.Forms.Button
-$installButton.Text = 'INSTALAR Y CONFIGURAR'; $installButton.SetBounds(350,525,205,42); $installButton.Enabled=($rainOk -and $hwOk); $form.Controls.Add($installButton)
+$installButton.Text = T 'installer.install'; $installButton.SetBounds(350,525,205,42); $installButton.Enabled=($rainOk -and $hwOk); $form.Controls.Add($installButton)
 $cancelButton = New-Object Windows.Forms.Button
-$cancelButton.Text = 'Cancelar'; $cancelButton.SetBounds(565,525,90,42); $cancelButton.Add_Click({$form.Close()}); $form.Controls.Add($cancelButton)
+$cancelButton.Text = T 'installer.cancel'; $cancelButton.SetBounds(565,525,90,42); $cancelButton.Add_Click({$form.Close()}); $form.Controls.Add($cancelButton)
 $status = New-Object Windows.Forms.Label; $status.Text=''; $status.SetBounds(30,505,300,65); $form.Controls.Add($status)
 
 $installButton.Add_Click({
     try {
-        $installButton.Enabled=$false; $status.Text='Copiando y configurando...'; $form.Refresh()
+        $installButton.Enabled=$false; $status.Text=T 'installer.copying'; $form.Refresh()
         $legacyBackup = Backup-And-RemovePreviousEditions
         New-Item -ItemType Directory -Path $installRoot,$dataRoot -Force | Out-Null
         Copy-Item -Path (Join-Path $sourceRoot '*') -Destination $installRoot -Recurse -Force
@@ -238,11 +242,13 @@ $installButton.Add_Click({
         New-Item -ItemType Directory -Path $installedDocs -Force | Out-Null
         Copy-Item -Path (Join-Path $docRoot '*') -Destination $installedDocs -Recurse -Force
         Copy-Item -LiteralPath (Join-Path $packageRoot 'README.md') -Destination (Join-Path $installRoot 'README.md') -Force
+        Copy-Item -LiteralPath (Join-Path $packageRoot 'README.en.md') -Destination (Join-Path $installRoot 'README.en.md') -Force
         $configPath = Join-Path $dataRoot 'AlienGamerMode.json'
         if (-not (Test-Path $configPath)) { Copy-Item $defaultConfig $configPath }
         $config = Get-Content $configPath -Raw | ConvertFrom-Json
         $configDefaults = Get-Content $defaultConfig -Raw | ConvertFrom-Json
         Merge-MissingConfiguration $config $configDefaults
+        $config.language = $Language
         $selectedMonitor = @($discovery.monitors)[$monitorBox.SelectedIndex]
         $selectedGpu = @($discovery.gpus)[$gpuBox.SelectedIndex]
         $selectedStorage = @($discovery.storage)[$storageBox.SelectedIndex]
@@ -256,8 +262,8 @@ $installButton.Add_Click({
 
         $hwinfoIni = Join-Path (Split-Path $hwinfoPath -Parent) 'HWiNFO64.INI'
         if (Get-Process HWiNFO64 -ErrorAction SilentlyContinue) {
-            $answer = [Windows.Forms.MessageBox]::Show($form,'HWiNFO está abierto. Es necesario cerrarlo brevemente para guardar la configuración de sensores. ¿Continuar?','Preparar HWiNFO',[Windows.Forms.MessageBoxButtons]::YesNo,[Windows.Forms.MessageBoxIcon]::Question)
-            if ($answer -ne [Windows.Forms.DialogResult]::Yes) { throw 'Instalación cancelada: HWiNFO debe estar cerrado durante su configuración.' }
+            $answer = [Windows.Forms.MessageBox]::Show($form,(T 'installer.hwinfoOpen'),(T 'installer.prepareHWiNFO'),[Windows.Forms.MessageBoxButtons]::YesNo,[Windows.Forms.MessageBoxIcon]::Question)
+            if ($answer -ne [Windows.Forms.DialogResult]::Yes) { throw (T 'installer.installCancelled') }
             Stop-Process -Name HWiNFO64 -Force
             Start-Sleep -Milliseconds 600
         }
@@ -300,7 +306,7 @@ $installButton.Add_Click({
         }
         if (-not (Get-Process HWiNFO64 -ErrorAction SilentlyContinue)) {
             $taskResult = (Get-ScheduledTaskInfo -TaskName 'AlienGamerMode-HWiNFO').LastTaskResult
-            throw ('La tarea elevada de HWiNFO no pudo iniciar (0x{0:X8}).' -f $taskResult)
+            throw ('{0} (0x{1:X8}).' -f (T 'installer.hwinfoTaskFailed'),$taskResult)
         }
         Stop-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -ErrorAction SilentlyContinue
         Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue
@@ -315,24 +321,24 @@ $installButton.Add_Click({
             New-Item -ItemType Directory -Path $startFolder -Force | Out-Null
             New-Shortcut (Join-Path $startFolder 'AlienGamer Mode.lnk') $powershell $args (Join-Path $installRoot 'assets\AlienGamerMode.ico')
             $uninstallScript = Join-Path $installRoot 'Uninstall-AlienGamerMode.ps1'
-            New-Shortcut (Join-Path $startFolder 'Desinstalar AlienGamer Mode.lnk') $powershell "-NoProfile -ExecutionPolicy Bypass -File `"$uninstallScript`"" (Join-Path $installRoot 'assets\AlienGamerMode.ico')
+            New-Shortcut (Join-Path $startFolder ((T 'installer.uninstallShortcut') + '.lnk')) $powershell "-NoProfile -ExecutionPolicy Bypass -File `"$uninstallScript`"" (Join-Path $installRoot 'assets\AlienGamerMode.ico')
         }
         $startupLink = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\AlienGamer Mode.lnk'
         if ($startupCheck.Checked) { New-Shortcut $startupLink $powershell "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$agent`"" (Join-Path $installRoot 'assets\AlienGamerMode.ico') } elseif (Test-Path $startupLink) { Remove-Item $startupLink -Force }
 
-        $status.Text='Instalación terminada.'; $form.Refresh()
-        $completion = 'AlienGamer Mode quedó instalado correctamente.'
-        if (-not $NoLaunch) { $completion += "`r`n`r`nAl aceptar se iniciará y mostrará el monitor. El primer arranque puede tardar mientras descubre y valida los sensores." }
-        if ($taskbarCheck.Checked) { $completion += "`r`n`r`nPara fijarlo: abre Inicio, busca AlienGamer Mode, haz clic derecho y elige Fijar a la barra de tareas." }
-        if ($legacyBackup) { $completion += "`r`n`r`nRespaldo de la edición anterior:`r`n$legacyBackup" }
-        [Windows.Forms.MessageBox]::Show($form,$completion,'Instalación completa',[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+        $status.Text=T 'installer.finished'; $form.Refresh()
+        $completion = T 'installer.complete'
+        if (-not $NoLaunch) { $completion += "`r`n`r`n$(T 'installer.launchNotice')" }
+        if ($taskbarCheck.Checked) { $completion += "`r`n`r`n$(T 'installer.pinNotice')" }
+        if ($legacyBackup) { $completion += "`r`n`r`n$(T 'installer.backup')`r`n$legacyBackup" }
+        [Windows.Forms.MessageBox]::Show($form,$completion,(T 'installer.completeTitle'),[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Information) | Out-Null
         $script:launchAfterClose = -not $NoLaunch
         $script:launchPowerShell = $powershell
         $script:launchArguments = $args
         $form.Close()
     } catch {
-        $installButton.Enabled=$true; $status.Text='No se completó la instalación.'
-        [Windows.Forms.MessageBox]::Show($form,$_.Exception.ToString(),'Error de instalación',[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Error) | Out-Null
+        $installButton.Enabled=$true; $status.Text=T 'installer.notCompleted'
+        [Windows.Forms.MessageBox]::Show($form,$_.Exception.ToString(),(T 'installer.errorTitle'),[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Error) | Out-Null
     }
 })
 

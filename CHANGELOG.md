@@ -1,12 +1,13 @@
 # Historial de cambios
 
-## Próxima versión — planificada
+## 1.2.0 — 15 de septiembre de 2026
 
-- Incorporar un sistema de internacionalización sin duplicar la lógica de la skin ni del agente.
-- Mantener español como idioma predeterminado y añadir inglés como segunda opción.
-- Traducir el monitor, menús de bandeja, configurador, instalador, avisos, reportes y documentación orientada al usuario.
-- Detectar inicialmente el idioma de Windows, permitir cambiarlo manualmente y conservar la selección entre sesiones.
-- Centralizar todos los textos traducibles en archivos de idioma para facilitar futuras traducciones sin modificar código.
+- Añade español (`es-MX`) e inglés (`en-US`) mediante recursos de traducción centralizados.
+- Permite elegir el idioma desde el diálogo inicial de Inno Setup y conserva la selección en la configuración del usuario.
+- Incorpora **Idioma / Language** en el menú de bandeja para cambiar la skin y el agente sin reiniciar HWiNFO ni el puente de sensores.
+- Traduce los textos del monitor, estados de frame time, ayudas, botones, menús, configurador de luciérnagas, avisos principales y diálogos de grabación.
+- Mantiene español como idioma predeterminado y permite agregar idiomas futuros sin duplicar la lógica del monitor.
+- Añade documentación principal en inglés.
 
 ## 1.1.1 — 15 de septiembre de 2026
 
