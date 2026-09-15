@@ -13,6 +13,7 @@ $profilePath = Join-Path $dataRoot 'profile.json'
 $discoveryPath = Join-Path $dataRoot 'discovery.json'
 $generatedSkin = Join-Path $dataRoot 'GeneratedSkin\AlienGamerMode'
 $hwinfoStopSignal = Join-Path $dataRoot 'stop-hwinfo.signal'
+$stopRequestPath = Join-Path $dataRoot 'stop-monitor.request.json'
 $recordingStatePath = Join-Path $dataRoot 'recording-state.json'
 $iconPath = Join-Path $appRoot 'assets\AlienGamerMode.ico'
 $rainmeter = "$env:ProgramFiles\Rainmeter\Rainmeter.exe"
@@ -40,6 +41,19 @@ function Read-AgentState {
 }
 
 function Save-AgentState($State) { $State | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $statePath -Encoding UTF8 }
+
+function Test-StopRequest {
+    if (-not (Test-Path -LiteralPath $stopRequestPath)) { return $false }
+    try {
+        $request = Get-Content -LiteralPath $stopRequestPath -Raw | ConvertFrom-Json
+        $requestedAt = [DateTime]::Parse([string]$request.requestedAtUtc).ToUniversalTime()
+        if (([DateTime]::UtcNow - $requestedAt).TotalSeconds -le 90) { return $true }
+        Remove-Item -LiteralPath $stopRequestPath -Force -ErrorAction SilentlyContinue
+    } catch {
+        Remove-Item -LiteralPath $stopRequestPath -Force -ErrorAction SilentlyContinue
+    }
+    return $false
+}
 
 function Wait-SharedMemory([int]$Seconds) {
     $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
@@ -449,23 +463,31 @@ function Start-Monitor {
 }
 
 function Stop-Monitor {
-    $state = Read-AgentState
-    if ((Get-RecordingStatus) -eq 'recording') {
-        Invoke-RecordingToggle
-        Start-Sleep -Milliseconds 250
+    if ($script:stopping) { return }
+    $script:stopping = $true
+    try {
+        $state = Read-AgentState
+        if ((Get-RecordingStatus) -eq 'recording') {
+            Invoke-RecordingToggle
+            Start-Sleep -Milliseconds 250
+        }
+        if (Test-Path $rainmeter) { & $rainmeter '!DeactivateConfig' 'AlienGamerMode' }
+        Stop-Bridge
+        $sensorTask = Get-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -ErrorAction SilentlyContinue
+        if ($state.ownedHWiNFOTask -or ($sensorTask -and $sensorTask.State -eq 'Running')) {
+            Stop-OwnedHWiNFOTask
+        }
+        elseif ($state.ownedHWiNFO) { Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue }
+        if ($state.ownedRainmeter) { Stop-Process -Name Rainmeter -Force -ErrorAction SilentlyContinue }
+        Save-AgentState ([ordered]@{active=$false; stoppedAt=(Get-Date).ToString('o')})
+        $script:tray.Text = 'AlienGamer Mode - detenido'
+        Write-AgentLog 'Monitor detenido.'
+        Update-TrayMenuState
+    } finally {
+        # Confirma al comando de la skin que terminó el cierre coordinado.
+        Remove-Item -LiteralPath $stopRequestPath -Force -ErrorAction SilentlyContinue
+        $script:stopping = $false
     }
-    if (Test-Path $rainmeter) { & $rainmeter '!DeactivateConfig' 'AlienGamerMode' }
-    Stop-Bridge
-    $sensorTask = Get-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -ErrorAction SilentlyContinue
-    if ($state.ownedHWiNFOTask -or ($sensorTask -and $sensorTask.State -eq 'Running')) {
-        Stop-OwnedHWiNFOTask
-    }
-    elseif ($state.ownedHWiNFO) { Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue }
-    if ($state.ownedRainmeter) { Stop-Process -Name Rainmeter -Force -ErrorAction SilentlyContinue }
-    Save-AgentState ([ordered]@{active=$false; stoppedAt=(Get-Date).ToString('o')})
-    $script:tray.Text = 'AlienGamer Mode - detenido'
-    Write-AgentLog 'Monitor detenido.'
-    Update-TrayMenuState
 }
 
 $menu = New-Object Windows.Forms.ContextMenuStrip
@@ -528,7 +550,7 @@ $eventTimer = New-Object Windows.Forms.Timer
 $eventTimer.Interval = 500
 $eventTimer.Add_Tick({
     if ($activateEvent.WaitOne(0)) { Start-Monitor }
-    if ($stopEvent.WaitOne(0)) { Stop-Monitor }
+    if ($stopEvent.WaitOne(0) -or (Test-StopRequest)) { Stop-Monitor }
     Update-TrayMenuState
 })
 $eventTimer.Start()

@@ -8,6 +8,13 @@
 - Detectar inicialmente el idioma de Windows, permitir cambiarlo manualmente y conservar la selección entre sesiones.
 - Centralizar todos los textos traducibles en archivos de idioma para facilitar futuras traducciones sin modificar código.
 
+## 1.1.1 — 15 de septiembre de 2026
+
+- Corrige el botón **OFF** de la skin para que ejecute el mismo cierre coordinado que **Detener monitor** en el icono de bandeja.
+- Añade un canal local persistente como respaldo cuando Rainmeter y el agente se ejecutan con niveles de permisos distintos.
+- El apagado desde la skin detiene el puente, finaliza HWiNFO y Rainmeter cuando fueron iniciados por AlienGamer Mode, actualiza el estado y sincroniza el menú de bandeja.
+- Mantiene el evento rápido existente y agrega confirmación de que el agente procesó la solicitud.
+
 ## 1.1.0 — 11 de septiembre de 2026
 
 - Añade el submenú persistente **Módulos visibles** para mostrar u ocultar procesadores, el bloque flotante de FPS y alertas, y el reloj.

@@ -114,7 +114,9 @@ Assert ($ini -notmatch '(?m)^Plugin=RunCommand$' -and @([regex]::Matches($ini,'(
 Assert ($ini -notmatch 'AlienGamerMode-Off' -and $ini -match 'AlienGamerModeCommand\.ps1') 'OFF todavía depende de la tarea de la edición estable.'
 Assert ($ini -match '(?ms)^\[MeterOffButton\].*?^MouseActionCursor=1' -and $ini -match '(?ms)^\[MeterRecordButton\].*?^MouseActionCursor=1') 'OFF o Grabar no tienen un área clicable explícita.'
 $commandSource = Get-Content (Join-Path $root 'src\AlienGamerModeCommand.ps1') -Raw
-Assert ($commandSource -match '(?s)if \(\$Stop.*?!DeactivateConfig.*?AlienGamerMode') 'El comando OFF no desactiva la skin independientemente del agente.'
+Assert ($commandSource -match '(?s)if \(\$Stop.*?!DeactivateConfig.*?AlienGamerMode') 'El comando OFF no conserva un respaldo visual cuando el agente no responde.'
+Assert ($commandSource -match 'stop-monitor\.request\.json' -and $agentSource -match 'Test-StopRequest') 'OFF no cuenta con un canal alterno fiable entre Rainmeter y el agente.'
+Assert ($agentSource -match 'if \(\$stopEvent\.WaitOne\(0\) -or \(Test-StopRequest\)\) \{ Stop-Monitor \}') 'El agente no procesa la solicitud de OFF mediante la misma función que el menú de bandeja.'
 Assert ($recorderSource -match "LOCALAPPDATA 'AlienGamerMode'" -and $recorderSource -match "Status = 'recording'" -and $recorderSource -match "Status = 'finalizing'") 'La grabación no conserva un estado compartido y persistente.'
 Assert ($agentSource -match "'Detener monitor'" -and $agentSource -match "'Finalizar grabación'" -and $agentSource -match "'Finalizando reporte\.\.\.'") 'La bandeja no refleja los estados dinámicos del monitor y la grabación.'
 Assert ($agentSource -match "'Fondo dinámico'" -and $agentSource -match "'Configurar luciérnagas\.\.\.'" -and $agentSource -match 'Show-BackgroundSettings' -and $agentSource -match 'BackgroundParticleSize' -and $agentSource -match 'Windows\.Forms\.TrackBar' -and $agentSource -match 'Windows\.Forms\.ColorDialog') 'La bandeja no permite activar y personalizar cantidad, velocidad, tamaño y color del fondo.'
