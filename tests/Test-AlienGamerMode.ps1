@@ -30,6 +30,7 @@ Assert ($config.dataSource.bridgePort -eq 27843) 'La edición oficial debe usar 
 Assert ($config.appearance.backgroundEffect.enabled -eq $true -and $config.appearance.backgroundEffect.updateFps -le 10) 'El fondo ambiental no tiene una configuración equilibrada y personalizable.'
 Assert ($config.appearance.backgroundEffect.particleCount -ge 8 -and $config.appearance.backgroundEffect.particleCount -le 48 -and $config.appearance.backgroundEffect.speed -ge 0.2 -and $config.appearance.backgroundEffect.sizeScale -ge 0.7 -and $config.appearance.backgroundEffect.sizeScale -le 1.6 -and $config.appearance.backgroundEffect.color -match '^\d+,\d+,\d+$') 'Las luciérnagas no tienen cantidad, velocidad, tamaño y color configurables dentro de límites seguros.'
 Assert ($config.features.processorPanelVisible -eq $true -and $config.features.performancePanelVisible -eq $true) 'Los módulos opcionales deben iniciar visibles en una instalación nueva.'
+Assert ($config.features.compactOverlay -eq $false -and $config.eventIntelligence.preEventBufferSeconds -eq 60 -and $config.eventIntelligence.privacyAssistant -eq $true) 'La configuración 1.3.0 no define modo compacto, búfer y privacidad con valores seguros.'
 Assert (Test-Path (Join-Path $root 'src\Start-AlienGamerHWiNFO.ps1')) 'Falta el iniciador elevado de HWiNFO.'
 $hwinfoLauncherSource = Get-Content (Join-Path $root 'src\Start-AlienGamerHWiNFO.ps1') -Raw
 $installerSource = Get-Content (Join-Path $root 'installer\Install-AlienGamerMode.ps1') -Raw
@@ -45,6 +46,7 @@ Assert ($installerSource -notmatch 'UseUnifiedSchedulingEngine\s*=') 'No se debe
 Assert ($installerSource -match 'Set-Content -LiteralPath \$Path -Encoding ASCII') 'El INI de HWiNFO debe guardarse como ASCII sin BOM.'
 Assert ($installerSource -match 'function Merge-MissingConfiguration' -and $installerSource -match 'Merge-MissingConfiguration \$config \$configDefaults') 'Las actualizaciones no incorporan parámetros nuevos a configuraciones existentes.'
 Assert ($installerSource -match '\$config\.language = \$Language' -and $innoSource -match 'Name: "english"' -and $innoSource -match 'Name: "spanish"' -and $innoSource -match 'ShowLanguageDialog=yes' -and $innoSource -match '-Language ""\{language\}""') 'El instalador no permite seleccionar y guardar español o inglés.'
+Assert ($innoSource -match '#define MyAppVersion "1\.3\.0"' -and $innoSource -match 'AlienGamerMode-Setup-1\.3\.0') 'El instalador no está versionado como 1.3.0.'
 Assert ($installerSource -match 'installer\.uninstallShortcut' -and $installerSource -match 'installedDocs') 'El paquete no instala documentación o acceso de desinstalación.'
 Assert ($installerSource -match '(?s)\$form\.ShowDialog\(\).*?if \(\$script:launchAfterClose\)' -and $installerSource -notmatch '\$taskbarCheck\.Checked\) \{ \[Windows\.Forms\.MessageBox\]::Show\(''Windows 11') 'El agente o los avisos todavía pueden superponerse al instalador.'
 Assert ($innoSource -match '-WindowStyle Hidden' -and $innoSource -notmatch 'Flags:[^\r\n]*runhidden' -and $installerSource -match '\$form\.TopMost\s*=\s*\$true') 'El empaquetador puede ocultar nuevamente el formulario de configuración.'
@@ -92,7 +94,7 @@ $syntheticProfile = [ordered]@{
         [ordered]@{displayIndex=3;logicalIndex=7;type='generic';key='d';available=$true}
     )
     displaySummary=[ordered]@{detectedLogicalProcessors=8;monitoredLogicalProcessors=4;performanceLogicalProcessors=2;efficiencyLogicalProcessors=1;performancePhysicalCores=2;efficiencyPhysicalCores=1}
-    features=[ordered]@{processorPanelVisible=$true;performancePanelVisible=$true;clock=$true}
+    features=[ordered]@{processorPanelVisible=$true;performancePanelVisible=$true;clock=$true;compactOverlay=$false}
 }
 $profilePath = Join-Path $testRoot 'profile.json'
 $syntheticProfile | ConvertTo-Json -Depth 8 | Set-Content $profilePath -Encoding UTF8
@@ -134,9 +136,11 @@ Assert ($commandSource -match '(?s)if \(\$Stop.*?!DeactivateConfig.*?AlienGamerM
 Assert ($commandSource -match 'stop-monitor\.request\.json' -and $agentSource -match 'Test-StopRequest') 'OFF no cuenta con un canal alterno fiable entre Rainmeter y el agente.'
 Assert ($agentSource -match 'if \(\$stopEvent\.WaitOne\(0\) -or \(Test-StopRequest\)\) \{ Stop-Monitor \}') 'El agente no procesa la solicitud de OFF mediante la misma función que el menú de bandeja.'
 Assert ($recorderSource -match "LOCALAPPDATA 'AlienGamerMode'" -and $recorderSource -match "Status = 'recording'" -and $recorderSource -match "Status = 'finalizing'") 'La grabación no conserva un estado compartido y persistente.'
+Assert ($recorderSource -match 'preEventBufferSeconds' -and $recorderSource -match 'BufferWorker' -and $recorderSource -match 'MarkIncident' -and $recorderSource -match 'Get-StabilityMetrics' -and $recorderSource -match 'Datos_brutos' -and $recorderSource -match 'Protect-SystemMetadata') 'Event Intelligence no incorpora búfer previo, incidentes, estabilidad, datos brutos y privacidad.'
 Assert ($agentSource -match "tray\.stopMonitor" -and $agentSource -match "tray\.finishRecording" -and $agentSource -match "tray\.finalizingReport") 'La bandeja no refleja los estados dinámicos del monitor y la grabación.'
 Assert ($agentSource -match "tray\.dynamicBackground" -and $agentSource -match "tray\.configureFireflies" -and $agentSource -match 'Show-BackgroundSettings' -and $agentSource -match 'BackgroundParticleSize' -and $agentSource -match 'Windows\.Forms\.TrackBar' -and $agentSource -match 'Windows\.Forms\.ColorDialog') 'La bandeja no permite activar y personalizar cantidad, velocidad, tamaño y color del fondo.'
 Assert ($agentSource -match "tray\.visibleModules" -and $agentSource -match "tray\.processorsLoad" -and $agentSource -match "tray\.performanceAlerts" -and $agentSource -match "tray\.clock" -and $agentSource -match 'Set-ModuleVisibility') 'La bandeja no permite personalizar y guardar los módulos visibles.'
+Assert ($agentSource -match "tray\.compactOverlay" -and $agentSource -match "tray\.markIncident" -and $agentSource -match "Invoke-RecorderCommand '-StartBuffer'" -and $agentSource -match "Invoke-RecorderCommand '-StopBuffer'") 'La bandeja no controla modo compacto, marcas o ciclo del búfer previo.'
 Assert ($agentSource -match "dialog\.waitApply" -and $agentSource -match "'!HideMeterGroup'" -and $agentSource -match '\$profile\.features = \$config\.features') 'El cambio de módulos no informa progreso o sigue rehaciendo la detección completa.'
 Assert ($agentSource -notmatch "Items\.Add\('Salir del modo'\)" -and $agentSource -match "tray\.closeApp") 'La bandeja conserva acciones redundantes o nombres ambiguos.'
 Assert ($agentSource -match 'function Set-AppLanguage' -and $agentSource -match "Set-AppLanguage 'es-MX'" -and $agentSource -match "Set-AppLanguage 'en-US'" -and $agentSource -match 'Build-AdaptiveSkin\.ps1') 'La bandeja no permite cambiar el idioma en caliente y conservarlo.'
@@ -184,6 +188,20 @@ $hiddenIni = Get-Content (Join-Path $hiddenSkinRoot 'AlienGamerMode.ini') -Raw
 Assert ($hiddenIni -match '(?ms)^\[Block_CORES\].*?^Hidden=1\r?$' -and $hiddenIni -match '(?ms)^\[Outline_CORE0\].*?^Hidden=1\r?$') 'Ocultar Procesadores / carga no afecta todo el módulo.'
 Assert ($hiddenIni -match '(?ms)^\[GameStatusBackground\].*?^Hidden=1\r?$' -and $hiddenIni -match '(?ms)^\[FPSValue\].*?^Hidden=1\r?$' -and $hiddenIni -match '(?ms)^\[AlertCPUActive\].*?^Hidden=1\r?$') 'Ocultar FPS y alertas no afecta todo el panel flotante.'
 Assert ($hiddenIni -match '(?ms)^\[ClockDigit1\].*?^Hidden=1\r?$' -and $hiddenIni -match '(?ms)^\[ClockColons\].*?^Hidden=1\r?$') 'Ocultar el reloj no afecta todos sus elementos.'
+
+$syntheticProfile.features.processorPanelVisible = $true
+$syntheticProfile.features.performancePanelVisible = $true
+$syntheticProfile.features.clock = $true
+$syntheticProfile.features.compactOverlay = $true
+$compactProfilePath = Join-Path $testRoot 'profile-compact.json'
+$compactSkinRoot = Join-Path $testRoot 'CompactSkin\AlienGamerMode'
+$syntheticProfile | ConvertTo-Json -Depth 8 | Set-Content $compactProfilePath -Encoding UTF8
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'src\Build-AdaptiveSkin.ps1') -ProfilePath $compactProfilePath -OutputDirectory $compactSkinRoot | Out-Null
+$compactIni = Get-Content (Join-Path $compactSkinRoot 'AlienGamerMode.ini') -Raw
+$compactPerformanceBlock=[regex]::Match($compactIni,'(?ms)^\[GameStatusBackground\].*?(?=^\[|\z)').Value
+Assert ($compactIni -match '(?ms)^\[GameStatusBackground\].*?^X=-315\r?$.*?^Y=-101\r?$' -and $compactIni -match '(?ms)^\[FPSValue\].*?^X=493\r?$.*?^Y=509\r?$') 'El panel compacto no centra FPS y frame time en el lienzo de referencia.'
+Assert ($compactIni -match '(?ms)^\[Block_RAM\].*?^Hidden=1\r?$' -and $compactIni -match '(?ms)^\[MeterTitle\].*?^Hidden=1\r?$' -and $compactIni -match '(?ms)^\[HitArea_Record\].*?^Hidden=1\r?$') 'El modo compacto deja capas completas o controles flotando alrededor del panel FPS.'
+Assert ($compactPerformanceBlock -match '(?m)^Group=.*CompactOnly' -and $compactPerformanceBlock -notmatch '(?m)^Hidden=1') 'El modo compacto ocultó el único panel que debe permanecer visible.'
 
 if ($failures.Count) {
     $failures | ForEach-Object { Write-Host "FALLO: $_" -ForegroundColor Red }

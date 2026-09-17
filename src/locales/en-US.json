@@ -19,6 +19,7 @@
     "recordEvent": "RECORD EVENT",
     "finishRecording": "STOP RECORDING",
     "recordTooltip": "Start or stop recording a diagnostic event",
+    "markIncidentTooltip": "While recording, use the tray menu to mark the exact moment of the problem",
     "offTooltip": "Turn off AlienGamer Mode",
     "storageFallback": "DRIVE"
   },
@@ -28,6 +29,9 @@
     "recordEvent": "Record event",
     "finishRecording": "Stop recording",
     "finalizingReport": "Finishing report...",
+    "markIncident": "Mark incident now",
+    "incidentMarked": "Incident marked",
+    "compactOverlay": "Compact FPS mode",
     "dynamicBackground": "Dynamic background",
     "dynamicBackgroundOff": "Dynamic background (off)",
     "configureFireflies": "Configure fireflies...",
@@ -59,6 +63,7 @@
     "monitorActivated": "Monitor started successfully.",
     "saveBackgroundError": "The background configuration could not be saved.",
     "saveVisibilityError": "The module visibility setting could not be saved.",
+    "incidentMarked": "The incident time was recorded for sensor correlation.",
     "missingConfig": "AlienGamerMode.json is missing. Run the official installer first.",
     "missingHWiNFO": "HWiNFO64 is not installed.",
     "missingRainmeter": "Rainmeter is not installed.",
@@ -70,7 +75,12 @@
     "saved": "Report saved successfully to:",
     "pending": "The capture was not lost. Pending data remains in:",
     "failed": "The report could not be completed:",
-    "csvPreserved": "The CSV capture is preserved at:"
+    "csvPreserved": "The CSV capture is preserved at:",
+    "privacyTitle": "Report privacy",
+    "privacyQuestion": "Create a protected copy suitable for sharing?\r\n\r\nYes (recommended): hides computer identifiers and process PIDs.\r\nNo: keeps the full technical detail.\r\nCancel: leaves the capture pending without generating the report.",
+    "saveTitle": "Save AlienGamer Mode event report",
+    "reportFilter": "Excel workbook (*.xlsx)|*.xlsx",
+    "preliminaryWarning": "This is a preliminary interpretation based on correlations. It does not prove a cause by itself or replace a complete technical diagnosis."
   },
   "installer": {
     "windowTitle": "Install AlienGamer Mode · by Alienmau",

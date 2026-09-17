@@ -74,6 +74,16 @@ En el rango crítico, los anillos de uso de CPU/GPU, RAM y temperaturas de CPU, 
 
 Al cambiar una opción, el agente guarda primero el JSON del usuario y, si el monitor está activo, actualiza las preferencias del perfil ya validado y regenera la skin sin reiniciar HWiNFO ni el puente de sensores. Esta regeneración conserva correctamente los estados internos de las alertas; al abrir el programa de nuevo, la skin nace ya con los medidores elegidos visibles u ocultos. Los sensores ocultos continúan capturándose en los reportes de eventos.
 
+`features.compactOverlay` activa una vista centrada que conserva únicamente `PerformancePanel`. El generador desplaza el bloque de 900 × 75 unidades al centro del lienzo de referencia antes de aplicar la transformación responsiva. El fondo, encabezado, botones y zonas de captura se ocultan y el control queda en la bandeja.
+
+## Event Intelligence 1.3
+
+`AlienGamerEventRecorder.ps1 -BufferWorker` consulta el puente una vez por segundo y conserva en `%LOCALAPPDATA%\AlienGamerMode\event-prebuffer.json` únicamente las últimas 60 muestras. El agente inicia este trabajador después de validar el puente y lo detiene antes de apagar sus procesos. Una grabación copia el búfer al CSV como fase `Pre-evento` y continúa agregando muestras de fase `Grabacion`.
+
+Cada invocación `-MarkIncident` agrega una marca UTC/local a la sesión. El reporte analiza una ventana configurable antes y después de cada marca. La puntuación de estabilidad combina P95/P99 de *frame time*, proporción de muestras por encima de 33.3 ms, variación relativa, muestras inválidas y alertas térmicas o de potencia. Es una heurística explicable, no un diagnóstico.
+
+El libro contiene `Resumen`, `Cronologia`, `Nucleos`, `Sistema`, `Criterios`, `Incidentes`, `Comparacion`, `Datos_brutos` y `Privacidad`. Un historial local limitado conserva resúmenes para comparar sesiones sin duplicar libros. El asistente de privacidad puede ocultar identificadores del equipo y PID; las lecturas técnicas permanecen para conservar utilidad diagnóstica.
+
 La selección se aplica primero al grupo visual para que ocultar sea perceptible de inmediato y se presenta una ventana temporal de progreso mientras se reconstruye la skin. El perfil reutiliza las asociaciones de sensores ya validadas; no repite el descubrimiento del hardware. El puente trata las solicitudes que Rainmeter cancela durante un refresco como desconexiones normales del cliente, evitando que una actualización visual detenga la fuente de datos o produzca ceros y `N/D` transitorios.
 
 ## Localización

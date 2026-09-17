@@ -1,5 +1,16 @@
 # Historial de cambios
 
+## 1.3.0 — 17 de septiembre de 2026
+
+- Añade **Event Intelligence** con un búfer circular de 60 segundos previo al inicio de la grabación.
+- Permite marcar uno o varios incidentes durante la captura y analiza una ventana temporal alrededor de cada marca.
+- Incorpora una puntuación de estabilidad de 0 a 100 basada en percentiles de *frame time*, picos, variación, muestras inválidas y alertas térmicas o de potencia.
+- El reporte incluye interpretación y recomendación preliminares con evidencia y una advertencia expresa: no constituyen un diagnóstico concluyente.
+- Añade hojas de incidentes, comparación con la sesión anterior, datos brutos y privacidad; también puede guardar un CSV bruto junto al libro.
+- Agrega un asistente de privacidad que puede ocultar identificadores del equipo y PID antes de compartir el reporte.
+- Añade **Modo compacto FPS**, que deja únicamente FPS, *frame time* y alertas, centrados en cualquier resolución.
+- Conserva las mejoras 1.2.0 de interfaz español/inglés y el cierre coordinado del botón **OFF**.
+
 ## 1.2.0 — 15 de septiembre de 2026
 
 - Añade español (`es-MX`) e inglés (`en-US`) mediante recursos de traducción centralizados.

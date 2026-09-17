@@ -4,6 +4,8 @@ Este archivo contiene textos listos para copiar y adaptar. Antes de publicar, re
 
 Desde la versión 1.2.0 la interfaz permite elegir español o inglés durante la instalación y cambiar el idioma desde el icono de bandeja. La difusión continúa priorizando comunidades hispanohablantes de Latinoamérica, pero Rainmeter, HWiNFO y otras comunidades internacionales ya pueden recibir publicaciones en inglés sin advertir una limitación de idioma.
 
+La versión 1.3.0 añade **Event Intelligence**: 60 segundos previos, marcas de incidente, puntuación de estabilidad, comparación con la sesión anterior, datos brutos y asistente de privacidad. También incorpora un modo compacto que centra únicamente FPS, *frame time* y alertas. Toda publicación debe describir el análisis como preliminar y evitar presentarlo como diagnóstico automático definitivo.
+
 ## Publicaciones realizadas para 1.1.0
 
 - Reddit, comunidad `r/PC_Gamer` (español): https://www.reddit.com/r/PC_Gamer/comments/1we2ksb/cre%C3%A9_aliengamer_mode_monitor_de_sensores_que/

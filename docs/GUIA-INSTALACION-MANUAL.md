@@ -39,6 +39,10 @@ Mientras el agente está abierto, el logotipo aparece en los iconos ocultos de W
 
 Usa **Grabar evento** justo cuando notes tirones, congelamientos, saltos, teletransportes, caídas de FPS o una respuesta anormal del juego. Durante la captura el control cambia a **Finalizar grabación** y el testigo rojo indica que se están tomando muestras.
 
+La versión 1.3.0 incluye automáticamente los 60 segundos previos. Si el síntoma vuelve a ocurrir durante la captura, abre el icono de bandeja y selecciona **Marcar incidente ahora**. Puedes crear varias marcas. Al finalizar, elige si deseas un reporte protegido para compartir y después selecciona dónde guardar el libro.
+
+Conserva juntos el `.xlsx` y el archivo `-datos-brutos.csv`. Puedes analizarlos manualmente, enviarlos a un técnico o pedir a una IA que busque correlaciones, recordando que el resumen es preliminar y no representa una verdad absoluta.
+
 Al finalizar, el programa solicita dónde guardar un libro de Excel. El reporte reúne la línea temporal de FPS, *frame time*, RAM, VRAM, uso y temperatura de CPU/GPU, temperatura del almacenamiento, carga por procesador lógico y alertas térmicas o de potencia que estén disponibles. También contiene un resumen, máximos, percentiles, procesos activos y una interpretación preliminar.
 
 Este documento puede ayudar a relacionar el momento exacto del problema con calentamiento, saturación, *throttling*, límites de potencia o inestabilidad del tiempo de cuadro. Resulta útil para que un técnico investigue con más contexto y para detectar tendencias antes de que sean recurrentes. No representa un diagnóstico definitivo: algunas causas requieren además registros del juego, red, controladores, SMART detallado o trazas especializadas.

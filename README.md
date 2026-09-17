@@ -15,6 +15,8 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
+La versión 1.3.0 incorpora **Event Intelligence**: conserva los 60 segundos anteriores a una captura, permite marcar el instante exacto de un tirón o congelamiento y genera un reporte con datos brutos, puntuación de estabilidad, comparación de sesiones e interpretación preliminar basada en evidencia.
+
 ## ¿Por qué AlienGamer Mode?
 
 Un contador de FPS dice que algo ocurrió; AlienGamer Mode ayuda a conservar el contexto técnico del momento. Si notas un tirón, congelamiento, teletransporte o caída de fluidez, puedes iniciar una grabación y obtener un reporte que relacione el comportamiento del juego con temperaturas, carga, memoria, tiempo de cuadro y alertas disponibles.
@@ -81,7 +83,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.2.0.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.3.0.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -107,15 +109,23 @@ Si el monitor está activo, la skin se regenera y refresca sin detener HWiNFO ni
 
 Si durante una partida notas tirones, congelamientos, teletransportes, caídas de fluidez o cualquier comportamiento extraño, pulsa **Grabar evento** en el panel o en el icono de la bandeja. El botón cambia a **Finalizar grabación** mientras la captura está activa.
 
-AlienGamer Mode toma muestras durante ese intervalo y conserva, cuando el equipo dispone de ellas, métricas como FPS, *frame time*, uso y temperatura de CPU y GPU, VRAM, RAM, temperatura del almacenamiento, carga por núcleo y señales de límite térmico o de potencia. Al finalizar, solicita dónde guardar un reporte de Excel con:
+Mientras el monitor está activo conserva localmente los últimos 60 segundos. Al iniciar la grabación incorpora ese contexto previo. Durante la captura selecciona **Marcar incidente ahora** en el icono de bandeja —o usa clic derecho sobre el botón de grabación— cada vez que notes el problema.
 
-- cronología de las muestras;
-- resumen estadístico y valores máximos;
-- alertas observadas durante el evento;
-- procesos activos y contexto del equipo;
-- una interpretación preliminar basada en la evidencia disponible.
+AlienGamer Mode toma muestras y conserva, cuando el equipo dispone de ellas, métricas como FPS, *frame time*, uso y temperatura de CPU y GPU, VRAM, RAM, temperatura del almacenamiento, carga por núcleo y señales de límite térmico o de potencia. Al finalizar, solicita dónde guardar un reporte de Excel con:
+
+- contexto previo, cronología y ventanas de 15 segundos antes y después de cada marca;
+- datos brutos completos en el libro y en un CSV adicional;
+- P95/P99, picos y puntuación de estabilidad de 0 a 100;
+- comparación con la sesión anterior guardada localmente;
+- procesos activos, contexto del equipo y alertas observadas;
+- interpretación, evidencia y recomendación preliminares;
+- asistente de privacidad para ocultar identificadores del equipo y PID.
 
 El reporte permite relacionar el instante del problema con temperaturas elevadas, saturación de recursos, límites térmicos o de potencia y variaciones anormales del tiempo de cuadro. Puede aportar datos técnicos valiosos a un especialista y ayudar a detectar una condición antes de que se vuelva recurrente. Es una herramienta de orientación: no sustituye los registros internos del juego, diagnósticos SMART detallados, análisis de red ni trazas especializadas, y por sí sola no confirma una falla de hardware.
+
+## Modo compacto FPS
+
+Activa **Módulos visibles → Modo compacto FPS** desde el icono de bandeja. El monitor oculta las demás capas y centra el bloque de FPS, *frame time* y alertas horizontal y verticalmente. La selección se conserva al reiniciar y no detiene la captura de sensores.
 
 ## Estructura del proyecto
 

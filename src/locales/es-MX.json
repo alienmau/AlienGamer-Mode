@@ -19,6 +19,7 @@
     "recordEvent": "GRABAR EVENTO",
     "finishRecording": "FINALIZAR GRABACIÓN",
     "recordTooltip": "Iniciar o finalizar la grabación de un evento",
+    "markIncidentTooltip": "Durante la grabación, usa el menú del icono para marcar el instante del problema",
     "offTooltip": "Desactivar AlienGamer Mode",
     "storageFallback": "UNIDAD"
   },
@@ -28,6 +29,9 @@
     "recordEvent": "Grabar evento",
     "finishRecording": "Finalizar grabación",
     "finalizingReport": "Finalizando reporte...",
+    "markIncident": "Marcar incidente ahora",
+    "incidentMarked": "Incidente marcado",
+    "compactOverlay": "Modo compacto FPS",
     "dynamicBackground": "Fondo dinámico",
     "dynamicBackgroundOff": "Fondo dinámico (desactivado)",
     "configureFireflies": "Configurar luciérnagas...",
@@ -59,6 +63,7 @@
     "monitorActivated": "Monitor activado correctamente.",
     "saveBackgroundError": "No se pudo guardar la configuración del fondo.",
     "saveVisibilityError": "No se pudo guardar la visibilidad del módulo.",
+    "incidentMarked": "Se registró el instante del incidente para correlacionarlo con los sensores.",
     "missingConfig": "Falta AlienGamerMode.json. Ejecuta primero el instalador oficial.",
     "missingHWiNFO": "HWiNFO64 no está instalado.",
     "missingRainmeter": "Rainmeter no está instalado.",
@@ -70,7 +75,12 @@
     "saved": "Reporte guardado correctamente en:",
     "pending": "No se perdió la captura. Los datos pendientes permanecen en:",
     "failed": "No fue posible completar el reporte:",
-    "csvPreserved": "La captura CSV se conserva en:"
+    "csvPreserved": "La captura CSV se conserva en:",
+    "privacyTitle": "Privacidad del reporte",
+    "privacyQuestion": "¿Quieres crear una copia protegida para compartir?\r\n\r\nSí (recomendado): oculta identificadores del equipo y PID de procesos.\r\nNo: conserva el detalle técnico completo.\r\nCancelar: deja la captura pendiente sin generar el reporte.",
+    "saveTitle": "Guardar reporte de evento de AlienGamer Mode",
+    "reportFilter": "Libro de Excel (*.xlsx)|*.xlsx",
+    "preliminaryWarning": "Interpretación preliminar basada en correlaciones. No demuestra por sí sola una causa ni sustituye un diagnóstico técnico completo."
   },
   "installer": {
     "windowTitle": "Instalar AlienGamer Mode · by Alienmau",

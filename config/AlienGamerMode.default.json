@@ -70,9 +70,18 @@
     "perLogicalProcessor": true,
     "processorPanelVisible": true,
     "performancePanelVisible": true,
+    "compactOverlay": false,
     "thermalAlerts": true,
     "powerLimitAlert": true,
     "fanSpeeds": false
+  },
+  "eventIntelligence": {
+    "preEventBufferSeconds": 60,
+    "incidentWindowBeforeSeconds": 15,
+    "incidentWindowAfterSeconds": 15,
+    "privacyAssistant": true,
+    "saveRawCsvBesideReport": true,
+    "comparisonHistorySessions": 10
   },
   "installation": {
     "desktopShortcut": true,

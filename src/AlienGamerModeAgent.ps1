@@ -139,6 +139,14 @@ function Invoke-RecordingToggle {
     Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$recorder`" -Toggle -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"AlienGamerMode`""
 }
 
+function Invoke-RecorderCommand([string]$Command) {
+    $port=27843;try{if(Test-Path $profilePath){$port=[int](Get-Content $profilePath -Raw|ConvertFrom-Json).bridgePort}}catch{}
+    $recorder=Join-Path $appRoot 'AlienGamerEventRecorder.ps1'
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$recorder`" $Command -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"AlienGamerMode`"" | Out-Null
+}
+
+function Mark-Incident { if((Get-RecordingStatus)-eq 'recording'){Invoke-RecorderCommand '-MarkIncident'} }
+
 function Sync-RainmeterRecordingState([string]$Status) {
     if (-not (Test-Path -LiteralPath $rainmeter) -or -not (Test-MonitorActive)) { return }
     $isRecording = $Status -eq 'recording'
@@ -209,13 +217,14 @@ function Set-BackgroundSettings($Settings) {
 }
 
 function Get-ModuleVisibilitySettings {
-    $settings = [ordered]@{ processorPanelVisible=$true; performancePanelVisible=$true; clock=$true }
+    $settings = [ordered]@{ processorPanelVisible=$true; performancePanelVisible=$true; clock=$true; compactOverlay=$false }
     try {
         $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
         if ($config.features) {
             if ($null -ne $config.features.processorPanelVisible) { $settings.processorPanelVisible = [bool]$config.features.processorPanelVisible }
             if ($null -ne $config.features.performancePanelVisible) { $settings.performancePanelVisible = [bool]$config.features.performancePanelVisible }
             if ($null -ne $config.features.clock) { $settings.clock = [bool]$config.features.clock }
+            if ($null -ne $config.features.compactOverlay) { $settings.compactOverlay = [bool]$config.features.compactOverlay }
         }
     } catch { Write-AgentLog "No se pudo leer la visibilidad de módulos: $($_.Exception.Message)" }
     return [pscustomobject]$settings
@@ -224,13 +233,13 @@ function Get-ModuleVisibilitySettings {
 function Set-ModuleVisibility([string]$Name, [bool]$Visible) {
     $loading = $null
     try {
-        if ($Name -notin @('processorPanelVisible','performancePanelVisible','clock')) { throw 'Módulo desconocido.' }
+        if ($Name -notin @('processorPanelVisible','performancePanelVisible','clock','compactOverlay')) { throw 'Módulo desconocido.' }
         $monitorWasActive = Test-MonitorActive
         if ($monitorWasActive) {
             $loading = Show-Loading (T 'dialog.waitApply')
             [Windows.Forms.Application]::DoEvents()
             if (-not $Visible) {
-                $group = if ($Name -eq 'processorPanelVisible') { 'ProcessorPanel' } elseif ($Name -eq 'performancePanelVisible') { 'PerformancePanel' } else { 'ClockPanel' }
+                $group = if ($Name -eq 'processorPanelVisible') { 'ProcessorPanel' } elseif ($Name -eq 'performancePanelVisible') { 'PerformancePanel' } elseif($Name -eq 'clock') { 'ClockPanel' } else { 'CompactOnly' }
                 & $rainmeter '!HideMeterGroup' $group 'AlienGamerMode'
                 & $rainmeter '!Redraw' 'AlienGamerMode'
             }
@@ -335,6 +344,8 @@ function Apply-AgentLanguage {
     $script:processorPanelItem.Text = T 'tray.processorsLoad'
     $script:performancePanelItem.Text = T 'tray.performanceAlerts'
     $script:clockItem.Text = T 'tray.clock'
+    $script:compactItem.Text = T 'tray.compactOverlay'
+    $script:markIncidentItem.Text = T 'tray.markIncident'
     $script:languageItem.Text = T 'tray.language'
     $script:spanishItem.Text = T 'tray.spanish'
     $script:englishItem.Text = T 'tray.english'
@@ -387,7 +398,7 @@ function Set-AppLanguage([string]$Language) {
 }
 
 function Update-TrayMenuState {
-    if (-not $script:monitorItem -or -not $script:recordItem -or -not $script:backgroundItem -or -not $script:processorPanelItem -or -not $script:performancePanelItem -or -not $script:clockItem) { return }
+    if (-not $script:monitorItem -or -not $script:recordItem -or -not $script:backgroundItem -or -not $script:processorPanelItem -or -not $script:performancePanelItem -or -not $script:clockItem -or -not $script:compactItem -or -not $script:markIncidentItem) { return }
     $monitorActive = Test-MonitorActive
     $recordingStatus = Get-RecordingStatus
     Sync-RainmeterRecordingState $recordingStatus
@@ -410,6 +421,7 @@ function Update-TrayMenuState {
             $script:recordItem.Enabled = $monitorActive
         }
     }
+    $script:markIncidentItem.Enabled = $recordingStatus -eq 'recording'
     $script:backgroundSettings = Get-BackgroundSettings
     $script:backgroundItem.Checked = [bool]$script:backgroundSettings.enabled
     $script:backgroundItem.Text = if ($script:backgroundSettings.enabled) { T 'tray.dynamicBackground' } else { T 'tray.dynamicBackgroundOff' }
@@ -417,6 +429,7 @@ function Update-TrayMenuState {
     $script:processorPanelItem.Checked = [bool]$moduleSettings.processorPanelVisible
     $script:performancePanelItem.Checked = [bool]$moduleSettings.performancePanelVisible
     $script:clockItem.Checked = [bool]$moduleSettings.clock
+    $script:compactItem.Checked = [bool]$moduleSettings.compactOverlay
     $script:tray.Text = if ($monitorActive) { T 'tray.active' } else { T 'tray.stopped' }
 }
 
@@ -504,6 +517,7 @@ function Start-Monitor {
             Start-Sleep -Milliseconds 250
         } while ([DateTime]::UtcNow -lt $deadline)
         if (-not $health.ok) { throw (T 'dialog.bridgeError') }
+        Invoke-RecorderCommand '-StartBuffer'
 
         Set-RainmeterSkinPosition -X ([int]$profile.monitor.x) -Y ([int]$profile.monitor.y)
         if (-not (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
@@ -545,6 +559,7 @@ function Stop-Monitor {
             Start-Sleep -Milliseconds 250
         }
         if (Test-Path $rainmeter) { & $rainmeter '!DeactivateConfig' 'AlienGamerMode' }
+        Invoke-RecorderCommand '-StopBuffer'
         Stop-Bridge
         $sensorTask = Get-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -ErrorAction SilentlyContinue
         if ($state.ownedHWiNFOTask -or ($sensorTask -and $sensorTask.State -eq 'Running')) {
@@ -566,12 +581,14 @@ function Stop-Monitor {
 $menu = New-Object Windows.Forms.ContextMenuStrip
 $monitorItem = $menu.Items.Add((T 'tray.activateMonitor'))
 $recordItem = $menu.Items.Add((T 'tray.recordEvent'))
+$markIncidentItem = $menu.Items.Add((T 'tray.markIncident'))
 $backgroundItem = $menu.Items.Add((T 'tray.dynamicBackground'))
 $backgroundConfigItem = $menu.Items.Add((T 'tray.configureFireflies'))
 $modulesItem = New-Object Windows.Forms.ToolStripMenuItem((T 'tray.visibleModules'))
 $processorPanelItem = $modulesItem.DropDownItems.Add((T 'tray.processorsLoad'))
 $performancePanelItem = $modulesItem.DropDownItems.Add((T 'tray.performanceAlerts'))
 $clockItem = $modulesItem.DropDownItems.Add((T 'tray.clock'))
+$compactItem = $modulesItem.DropDownItems.Add((T 'tray.compactOverlay'))
 [void]$menu.Items.Add($modulesItem)
 $languageItem = New-Object Windows.Forms.ToolStripMenuItem((T 'tray.language'))
 $spanishItem = $languageItem.DropDownItems.Add((T 'tray.spanish'))
@@ -591,6 +608,8 @@ $script:backgroundItem = $backgroundItem
 $script:processorPanelItem = $processorPanelItem
 $script:performancePanelItem = $performancePanelItem
 $script:clockItem = $clockItem
+$script:compactItem = $compactItem
+$script:markIncidentItem = $markIncidentItem
 $script:backgroundConfigItem = $backgroundConfigItem
 $script:modulesItem = $modulesItem
 $script:languageItem = $languageItem
@@ -607,6 +626,7 @@ $tray.Visible = $true
 $monitorItem.Add_Click({ if (Test-MonitorActive) { Stop-Monitor } else { Start-Monitor } })
 $tray.Add_DoubleClick({ if (Test-MonitorActive) { Stop-Monitor } else { Start-Monitor } })
 $recordItem.Add_Click({ Invoke-RecordingToggle })
+$markIncidentItem.Add_Click({ Mark-Incident })
 $backgroundItem.Add_Click({
     $settings=Get-BackgroundSettings; $settings.enabled=-not [bool]$settings.enabled
     Set-BackgroundSettings $settings; Update-TrayMenuState
@@ -625,6 +645,11 @@ $performancePanelItem.Add_Click({
 $clockItem.Add_Click({
     $settings=Get-ModuleVisibilitySettings
     Set-ModuleVisibility 'clock' (-not [bool]$settings.clock)
+    Update-TrayMenuState
+})
+$compactItem.Add_Click({
+    $settings=Get-ModuleVisibilitySettings
+    Set-ModuleVisibility 'compactOverlay' (-not [bool]$settings.compactOverlay)
     Update-TrayMenuState
 })
 $spanishItem.Add_Click({ Set-AppLanguage 'es-MX' })

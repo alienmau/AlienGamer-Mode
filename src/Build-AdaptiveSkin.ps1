@@ -33,6 +33,8 @@ $backgroundDivider = [Math]::Max(1, [Math]::Round(10 / $backgroundFps))
 $processorPanelVisible = if ($profile.features -and $null -ne $profile.features.processorPanelVisible) { [bool]$profile.features.processorPanelVisible } else { $true }
 $performancePanelVisible = if ($profile.features -and $null -ne $profile.features.performancePanelVisible) { [bool]$profile.features.performancePanelVisible } else { $true }
 $clockVisible = if ($profile.features -and $null -ne $profile.features.clock) { [bool]$profile.features.clock } else { $true }
+$compactOverlay = if ($profile.features -and $null -ne $profile.features.compactOverlay) { [bool]$profile.features.compactOverlay } else { $false }
+if($compactOverlay){$processorPanelVisible=$false;$performancePanelVisible=$true;$clockVisible=$false}
 
 # La interfaz anima a 10 FPS, pero sensores y cálculos conservan su cadencia
 # original. ClockScript queda a 10 FPS y evita reconstruir dígitos sin cambios.
@@ -266,6 +268,8 @@ AntiAlias=1
 $processorMeters = '^(?:Block_CORES|Tab_CORES|MeterCoresTitle|MeterCoresLegend|Outline_CORE\d+|Ring_CORETEMP\d+|Value_CORETEMP\d+|Label_CORETEMP\d+)$'
 $performanceMeters = '^(?:GameStatusBackground|FPSLabel|FPSValue|FrameTimeLabel|FrameTimeValue|FrameTimeStatus|FrameTimeHelpCircle|FrameTimeHelpText|AlertCPUText|AlertGPUText|AlertPowerText|AlertCPUBackground|AlertGPUBackground|AlertPowerBackground|AlertCPUActive|AlertGPUActive|AlertPowerActive)$'
 $clockMeters = '^(?:ClockDigit[1-6]|ClockColons)$'
+$compactDx = -315
+$compactDy = -101
 $text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
     param($match)
     $block = $match.Value
@@ -275,6 +279,13 @@ $text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
     if ($sectionName -match $processorMeters) { $moduleGroup = 'ProcessorPanel'; $moduleVisible = $processorPanelVisible }
     elseif ($sectionName -match $performanceMeters) { $moduleGroup = 'PerformancePanel'; $moduleVisible = $performancePanelVisible }
     elseif ($sectionName -match $clockMeters) { $moduleGroup = 'ClockPanel'; $moduleVisible = $clockVisible }
+    if($compactOverlay -and $sectionName -match $performanceMeters -and $block -match '(?m)^Meter='){
+        if($sectionName -eq 'GameStatusBackground'){$block=$block.TrimEnd("`r","`n")+"`r`nX=$compactDx`r`nY=$compactDy`r`n"}
+        else{
+            $block=[regex]::Replace($block,'(?m)^X=(-?\d+(?:\.\d+)?)$',{param($m)'X='+([double]$m.Groups[1].Value+$compactDx)},1)
+            $block=[regex]::Replace($block,'(?m)^Y=(-?\d+(?:\.\d+)?)$',{param($m)'Y='+([double]$m.Groups[1].Value+$compactDy)},1)
+        }
+    }
     if ($moduleGroup -and $block -match '(?m)^Meter=') {
         if ($block -match '(?m)^Group=') { $block = [regex]::Replace($block, '(?m)^Group=[^\r\n]*', { param($m) $m.Value + '|' + $moduleGroup }, 1) }
         else { $block = $block.TrimEnd("`r","`n") + "`r`nGroup=$moduleGroup`r`n" }
@@ -282,7 +293,16 @@ $text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
             if ($block -match '(?m)^Hidden=') { $block = [regex]::Replace($block, '(?m)^Hidden=.*$', 'Hidden=1', 1) }
             else { $block = $block.TrimEnd("`r","`n") + "`r`nHidden=1`r`n" }
         }
+        if($compactOverlay){
+            if($block -match '(?m)^Group='){$block=[regex]::Replace($block,'(?m)^Group=[^\r\n]*',{param($m)$m.Value+'|CompactOnly'},1)}else{$block=$block.TrimEnd("`r","`n")+"`r`nGroup=CompactOnly`r`n"}
+        }
         return $block.TrimEnd("`r","`n") + "`r`n`r`n"
+    }
+    if($compactOverlay -and $block -match '(?m)^Meter=' -and $sectionName -ne 'MeterBackground'){
+        if($block -match '(?m)^Hidden='){$block=[regex]::Replace($block,'(?m)^Hidden=.*$','Hidden=1',1)}else{$block=$block.TrimEnd("`r","`n")+"`r`nHidden=1`r`n"}
+    }
+    if($compactOverlay -and $sectionName -eq 'MeterBackground'){
+        if($block -match '(?m)^Hidden='){$block=[regex]::Replace($block,'(?m)^Hidden=.*$','Hidden=1',1)}else{$block=$block.TrimEnd("`r","`n")+"`r`nHidden=1`r`n"}
     }
     return $block
 })
@@ -335,6 +355,7 @@ $recordHitX = [Math]::Round(1435 * $scale + $offsetX)
 $recordHitY = [Math]::Round(95 * $scale + $offsetY)
 $recordHitW = [Math]::Ceiling(205 * $scale)
 $recordHitH = [Math]::Ceiling(40 * $scale)
+$compactHitHidden = if($compactOverlay){'Hidden=1'}else{''}
 $text += @"
 
 [HitArea_Record]
@@ -350,6 +371,8 @@ MouseLeaveAction=[!SetVariable RecordHover 0]
 MouseActionCursor=1
 ToolTipText=$($ui.skin.recordTooltip)
 DynamicVariables=1
+RightMouseUpAction=["C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "#EventRecorderPath#" -MarkIncident -BridgeUrl "#BridgeUrl#" -RainmeterConfig "AlienGamerMode"]
+$compactHitHidden
 
 [HitArea_Off]
 Meter=Shape
@@ -364,6 +387,7 @@ MouseLeaveAction=[!SetVariable OffHover 0]
 MouseActionCursor=1
 ToolTipText=$($ui.skin.offTooltip)
 DynamicVariables=1
+$compactHitHidden
 "@
 
 if (-not (Test-Path $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null }

@@ -15,6 +15,8 @@
 
 AlienGamer Mode is a Rainmeter and HWiNFO dashboard that detects the available hardware, adapts its layout to the selected display and avoids presenting missing sensors as real zero values.
 
+Version 1.3.0 adds **Event Intelligence**: a 60-second pre-event buffer, incident markers, raw sensor data, a stability score, previous-session comparison, privacy controls and a preliminary evidence-based interpretation.
+
 ## Highlights
 
 - RAM, VRAM, CPU/GPU usage and temperatures.
@@ -50,7 +52,7 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.2.0.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.3.0.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 
@@ -60,9 +62,15 @@ Right-click the AlienGamer Mode tray icon and choose **Language → English** or
 
 ## Recording a performance event
 
-When you notice stutter, freezes, low fluidity or another suspicious behavior, press **Record event**. Press **Stop recording** when the incident ends. AlienGamer Mode captures the available FPS, frame time, temperatures, CPU/GPU load, RAM, VRAM, storage temperature, per-core load and thermal/power-limit flags for that interval.
+While the monitor is active it keeps a local rolling buffer covering the previous 60 seconds. When you notice stutter, freezes or another suspicious behavior, press **Record event**. Choose **Mark incident now** in the tray menu whenever the symptom appears; right-clicking the skin's record button also creates a marker.
 
-The resulting report can help correlate the symptom with overheating, resource saturation, throttling or frame-time instability. It is an aid for preliminary diagnosis and does not replace game logs, detailed SMART diagnostics, network analysis or specialized traces.
+The Excel report includes raw samples, incident windows, P95/P99 frame time, a 0–100 stability score, preliminary evidence and recommendations, comparison with the previous local session and a privacy sheet. A raw CSV is saved beside the workbook for independent or AI-assisted analysis.
+
+The resulting report can help correlate the symptom with overheating, resource saturation, throttling or frame-time instability. Its interpretation is preliminary: it does not prove a root cause or replace game logs, detailed SMART diagnostics, network analysis or specialized traces.
+
+## Compact FPS mode
+
+Choose **Visible modules → Compact FPS mode** to hide the full dashboard and center only the FPS, frame-time and alert panel on the selected screen. The setting persists without disabling sensor capture.
 
 ## Privacy
 
