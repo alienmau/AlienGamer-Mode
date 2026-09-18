@@ -163,12 +163,13 @@ function Sync-RainmeterRecordingState([string]$Status) {
 }
 
 function Get-BackgroundSettings {
-    $settings = [ordered]@{ enabled=$true; particleCount=26; speed=0.65; sizeScale=1.0; color='255,112,20' }
+    $settings = [ordered]@{ enabled=$true; mode='manual'; particleCount=26; speed=0.65; sizeScale=1.0; color='255,112,20' }
     try {
         $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
         $effect = $config.appearance.backgroundEffect
         if ($effect) {
             if ($null -ne $effect.enabled) { $settings.enabled = [bool]$effect.enabled }
+            if ([string]$effect.mode -in @('manual','thermal')) { $settings.mode = [string]$effect.mode }
             if ($null -ne $effect.particleCount) { $settings.particleCount = [Math]::Max(8,[Math]::Min(48,[int]$effect.particleCount)) }
             if ($null -ne $effect.speed) { $settings.speed = [Math]::Max(0.2,[Math]::Min(1.5,[double]$effect.speed)) }
             if ($null -ne $effect.sizeScale) { $settings.sizeScale = [Math]::Max(0.7,[Math]::Min(1.6,[double]$effect.sizeScale)) }
@@ -185,6 +186,7 @@ function Set-BackgroundSettings($Settings) {
         if (-not $config.appearance.backgroundEffect) { $config.appearance | Add-Member NoteProperty backgroundEffect ([pscustomobject]@{}) }
         foreach ($entry in ([ordered]@{
             enabled=[bool]$Settings.enabled
+            mode=$(if ([string]$Settings.mode -eq 'thermal') { 'thermal' } else { 'manual' })
             particleCount=[int]$Settings.particleCount
             speed=[double]$Settings.speed
             sizeScale=[double]$Settings.sizeScale
@@ -200,6 +202,7 @@ function Set-BackgroundSettings($Settings) {
         $script:backgroundSettings = $Settings
         if ((Test-Path -LiteralPath $rainmeter) -and (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
             & $rainmeter '!SetVariable' 'BackgroundEffectEnabled' $(if ($Settings.enabled) { '1' } else { '0' }) 'AlienGamerMode'
+            & $rainmeter '!SetVariable' 'BackgroundEffectMode' $(if ([string]$Settings.mode -eq 'thermal') { 'thermal' } else { 'manual' }) 'AlienGamerMode'
             & $rainmeter '!SetVariable' 'BackgroundParticleCount' ([string][int]$Settings.particleCount) 'AlienGamerMode'
             & $rainmeter '!SetVariable' 'BackgroundParticleSpeed' ([double]$Settings.speed).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) 'AlienGamerMode'
             & $rainmeter '!SetVariable' 'BackgroundParticleSize' ([double]$Settings.sizeScale).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) 'AlienGamerMode'
@@ -209,11 +212,22 @@ function Set-BackgroundSettings($Settings) {
             & $rainmeter '!UpdateMeterGroup' 'AmbientParticles' 'AlienGamerMode'
             & $rainmeter '!Redraw' 'AlienGamerMode'
         }
-        Write-AgentLog ('Fondo dinámico actualizado: activo={0}, partículas={1}, velocidad={2}, tamaño={3}, color={4}.' -f $Settings.enabled,$Settings.particleCount,$Settings.speed,$Settings.sizeScale,$Settings.color)
+        Write-AgentLog ('Fondo actualizado: activo={0}, modo={1}, partículas={2}, velocidad={3}, tamaño={4}, color={5}.' -f $Settings.enabled,$Settings.mode,$Settings.particleCount,$Settings.speed,$Settings.sizeScale,$Settings.color)
     } catch {
         Write-AgentLog "No se pudo cambiar el fondo dinámico: $($_.Exception.Message)"
         [Windows.Forms.MessageBox]::Show((T 'dialog.saveBackgroundError'), 'AlienGamer Mode', 'OK', 'Error') | Out-Null
     }
+}
+
+function Set-BackgroundMode([string]$Mode) {
+    $settings = Get-BackgroundSettings
+    switch ($Mode) {
+        'off' { $settings.enabled = $false }
+        'thermal' { $settings.enabled = $true; $settings.mode = 'thermal' }
+        default { $settings.enabled = $true; $settings.mode = 'manual' }
+    }
+    Set-BackgroundSettings $settings
+    Update-TrayMenuState
 }
 
 function Get-ModuleVisibilitySettings {
@@ -330,7 +344,7 @@ function Show-BackgroundSettings {
     $dialogResult=$form.ShowDialog()
     if($dialogResult -eq 'OK'){
         $color=$script:selectedParticleColor
-        Set-BackgroundSettings ([pscustomobject]@{enabled=$enabledCheck.Checked;particleCount=$countBar.Value;speed=$speedBar.Value/100.0;sizeScale=$sizeBar.Value/100.0;color=('{0},{1},{2}' -f $color.R,$color.G,$color.B)})
+        Set-BackgroundSettings ([pscustomobject]@{enabled=$enabledCheck.Checked;mode=$current.mode;particleCount=$countBar.Value;speed=$speedBar.Value/100.0;sizeScale=$sizeBar.Value/100.0;color=('{0},{1},{2}' -f $color.R,$color.G,$color.B)})
     } elseif((Test-Path -LiteralPath $rainmeter) -and (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
         & $rainmeter '!SetVariable' 'BackgroundParticleSize' ([double]$current.sizeScale).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) 'AlienGamerMode'
     }
@@ -340,6 +354,10 @@ function Show-BackgroundSettings {
 function Apply-AgentLanguage {
     if (-not $script:monitorItem) { return }
     $script:backgroundConfigItem.Text = T 'tray.configureFireflies'
+    $script:backgroundMenu.Text = T 'tray.background'
+    $script:backgroundOffItem.Text = T 'tray.backgroundOff'
+    $script:backgroundManualItem.Text = T 'tray.backgroundManual'
+    $script:backgroundThermalItem.Text = T 'tray.backgroundThermal'
     $script:modulesItem.Text = T 'tray.visibleModules'
     $script:processorPanelItem.Text = T 'tray.processorsLoad'
     $script:performancePanelItem.Text = T 'tray.performanceAlerts'
@@ -398,7 +416,7 @@ function Set-AppLanguage([string]$Language) {
 }
 
 function Update-TrayMenuState {
-    if (-not $script:monitorItem -or -not $script:recordItem -or -not $script:backgroundItem -or -not $script:processorPanelItem -or -not $script:performancePanelItem -or -not $script:clockItem -or -not $script:compactItem -or -not $script:markIncidentItem) { return }
+    if (-not $script:monitorItem -or -not $script:recordItem -or -not $script:backgroundMenu -or -not $script:processorPanelItem -or -not $script:performancePanelItem -or -not $script:clockItem -or -not $script:compactItem -or -not $script:markIncidentItem) { return }
     $monitorActive = Test-MonitorActive
     $recordingStatus = Get-RecordingStatus
     Sync-RainmeterRecordingState $recordingStatus
@@ -423,8 +441,9 @@ function Update-TrayMenuState {
     }
     $script:markIncidentItem.Enabled = $recordingStatus -eq 'recording'
     $script:backgroundSettings = Get-BackgroundSettings
-    $script:backgroundItem.Checked = [bool]$script:backgroundSettings.enabled
-    $script:backgroundItem.Text = if ($script:backgroundSettings.enabled) { T 'tray.dynamicBackground' } else { T 'tray.dynamicBackgroundOff' }
+    $script:backgroundOffItem.Checked = -not [bool]$script:backgroundSettings.enabled
+    $script:backgroundManualItem.Checked = [bool]$script:backgroundSettings.enabled -and $script:backgroundSettings.mode -eq 'manual'
+    $script:backgroundThermalItem.Checked = [bool]$script:backgroundSettings.enabled -and $script:backgroundSettings.mode -eq 'thermal'
     $moduleSettings = Get-ModuleVisibilitySettings
     $script:processorPanelItem.Checked = [bool]$moduleSettings.processorPanelVisible
     $script:performancePanelItem.Checked = [bool]$moduleSettings.performancePanelVisible
@@ -582,8 +601,13 @@ $menu = New-Object Windows.Forms.ContextMenuStrip
 $monitorItem = $menu.Items.Add((T 'tray.activateMonitor'))
 $recordItem = $menu.Items.Add((T 'tray.recordEvent'))
 $markIncidentItem = $menu.Items.Add((T 'tray.markIncident'))
-$backgroundItem = $menu.Items.Add((T 'tray.dynamicBackground'))
-$backgroundConfigItem = $menu.Items.Add((T 'tray.configureFireflies'))
+$backgroundMenu = New-Object Windows.Forms.ToolStripMenuItem((T 'tray.background'))
+$backgroundOffItem = $backgroundMenu.DropDownItems.Add((T 'tray.backgroundOff'))
+$backgroundManualItem = $backgroundMenu.DropDownItems.Add((T 'tray.backgroundManual'))
+$backgroundThermalItem = $backgroundMenu.DropDownItems.Add((T 'tray.backgroundThermal'))
+[void]$backgroundMenu.DropDownItems.Add('-')
+$backgroundConfigItem = $backgroundMenu.DropDownItems.Add((T 'tray.configureFireflies'))
+[void]$menu.Items.Add($backgroundMenu)
 $modulesItem = New-Object Windows.Forms.ToolStripMenuItem((T 'tray.visibleModules'))
 $processorPanelItem = $modulesItem.DropDownItems.Add((T 'tray.processorsLoad'))
 $performancePanelItem = $modulesItem.DropDownItems.Add((T 'tray.performanceAlerts'))
@@ -604,7 +628,10 @@ $tray = New-Object Windows.Forms.NotifyIcon
 $script:tray = $tray
 $script:monitorItem = $monitorItem
 $script:recordItem = $recordItem
-$script:backgroundItem = $backgroundItem
+$script:backgroundMenu = $backgroundMenu
+$script:backgroundOffItem = $backgroundOffItem
+$script:backgroundManualItem = $backgroundManualItem
+$script:backgroundThermalItem = $backgroundThermalItem
 $script:processorPanelItem = $processorPanelItem
 $script:performancePanelItem = $performancePanelItem
 $script:clockItem = $clockItem
@@ -627,10 +654,9 @@ $monitorItem.Add_Click({ if (Test-MonitorActive) { Stop-Monitor } else { Start-M
 $tray.Add_DoubleClick({ if (Test-MonitorActive) { Stop-Monitor } else { Start-Monitor } })
 $recordItem.Add_Click({ Invoke-RecordingToggle })
 $markIncidentItem.Add_Click({ Mark-Incident })
-$backgroundItem.Add_Click({
-    $settings=Get-BackgroundSettings; $settings.enabled=-not [bool]$settings.enabled
-    Set-BackgroundSettings $settings; Update-TrayMenuState
-})
+$backgroundOffItem.Add_Click({ Set-BackgroundMode 'off' })
+$backgroundManualItem.Add_Click({ Set-BackgroundMode 'manual' })
+$backgroundThermalItem.Add_Click({ Set-BackgroundMode 'thermal' })
 $backgroundConfigItem.Add_Click({ Show-BackgroundSettings; Update-TrayMenuState })
 $processorPanelItem.Add_Click({
     $settings=Get-ModuleVisibilitySettings

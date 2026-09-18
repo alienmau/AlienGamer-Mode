@@ -22,6 +22,7 @@ $matrix = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, $offsetX, $offsetY
 
 $backgroundEffect = if ($profile.appearance -and $profile.appearance.backgroundEffect) { $profile.appearance.backgroundEffect } else { $null }
 $backgroundEnabled = if ($null -ne $backgroundEffect -and $null -ne $backgroundEffect.enabled) { [bool]$backgroundEffect.enabled } else { $true }
+$backgroundMode = if ($backgroundEffect -and [string]$backgroundEffect.mode -in @('manual','thermal')) { [string]$backgroundEffect.mode } else { 'manual' }
 $backgroundParticleCount = if ($backgroundEffect -and $null -ne $backgroundEffect.particleCount) { [Math]::Max(8, [Math]::Min(48, [int]$backgroundEffect.particleCount)) } else { 26 }
 $backgroundSpeed = if ($backgroundEffect -and $null -ne $backgroundEffect.speed) { [Math]::Max(0.2, [Math]::Min(1.5, [double]$backgroundEffect.speed)) } else { 0.65 }
 $backgroundSizeScale = if ($backgroundEffect -and $null -ne $backgroundEffect.sizeScale) { [Math]::Max(0.7, [Math]::Min(1.6, [double]$backgroundEffect.sizeScale)) } else { 1.0 }
@@ -108,6 +109,7 @@ if ($profile.appearance) {
     }
 }
 $text = [regex]::Replace($text, '(?m)^BackgroundEffectEnabled=.*$', ('BackgroundEffectEnabled=' + $(if ($backgroundEnabled) { '1' } else { '0' })), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundEffectMode=.*$', ('BackgroundEffectMode=' + $backgroundMode), 1)
 $text = [regex]::Replace($text, '(?m)^BackgroundParticleCount=.*$', ('BackgroundParticleCount=' + $backgroundParticleCount), 1)
 $text = [regex]::Replace($text, '(?m)^BackgroundParticleSpeed=.*$', ('BackgroundParticleSpeed=' + $backgroundSpeed.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)), 1)
 $text = [regex]::Replace($text, '(?m)^BackgroundParticleSize=.*$', ('BackgroundParticleSize=' + $backgroundSizeScale.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)), 1)

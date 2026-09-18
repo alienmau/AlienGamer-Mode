@@ -15,7 +15,7 @@
 
 AlienGamer Mode is a Rainmeter and HWiNFO dashboard that detects the available hardware, adapts its layout to the selected display and avoids presenting missing sensors as real zero values.
 
-Version 1.3.0 adds **Event Intelligence**: a 60-second pre-event buffer, incident markers, raw sensor data, a stability score, previous-session comparison, privacy controls and a preliminary evidence-based interpretation.
+Version 1.3.1 adds a **thermal dynamic background**: firefly color follows validated thermal pressure, density follows recent frame-time fluidity and stability, and movement speed follows CPU/GPU activity with gradual transitions. It retains the complete Event Intelligence feature set introduced in 1.3.0.
 
 ## Highlights
 
@@ -23,7 +23,7 @@ Version 1.3.0 adds **Event Intelligence**: a 60-second pre-event buffer, inciden
 - Dynamic per-core load with automatic removal and reordering of unavailable sensors.
 - FPS and frame time with clear visual classifications.
 - Thermal and power-limit indicators when HWiNFO provides them.
-- Matrix-style clock, configurable ambient fireflies and dark glass panels.
+- Matrix-style clock, custom or thermal-dynamic ambient fireflies, and dark glass panels.
 - OLED protection through subtle periodic pixel shifting.
 - Manual event recording with a technical Excel report.
 - Persistent visibility controls for the processor panel, FPS/alerts panel and clock.
@@ -52,13 +52,19 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.3.0.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.3.1.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 
 ## Changing the language
 
 Right-click the AlienGamer Mode tray icon and choose **Language → English** or **Idioma → Español**. The selection is saved and the active Rainmeter skin is regenerated and refreshed without restarting HWiNFO or the sensor bridge. If the monitor is stopped, the new language is applied the next time it starts.
+
+## Thermal dynamic background
+
+Open **Background** from the tray icon and choose **Off**, **Custom**, or **Thermal dynamic**. Custom mode keeps the user-selected color. Thermal mode compares valid CPU, maximum-core and GPU temperatures against component-specific thresholds; the most demanding valid state controls the firefly color. A reported thermal-throttling flag forces the critical red state.
+
+Firefly density blends recent frame-time fluidity/stability with CPU/GPU activity, while movement speed follows the highest valid CPU/GPU load. Attack and decay smoothing prevents abrupt visual changes. Missing sensors are ignored rather than interpreted as real zero values. The configurable particle count and speed act as safe maximums in thermal mode, and all choices persist in the user configuration.
 
 ## Recording a performance event
 

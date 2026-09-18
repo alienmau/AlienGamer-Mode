@@ -41,6 +41,10 @@ Usa **Grabar evento** justo cuando notes tirones, congelamientos, saltos, teletr
 
 La versión 1.3.0 incluye automáticamente los 60 segundos previos. Si el síntoma vuelve a ocurrir durante la captura, abre el icono de bandeja y selecciona **Marcar incidente ahora**. Puedes crear varias marcas. Al finalizar, elige si deseas un reporte protegido para compartir y después selecciona dónde guardar el libro.
 
+### Fondo térmico 1.3.1
+
+Desde el icono de bandeja abre **Fondo** y selecciona **Dinámico térmico**. El modo personalizado conserva el color manual; el térmico usa las temperaturas válidas de CPU/Core Max y GPU, y adapta densidad y velocidad a la fluidez y actividad. La selección se conserva al reiniciar. **Configurar luciérnagas...** establece los límites máximos de cantidad, velocidad y tamaño para ambos modos.
+
 Conserva juntos el `.xlsx` y el archivo `-datos-brutos.csv`. Puedes analizarlos manualmente, enviarlos a un técnico o pedir a una IA que busque correlaciones, recordando que el resumen es preliminar y no representa una verdad absoluta.
 
 Al finalizar, el programa solicita dónde guardar un libro de Excel. El reporte reúne la línea temporal de FPS, *frame time*, RAM, VRAM, uso y temperatura de CPU/GPU, temperatura del almacenamiento, carga por procesador lógico y alertas térmicas o de potencia que estén disponibles. También contiene un resumen, máximos, percentiles, procesos activos y una interpretación preliminar.

@@ -1,5 +1,15 @@
 # Historial de cambios
 
+## 1.3.1 — 17 de septiembre de 2026
+
+- Añade el submenú persistente **Fondo** con los modos **Desactivado**, **Personalizado** y **Dinámico térmico**.
+- El modo térmico toma el color del estado global más exigente entre CPU, núcleo máximo y GPU; una alerta de *thermal throttling* fuerza el estado crítico.
+- La cantidad de luciérnagas responde a la fluidez y estabilidad reciente de *frame time*, combinadas con la actividad real de CPU/GPU.
+- La velocidad responde a la actividad del equipo y respeta como límite la calibración elegida por el usuario.
+- Incorpora transiciones diferenciadas de subida y bajada para evitar cambios bruscos de densidad, velocidad y color.
+- Mantiene validación de sensores: si FPS, temperatura o carga no existen, usa únicamente lecturas válidas y una actividad visual segura.
+- Conserva el modo personalizado, los límites de 8–48 partículas, la protección OLED y el funcionamiento local sin captura de audio.
+
 ## 1.3.0 — 17 de septiembre de 2026
 
 - Añade **Event Intelligence** con un búfer circular de 60 segundos previo al inicio de la grabación.

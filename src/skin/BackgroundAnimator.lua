@@ -1,9 +1,14 @@
 local canvasWidth, canvasHeight = 1711, 1023
 local maximumParticles = 48
 local particles = {}
-local enabled, particleCount, globalSpeed = true, 26, 0.65
+local enabled, mode, particleCount, configuredCount, globalSpeed = true, 'manual', 26, 26, 0.65
 local currentSizeScale, targetSizeScale = 1.0, 1.0
-local lastEnabled, lastCount = nil, nil
+local currentCount, targetCount = 26, 26
+local currentSpeed, targetSpeed = 0.65, 0.65
+local currentColor, targetColor = {255, 112, 20}, {255, 112, 20}
+local lastEnabled, lastCount, lastTint = nil, nil, ''
+local frameTimes, sensorTick, invalidFrameSamples = {}, 0, 0
+local thermalPressure = 0
 local elapsed = 0
 
 local function clamp(value, minimum, maximum)
@@ -17,6 +22,83 @@ end
 
 local function randomRange(minimum, maximum)
     return minimum + math.random() * (maximum - minimum)
+end
+
+local function lerp(a, b, amount)
+    return a + (b - a) * amount
+end
+
+local function measureValue(name)
+    local measure = SKIN:GetMeasure(name)
+    if not measure then return nil end
+    local value = tonumber(measure:GetValue())
+    if not value or value < 0 or value ~= value then return nil end
+    return value
+end
+
+local function parseColor(value)
+    local red, green, blue = string.match(value or '', '^%s*(%d+)%s*,%s*(%d+)%s*,%s*(%d+)%s*$')
+    if not red then return {255, 112, 20} end
+    return {clamp(tonumber(red), 0, 255), clamp(tonumber(green), 0, 255), clamp(tonumber(blue), 0, 255)}
+end
+
+local function thermalLevel(value, coolLimit, hotLimit)
+    if not value then return 0, 0 end
+    if value >= hotLimit then return 2, clamp((value - hotLimit) / 15 + 0.78, 0, 1) end
+    if value >= coolLimit then return 1, clamp(0.35 + (value - coolLimit) / (hotLimit - coolLimit) * 0.43, 0, 0.78) end
+    return 0, clamp((value - 30) / math.max(coolLimit - 30, 1) * 0.35, 0, 0.35)
+end
+
+local function updateThermalTargets()
+    local gpuTemperature = measureValue('GPU_TEMP')
+    local cpuTemperature = measureValue('CPU_TEMP')
+    local coreMaximum = measureValue('CORE_MAX')
+    if coreMaximum and (not cpuTemperature or coreMaximum > cpuTemperature) then cpuTemperature = coreMaximum end
+
+    local gpuLevel, gpuPressure = thermalLevel(gpuTemperature, 55, 75)
+    local cpuLevel, cpuPressure = thermalLevel(cpuTemperature, 60, 85)
+    local level = math.max(gpuLevel, cpuLevel)
+    thermalPressure = math.max(gpuPressure, cpuPressure)
+    if (measureValue('CPU_THERMAL_ALERT') or 0) >= 1 or (measureValue('GPU_THERMAL_ALERT') or 0) >= 1 then
+        level, thermalPressure = 2, 1
+    end
+    if not gpuTemperature and not cpuTemperature then targetColor = parseColor(SKIN:GetVariable('BackgroundParticleColor', '255,112,20'))
+    elseif level == 2 then targetColor = {255, 35, 45}
+    elseif level == 1 then targetColor = {255, 170, 35}
+    else targetColor = {55, 170, 255} end
+
+    local gpuUse = measureValue('GPU_USE')
+    local cpuUse = measureValue('CPU_USE')
+    local activity = clamp(math.max(gpuUse or 0, cpuUse or 0) / 100, 0, 1)
+    local frameTime = measureValue('FRAME_TIME')
+    local fps = measureValue('FPS_GAME')
+    if frameTime and frameTime > 0 and frameTime < 250 then
+        invalidFrameSamples = 0
+        table.insert(frameTimes, frameTime)
+        if #frameTimes > 8 then table.remove(frameTimes, 1) end
+    else
+        invalidFrameSamples = invalidFrameSamples + 1
+        if invalidFrameSamples >= 3 then frameTimes = {} end
+    end
+
+    local smoothness = activity * 0.45
+    if #frameTimes >= 2 then
+        local sum = 0
+        for _, value in ipairs(frameTimes) do sum = sum + value end
+        local average = sum / #frameTimes
+        local variance = 0
+        for _, value in ipairs(frameTimes) do variance = variance + (value - average) ^ 2 end
+        local deviation = math.sqrt(variance / #frameTimes)
+        local pace = clamp((50 - average) / 41.7, 0, 1)
+        local stabilityPenalty = clamp((deviation / math.max(average, 1)) * 1.8, 0, 0.65)
+        smoothness = pace * (1 - stabilityPenalty)
+    elseif fps and fps > 0 then
+        smoothness = clamp((fps - 20) / 100, 0, 1)
+    end
+
+    local density = clamp(smoothness * 0.70 + activity * 0.30, 0, 1)
+    targetCount = 8 + (configuredCount - 8) * density
+    targetSpeed = clamp(globalSpeed * (0.45 + activity * 0.55), 0.2, globalSpeed)
 end
 
 local function resetParticle(particle, initial)
@@ -57,9 +139,16 @@ end
 
 local function readRuntimeSettings()
     enabled = tonumber(SKIN:GetVariable('BackgroundEffectEnabled', enabled and '1' or '0')) == 1
-    particleCount = clamp(tonumber(SKIN:GetVariable('BackgroundParticleCount', tostring(particleCount))) or particleCount, 8, maximumParticles)
+    mode = string.lower(SKIN:GetVariable('BackgroundEffectMode', mode) or mode)
+    if mode ~= 'thermal' then mode = 'manual' end
+    configuredCount = clamp(tonumber(SKIN:GetVariable('BackgroundParticleCount', tostring(configuredCount))) or configuredCount, 8, maximumParticles)
     globalSpeed = clamp(tonumber(SKIN:GetVariable('BackgroundParticleSpeed', tostring(globalSpeed))) or globalSpeed, 0.2, 1.5)
     targetSizeScale = clamp(tonumber(SKIN:GetVariable('BackgroundParticleSize', tostring(targetSizeScale))) or targetSizeScale, 0.7, 1.6)
+    if mode == 'manual' then
+        targetCount, targetSpeed = configuredCount, globalSpeed
+        targetColor = parseColor(SKIN:GetVariable('BackgroundParticleColor', '255,112,20'))
+        thermalPressure = 0
+    end
 end
 
 local function syncVisibility()
@@ -78,10 +167,16 @@ end
 
 function Initialize()
     enabled = tonumber(SELF:GetOption('Enabled', '1')) == 1
-    particleCount = clamp(tonumber(SELF:GetOption('ParticleCount', '26')) or 26, 8, maximumParticles)
+    mode = string.lower(SELF:GetOption('Mode', 'manual'))
+    if mode ~= 'thermal' then mode = 'manual' end
+    configuredCount = clamp(tonumber(SELF:GetOption('ParticleCount', '26')) or 26, 8, maximumParticles)
+    particleCount, currentCount, targetCount = configuredCount, configuredCount, configuredCount
     globalSpeed = clamp(tonumber(SELF:GetOption('ParticleSpeed', '0.65')) or 0.65, 0.2, 1.5)
+    currentSpeed, targetSpeed = globalSpeed, globalSpeed
     targetSizeScale = clamp(tonumber(SELF:GetOption('ParticleSize', '1.00')) or 1.0, 0.7, 1.6)
     currentSizeScale = targetSizeScale
+    currentColor = parseColor(SKIN:GetVariable('BackgroundParticleColor', '255,112,20'))
+    targetColor = {currentColor[1], currentColor[2], currentColor[3]}
     initializeParticles()
     readRuntimeSettings()
     syncVisibility()
@@ -89,6 +184,22 @@ end
 
 function Update()
     readRuntimeSettings()
+    sensorTick = sensorTick + 1
+    if mode == 'thermal' and (sensorTick == 1 or sensorTick >= 10) then
+        sensorTick = 0
+        updateThermalTargets()
+    end
+    local countAmount = targetCount >= currentCount and 0.08 or 0.035
+    local speedAmount = targetSpeed >= currentSpeed and 0.07 or 0.035
+    currentCount = lerp(currentCount, targetCount, countAmount)
+    currentSpeed = lerp(currentSpeed, targetSpeed, speedAmount)
+    particleCount = clamp(math.floor(currentCount + 0.5), 8, maximumParticles)
+    for channel = 1, 3 do currentColor[channel] = lerp(currentColor[channel], targetColor[channel], 0.055) end
+    local tint = string.format('%d,%d,%d', math.floor(currentColor[1] + 0.5), math.floor(currentColor[2] + 0.5), math.floor(currentColor[3] + 0.5))
+    if tint ~= lastTint then
+        SKIN:Bang('!SetOptionGroup', 'AmbientParticles', 'ImageTint', tint)
+        lastTint = tint
+    end
     syncVisibility()
     if not enabled then return 0 end
 
@@ -98,7 +209,7 @@ function Update()
     else currentSizeScale = targetSizeScale end
     for index = 1, particleCount do
         local particle = particles[index]
-        particle.progress = particle.progress + particle.speed * globalSpeed * 0.1
+        particle.progress = particle.progress + particle.speed * currentSpeed * 0.1
         if particle.progress >= 1 then
             resetParticle(particle, false)
             local resetSize = particle.size * currentSizeScale
@@ -115,7 +226,8 @@ function Update()
         local fadeIn = smoothstep(particle.progress / 0.13)
         local fadeOut = 1 - smoothstep((particle.progress - particle.fadeStart) / (1 - particle.fadeStart))
         local pulse = 0.62 + 0.38 * ((math.sin(elapsed * particle.pulseRate + particle.pulsePhase) + 1) * 0.5)
-        local alpha = math.floor(clamp(particle.maxAlpha * fadeIn * fadeOut * pulse, 0, 245) + 0.5)
+        local thermalGlow = mode == 'thermal' and (0.82 + thermalPressure * 0.25) or 1
+        local alpha = math.floor(clamp(particle.maxAlpha * fadeIn * fadeOut * pulse * thermalGlow, 0, 245) + 0.5)
         local size = particle.size * currentSizeScale
         local meter = 'Particle' .. index
 

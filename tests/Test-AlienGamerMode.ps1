@@ -29,6 +29,7 @@ Assert (@(Compare-Object (Get-LocalePaths $spanishLocale) (Get-LocalePaths $engl
 Assert ($config.dataSource.bridgePort -eq 27843) 'La edición oficial debe usar el puerto local 27843.'
 Assert ($config.appearance.backgroundEffect.enabled -eq $true -and $config.appearance.backgroundEffect.updateFps -le 10) 'El fondo ambiental no tiene una configuración equilibrada y personalizable.'
 Assert ($config.appearance.backgroundEffect.particleCount -ge 8 -and $config.appearance.backgroundEffect.particleCount -le 48 -and $config.appearance.backgroundEffect.speed -ge 0.2 -and $config.appearance.backgroundEffect.sizeScale -ge 0.7 -and $config.appearance.backgroundEffect.sizeScale -le 1.6 -and $config.appearance.backgroundEffect.color -match '^\d+,\d+,\d+$') 'Las luciérnagas no tienen cantidad, velocidad, tamaño y color configurables dentro de límites seguros.'
+Assert ($config.appearance.backgroundEffect.mode -eq 'manual') 'El fondo no define un modo inicial compatible y persistente.'
 Assert ($config.features.processorPanelVisible -eq $true -and $config.features.performancePanelVisible -eq $true) 'Los módulos opcionales deben iniciar visibles en una instalación nueva.'
 Assert ($config.features.compactOverlay -eq $false -and $config.eventIntelligence.preEventBufferSeconds -eq 60 -and $config.eventIntelligence.privacyAssistant -eq $true) 'La configuración 1.3.0 no define modo compacto, búfer y privacidad con valores seguros.'
 Assert (Test-Path (Join-Path $root 'src\Start-AlienGamerHWiNFO.ps1')) 'Falta el iniciador elevado de HWiNFO.'
@@ -46,7 +47,7 @@ Assert ($installerSource -notmatch 'UseUnifiedSchedulingEngine\s*=') 'No se debe
 Assert ($installerSource -match 'Set-Content -LiteralPath \$Path -Encoding ASCII') 'El INI de HWiNFO debe guardarse como ASCII sin BOM.'
 Assert ($installerSource -match 'function Merge-MissingConfiguration' -and $installerSource -match 'Merge-MissingConfiguration \$config \$configDefaults') 'Las actualizaciones no incorporan parámetros nuevos a configuraciones existentes.'
 Assert ($installerSource -match '\$config\.language = \$Language' -and $innoSource -match 'Name: "english"' -and $innoSource -match 'Name: "spanish"' -and $innoSource -match 'ShowLanguageDialog=yes' -and $innoSource -match '-Language ""\{language\}""') 'El instalador no permite seleccionar y guardar español o inglés.'
-Assert ($innoSource -match '#define MyAppVersion "1\.3\.0"' -and $innoSource -match 'AlienGamerMode-Setup-1\.3\.0') 'El instalador no está versionado como 1.3.0.'
+Assert ($innoSource -match '#define MyAppVersion "1\.3\.1"' -and $innoSource -match 'AlienGamerMode-Setup-1\.3\.1') 'El instalador no está versionado como 1.3.1.'
 Assert ($installerSource -match 'installer\.uninstallShortcut' -and $installerSource -match 'installedDocs') 'El paquete no instala documentación o acceso de desinstalación.'
 Assert ($installerSource -match '(?s)\$form\.ShowDialog\(\).*?if \(\$script:launchAfterClose\)' -and $installerSource -notmatch '\$taskbarCheck\.Checked\) \{ \[Windows\.Forms\.MessageBox\]::Show\(''Windows 11') 'El agente o los avisos todavía pueden superponerse al instalador.'
 Assert ($innoSource -match '-WindowStyle Hidden' -and $innoSource -notmatch 'Flags:[^\r\n]*runhidden' -and $installerSource -match '\$form\.TopMost\s*=\s*\$true') 'El empaquetador puede ocultar nuevamente el formulario de configuración.'
@@ -75,6 +76,8 @@ Assert (-not ($backgroundAnimatorBytes.Length -ge 3 -and $backgroundAnimatorByte
 Assert ($backgroundAnimatorSource -match 'maximumParticles\s*=\s*48' -and $backgroundAnimatorSource -match 'resetParticle' -and $backgroundAnimatorSource -match 'smoothstep') 'El fondo no conserva sus luciérnagas con trayectorias y transiciones suaves.'
 Assert ($backgroundAnimatorSource -match 'fadeStart' -and $backgroundAnimatorSource -match 'pulseRate' -and $backgroundAnimatorSource -notmatch 'AudioOutput|updateWaves|updateGrid') 'Las partículas no varían su altura de desaparición y brillo o todavía dependen de audio/ondas/malla.'
 Assert ($backgroundAnimatorSource -match 'math\.random\(\)\s*<\s*0\.30' -and $backgroundAnimatorSource -match 'currentSizeScale.*targetSizeScale') 'No se conserva la distribución 70/30 o la transición gradual de tamaño.'
+Assert ($backgroundAnimatorSource -match 'updateThermalTargets' -and $backgroundAnimatorSource -match "mode ~= 'thermal'" -and $backgroundAnimatorSource -match "measureValue\('FRAME_TIME'\)" -and $backgroundAnimatorSource -match 'smoothness \* 0\.70 \+ activity \* 0\.30' -and $backgroundAnimatorSource -match 'invalidFrameSamples >= 3') 'El modo térmico no relaciona sensores validados, fluidez y actividad o conserva frame time obsoleto.'
+Assert ($backgroundAnimatorSource -match 'targetCount >= currentCount and 0\.08 or 0\.035' -and $backgroundAnimatorSource -match "SetOptionGroup.*AmbientParticles.*ImageTint") 'El modo térmico no suaviza densidad/color o no actualiza el tinte del grupo.'
 
 $testRoot = Join-Path $root 'build\tests'
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
@@ -87,6 +90,7 @@ $syntheticProfile = [ordered]@{
     storageLabel='NVME'
     monitor=[ordered]@{deviceName='\\.\DISPLAY_TEST';primary=$false;x=1920;y=0;width=1920;height=1080}
     mappings=[ordered]@{}
+    appearance=[ordered]@{backgroundEffect=[ordered]@{enabled=$true;mode='manual';particleCount=26;speed=0.65;sizeScale=1.0;color='255,112,20';updateFps=10}}
     cores=@(
         [ordered]@{displayIndex=0;logicalIndex=0;type='performance';key='a';available=$true},
         [ordered]@{displayIndex=1;logicalIndex=1;type='performance';key='b';available=$true},
@@ -138,7 +142,7 @@ Assert ($agentSource -match 'if \(\$stopEvent\.WaitOne\(0\) -or \(Test-StopReque
 Assert ($recorderSource -match "LOCALAPPDATA 'AlienGamerMode'" -and $recorderSource -match "Status = 'recording'" -and $recorderSource -match "Status = 'finalizing'") 'La grabación no conserva un estado compartido y persistente.'
 Assert ($recorderSource -match 'preEventBufferSeconds' -and $recorderSource -match 'BufferWorker' -and $recorderSource -match 'MarkIncident' -and $recorderSource -match 'Get-StabilityMetrics' -and $recorderSource -match 'Datos_brutos' -and $recorderSource -match 'Protect-SystemMetadata') 'Event Intelligence no incorpora búfer previo, incidentes, estabilidad, datos brutos y privacidad.'
 Assert ($agentSource -match "tray\.stopMonitor" -and $agentSource -match "tray\.finishRecording" -and $agentSource -match "tray\.finalizingReport") 'La bandeja no refleja los estados dinámicos del monitor y la grabación.'
-Assert ($agentSource -match "tray\.dynamicBackground" -and $agentSource -match "tray\.configureFireflies" -and $agentSource -match 'Show-BackgroundSettings' -and $agentSource -match 'BackgroundParticleSize' -and $agentSource -match 'Windows\.Forms\.TrackBar' -and $agentSource -match 'Windows\.Forms\.ColorDialog') 'La bandeja no permite activar y personalizar cantidad, velocidad, tamaño y color del fondo.'
+Assert ($agentSource -match "tray\.backgroundThermal" -and $agentSource -match "Set-BackgroundMode 'thermal'" -and $agentSource -match "tray\.configureFireflies" -and $agentSource -match 'Show-BackgroundSettings' -and $agentSource -match 'BackgroundEffectMode' -and $agentSource -match 'Windows\.Forms\.TrackBar' -and $agentSource -match 'Windows\.Forms\.ColorDialog') 'La bandeja no permite elegir y conservar los modos apagado, personalizado y térmico.'
 Assert ($agentSource -match "tray\.visibleModules" -and $agentSource -match "tray\.processorsLoad" -and $agentSource -match "tray\.performanceAlerts" -and $agentSource -match "tray\.clock" -and $agentSource -match 'Set-ModuleVisibility') 'La bandeja no permite personalizar y guardar los módulos visibles.'
 Assert ($agentSource -match "tray\.compactOverlay" -and $agentSource -match "tray\.markIncident" -and $agentSource -match "Invoke-RecorderCommand '-StartBuffer'" -and $agentSource -match "Invoke-RecorderCommand '-StopBuffer'") 'La bandeja no controla modo compacto, marcas o ciclo del búfer previo.'
 Assert ($agentSource -match "dialog\.waitApply" -and $agentSource -match "'!HideMeterGroup'" -and $agentSource -match '\$profile\.features = \$config\.features') 'El cambio de módulos no informa progreso o sigue rehaciendo la detección completa.'
@@ -150,6 +154,7 @@ Assert ($ini -match '(?ms)^\[MeterSignature\]\r?\nMeter=Image.*?^ImageName=#@#Al
 Assert (Test-Path (Join-Path $skinRoot '@Resources\AlienmauSignature.png')) 'La skin generada no contiene la firma gráfica independiente.'
 Assert (Test-Path (Join-Path $skinRoot '@Resources\BackgroundAnimator.lua')) 'La skin generada no contiene el animador ambiental.'
 Assert ($ini -match '(?ms)^\[BackgroundScript\].*?^UpdateDivider=1$' -and @([regex]::Matches($ini,'(?m)^\[Particle\d+\]$')).Count -eq 48 -and $ini -notmatch '(?m)^\[AudioOutput|^\[AmbientBackground\]') 'El fondo no conserva 48 partículas ligeras a 10 FPS o aún incluye el concepto anterior.'
+Assert ($ini -match '(?m)^BackgroundEffectMode=manual$' -and $ini -match '(?ms)^\[BackgroundScript\].*?^Mode=#BackgroundEffectMode#$') 'La skin generada no contiene el selector persistente del modo de fondo.'
 Assert (Test-Path (Join-Path $skinRoot '@Resources\ParticleGlow.png')) 'La skin generada no contiene el degradado radial de las luciérnagas.'
 Assert ($ini -match '(?m)^GlassFill=22,27,38,145$' -and $ini -match '(?ms)^\[Block_RAM\].*?Fill Color #GlassFill#.*?^Shape2=Line' -and $ini -match '(?ms)^\[Block_CORES\].*?Fill Color 22,27,38,158') 'Los contenedores no conservan el glassmorfismo transparente y legible.'
 Assert ($ini -match '(?ms)^\[Particle1\].*?^TransformationMatrix=' -and $ini -match '(?ms)^\[Particle1\].*?^Group=AmbientParticles\|OLEDShift') 'Las luciérnagas no responden a resolución o protección OLED.'
@@ -166,6 +171,15 @@ Assert ($recordHitBlock -match 'RecordHover' -and $offHitBlock -match 'OffHover'
 Assert ($recordHitBlock -match ('W=' + [regex]::Escape(([string][math]::Ceiling(205 * [math]::Min(1920/1711,1080/1023)))))) 'La zona clicable de Grabar no cubre su ancho expandido.'
 Assert ($recordHitBlock -notmatch 'TransformationMatrix=' -and $offHitBlock -notmatch 'TransformationMatrix=') 'Las zonas clicables no deben volver a escalarse con TransformationMatrix.'
 Assert ($ini.TrimEnd().EndsWith($offHitBlock.TrimEnd())) 'Las zonas clicables no quedaron por encima de todos los medidores.'
+
+$syntheticProfile.appearance.backgroundEffect.mode = 'thermal'
+$thermalProfilePath = Join-Path $testRoot 'profile-thermal.json'
+$thermalSkinRoot = Join-Path $testRoot 'ThermalSkin\AlienGamerMode'
+$syntheticProfile | ConvertTo-Json -Depth 8 | Set-Content $thermalProfilePath -Encoding UTF8
+& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'src\Build-AdaptiveSkin.ps1') -ProfilePath $thermalProfilePath -OutputDirectory $thermalSkinRoot | Out-Null
+$thermalIni = Get-Content (Join-Path $thermalSkinRoot 'AlienGamerMode.ini') -Raw
+Assert ($thermalIni -match '(?m)^BackgroundEffectMode=thermal$' -and $thermalIni -match '(?ms)^\[BackgroundScript\].*?^Mode=#BackgroundEffectMode#$') 'El generador no conserva el modo térmico seleccionado.'
+$syntheticProfile.appearance.backgroundEffect.mode = 'manual'
 
 $syntheticProfile.language = 'en-US'
 $englishProfilePath = Join-Path $testRoot 'profile-en.json'

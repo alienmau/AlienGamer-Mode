@@ -15,7 +15,7 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
-La versión 1.3.0 incorpora **Event Intelligence**: conserva los 60 segundos anteriores a una captura, permite marcar el instante exacto de un tirón o congelamiento y genera un reporte con datos brutos, puntuación de estabilidad, comparación de sesiones e interpretación preliminar basada en evidencia.
+La versión 1.3.1 incorpora un **fondo dinámico térmico**: las luciérnagas cambian de color según la presión térmica validada, aumentan o disminuyen según la fluidez reciente y adaptan su velocidad a la actividad de CPU/GPU con transiciones suaves. Conserva además **Event Intelligence**, sus 60 segundos previos y los reportes técnicos de la versión 1.3.0.
 
 ## ¿Por qué AlienGamer Mode?
 
@@ -83,7 +83,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.3.0.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.3.1.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -93,7 +93,11 @@ Consulta [Requisitos previos](docs/REQUISITOS-PREVIOS.md) y la [Guía de instala
 
 El fondo utiliza pequeñas partículas con degradado radial: el centro conserva el color elegido y el halo se desvanece hasta ser totalmente transparente. Las luciérnagas ascienden con trayectorias, tamaños, profundidades y velocidades diferentes; su brillo pulsa con transiciones suaves. El 70% puede recorrer hasta el 75% de la altura de la pantalla y se desvanece en ese trayecto, mientras el 30% completa el 100% y rebasa ligeramente el borde superior. No utiliza, captura ni analiza audio.
 
-Desde el icono de AlienGamer Mode en la bandeja se puede activar o desactivar **Fondo dinámico** y abrir **Configurar luciérnagas...**. El panel permite elegir entre 8 y 48 partículas, ajustar velocidad y tamaño, y seleccionar cualquier color mediante el selector completo de Windows. El mayor tamaño de la calibración anterior ahora equivale al valor base de 100%; la nueva barra permite ajustarlo entre 70% y 160%, con vista previa gradual. Los valores también se conservan en `appearance.backgroundEffect` dentro de `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json`.
+Desde el icono de AlienGamer Mode, el submenú **Fondo** ofrece **Desactivado**, **Personalizado** y **Dinámico térmico**. En modo personalizado se utiliza el color elegido por el usuario. En modo térmico, CPU, núcleo máximo y GPU se comparan con sus propios umbrales y prevalece el estado válido más exigente: azul para temperatura saludable, naranja para elevada y rojo para alta o con alerta térmica.
+
+La densidad térmica combina 70% de fluidez/estabilidad reciente de *frame time* y 30% de actividad CPU/GPU. La velocidad responde a la mayor carga válida entre CPU y GPU. Los cambios utilizan interpolación: el crecimiento reacciona pronto y el descenso es más gradual para que no aparezcan o desaparezcan partículas de golpe. Si FPS o un sensor térmico no están disponibles, el sistema ignora esa lectura y utiliza solamente datos válidos; no convierte `N/D` en cero real.
+
+**Configurar luciérnagas...** permite elegir entre 8 y 48 partículas, ajustar velocidad y tamaño, y seleccionar cualquier color. En modo térmico, cantidad y velocidad funcionan como límites de intensidad; el color queda bajo control del estado térmico. El tamaño se ajusta entre 70% y 160%. Todos los valores, incluido `appearance.backgroundEffect.mode`, se conservan en `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json`.
 
 El submenú **Módulos visibles** permite ocultar por separado **Procesadores / carga**, **FPS, frame time y alertas** y el **Reloj**. Los tres aparecen en una instalación nueva. La selección se guarda en `features.processorPanelVisible`, `features.performancePanelVisible` y `features.clock`, por lo que se conserva al detener el monitor, cerrar el agente o reiniciar Windows. Ocultar un módulo no elimina sus sensores: siguen disponibles para la grabación técnica de eventos.
 

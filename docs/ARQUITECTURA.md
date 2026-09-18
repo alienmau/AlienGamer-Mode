@@ -66,6 +66,8 @@ Las variaciones aleatorias se generan localmente al iniciar. Los cambios de bril
 
 El fondo no consulta la salida de audio. El agente de bandeja persiste `enabled`, `particleCount`, `speed`, `sizeScale` y `color` dentro de `appearance.backgroundEffect`, y actualiza las variables de Rainmeter en vivo. Al desactivarlo, `BackgroundScript` oculta el grupo `AmbientParticles` y deja de calcular trayectorias; conserva únicamente una comprobación mínima de estado para poder reactivarse sin recargar la skin.
 
+Desde 1.3.1 también persiste `mode` (`manual` o `thermal`). En modo térmico, `BackgroundAnimator.lua` consulta únicamente medidas ya validadas de Rainmeter. La severidad global es el máximo normalizado de CPU/Core Max y GPU con sus respectivos umbrales; las banderas térmicas fuerzan rojo crítico. Cada segundo conserva una ventana corta de *frame time*, calcula media y desviación, y combina su fluidez/estabilidad con la actividad CPU/GPU para definir una cantidad objetivo. Velocidad, densidad y RGB se interpolan a 10 FPS con ataque y caída diferentes. El número configurado y la velocidad configurada son límites, no valores que el modo térmico pueda superar.
+
 ## Módulos visibles y persistencia
 
 La configuración `features.processorPanelVisible` controla el contenedor, encabezado y medidores de procesadores lógicos agrupados como `ProcessorPanel`. `features.performancePanelVisible` controla el panel flotante completo de FPS, *frame time* y alertas, agrupado como `PerformancePanel`. `features.clock` controla los seis dígitos y separadores agrupados como `ClockPanel`. Los tres valores son `true` por defecto y se administran desde **Módulos visibles** en la bandeja.

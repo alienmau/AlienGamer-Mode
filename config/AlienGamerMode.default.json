@@ -52,6 +52,7 @@
     "nvidiaGreen": "118,185,0,255",
     "backgroundEffect": {
       "enabled": true,
+      "mode": "manual",
       "particleCount": 26,
       "speed": 0.65,
       "sizeScale": 1.0,
