@@ -1,4 +1,4 @@
-﻿param([switch]$Activate)
+﻿param([switch]$Activate,[switch]$OpenLayoutEditor)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -537,10 +537,11 @@ function Show-DisplayLayoutEditor {
             return
         }
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath -AllowMissingHWiNFO|Out-Null
-        $arguments="-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $appRoot 'Show-AlienGamerLayoutEditor.ps1')`" -ConfigPath `"$configPath`" -DiscoveryPath `"$discoveryPath`""
+        $arguments="-NoProfile -STA -ExecutionPolicy Bypass -File `"$(Join-Path $appRoot 'Show-AlienGamerLayoutEditor.ps1')`" -ConfigPath `"$configPath`" -DiscoveryPath `"$discoveryPath`" -HideConsole"
         $script:layoutEditorErrorPath=Join-Path $dataRoot 'layout-editor.error.log'
         ''|Set-Content -LiteralPath $script:layoutEditorErrorPath -Encoding UTF8
-        $script:layoutEditorProcess=Start-Process powershell.exe -WindowStyle Hidden -ArgumentList $arguments -RedirectStandardError $script:layoutEditorErrorPath -PassThru
+        $script:layoutEditorProcess=Start-Process powershell.exe -WindowStyle Minimized -ArgumentList $arguments -RedirectStandardError $script:layoutEditorErrorPath -PassThru
+        $script:layoutEditorStartedAt=Get-Date
         $script:displayLayoutItem.Enabled=$false
         Write-AgentLog 'Editor multidisplay abierto sin bloquear la bandeja.'
     }catch{
@@ -550,9 +551,20 @@ function Show-DisplayLayoutEditor {
 }
 
 function Complete-DisplayLayoutEditor {
-    if(-not $script:layoutEditorProcess -or -not $script:layoutEditorProcess.HasExited){return}
+    if(-not $script:layoutEditorProcess){return}
+    if(-not $script:layoutEditorProcess.HasExited){
+        $script:layoutEditorProcess.Refresh()
+        # Una ventana que no logra publicarse nunca debe poder bloquear el menú.
+        # La revisión normal tarda menos de un segundo; se deja margen para equipos lentos.
+        if($script:layoutEditorStartedAt -and ((Get-Date)-$script:layoutEditorStartedAt).TotalSeconds -gt 12 -and $script:layoutEditorProcess.MainWindowHandle -eq 0){
+            Write-AgentLog 'El editor multidisplay no publicó una ventana; se liberó el menú para reintentar.'
+            Stop-Process -Id $script:layoutEditorProcess.Id -Force -ErrorAction SilentlyContinue
+            $script:layoutEditorProcess.WaitForExit(2000)|Out-Null
+        }else{return}
+    }
     $process=$script:layoutEditorProcess
     $script:layoutEditorProcess=$null
+    $script:layoutEditorStartedAt=$null
     $script:displayLayoutItem.Enabled=$true
     $exitCode=$process.ExitCode
     $process.Dispose()
@@ -876,6 +888,7 @@ $script:logsItem = $logsItem
 $script:exitItem = $exitItem
 $script:backgroundSettings = Get-BackgroundSettings
 $script:layoutEditorProcess = $null
+$script:layoutEditorStartedAt = $null
 $script:layoutEditorErrorPath = $null
 $tray.Icon = New-Object Drawing.Icon($iconPath)
 $tray.Text = 'AlienGamer Mode'
@@ -929,7 +942,16 @@ $eventTimer.Add_Tick({
 $eventTimer.Start()
 Apply-AgentLanguage
 Update-TrayMenuState
-if ($Activate) { $timer = New-Object Windows.Forms.Timer; $timer.Interval=400; $timer.Add_Tick({$timer.Stop(); Start-Monitor}); $timer.Start() }
+if ($Activate -or $OpenLayoutEditor) {
+    $timer = New-Object Windows.Forms.Timer
+    $timer.Interval=500
+    $timer.Add_Tick({
+        $timer.Stop()
+        if($Activate){Start-Monitor}
+        if($OpenLayoutEditor){Show-DisplayLayoutEditor}
+    })
+    $timer.Start()
+}
 [Windows.Forms.Application]::Run()
 $tray.Dispose()
 $activateEvent.Dispose()

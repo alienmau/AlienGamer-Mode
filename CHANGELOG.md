@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 1.5.2 — 20 de septiembre de 2026
+
+- Corrige el editor **Pantallas y distribución...** que podía ejecutarse oculto al intentar esconder la consola de PowerShell.
+- Oculta únicamente la consola auxiliar y mantiene visible, centrada y operativa la ventana gráfica del editor.
+- Libera automáticamente la opción del menú si el editor no llega a publicar una ventana, evitando que quede deshabilitada después de usar **OFF** y volver a activar el monitor.
+- Después de cualquier instalación, abre el editor tras iniciar el monitor para elegir o confirmar módulos, pantallas y posiciones.
+- Conserva sin cambios las distribuciones creadas previamente por cualquier versión 1.5.
+- Solicita el cierre cooperativo del agente anterior antes de actualizar archivos, reduciendo procesos residuales durante la instalación.
+
 ## 1.5.1 — 20 de septiembre de 2026
 
 - Corrige la actualización desde esquema 2: una instalación 1.4 inicia con una distribución multidisplay limpia y coherente, sin mezclar `features` antiguos con visibilidad por pantalla.

@@ -1,10 +1,23 @@
 param(
     [Parameter(Mandatory)][string]$ConfigPath,
-    [Parameter(Mandatory)][string]$DiscoveryPath
+    [Parameter(Mandatory)][string]$DiscoveryPath,
+    [switch]$HideConsole
 )
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
+if($HideConsole){
+    Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class AlienGamerEditorWindow {
+    [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+}
+"@
+    $consoleHandle=[AlienGamerEditorWindow]::GetConsoleWindow()
+    if($consoleHandle-ne[IntPtr]::Zero){[void][AlienGamerEditorWindow]::ShowWindow($consoleHandle,0)}
+}
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.MultiDisplay.psm1') -Force
 
 $config=Get-Content -LiteralPath $ConfigPath -Raw|ConvertFrom-Json
@@ -88,7 +101,7 @@ $background.Add_CheckedChanged({if(-not $script:updating -and $script:currentVie
 $backgroundMode.Add_SelectedIndexChanged({if(-not $script:updating -and $script:currentView){$script:currentView.background.mode=[string]$backgroundMode.SelectedItem}})
 $modules.Add_ItemCheck({param($sender,$e)if(-not $script:updating -and $script:currentView){$module=$script:currentView.modules.PSObject.Properties[$moduleOrder[$e.Index]].Value;$module.visible=$e.NewValue-eq[Windows.Forms.CheckState]::Checked;$form.BeginInvoke([Action]{Draw-View})|Out-Null}})
 $reset.Add_Click({if($script:currentView -and [string]$preset.SelectedItem-ne'custom'){Set-AGLayoutPreset -View $script:currentView -Preset ([string]$preset.SelectedItem)|Out-Null;Load-View}})
-$canvas.Add_SizeChanged({if($script:currentView){Draw-View}})
+$form.Add_ResizeEnd({if($script:currentView){Draw-View}})
 if($monitorList.Items.Count){$monitorList.SelectedIndex=0}
 
 if($form.ShowDialog()-eq'OK'){

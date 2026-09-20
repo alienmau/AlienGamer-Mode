@@ -15,7 +15,7 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
-La versión 1.5.1 añade un editor visual multidisplay: cada pantalla puede tener módulos, posiciones, diseño y fondo propios. Comparte una sola lectura validada de HWiNFO, por lo que no duplica el puente de sensores ni la grabación de eventos. Esta revisión corrige la migración visual desde 1.4 y evita que el editor bloquee el menú de bandeja.
+La versión 1.5.2 añade un editor visual multidisplay: cada pantalla puede tener módulos, posiciones, diseño y fondo propios. Comparte una sola lectura validada de HWiNFO, por lo que no duplica el puente de sensores ni la grabación de eventos. Esta revisión hace visible el editor sin mostrar una consola, recupera automáticamente el menú si la ventana no llega a abrir y guía la configuración inicial al instalar o migrar.
 
 ## ¿Por qué AlienGamer Mode?
 
@@ -85,7 +85,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.5.1.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.5.2.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -103,7 +103,7 @@ Abre el menú del icono de bandeja y selecciona **Pantallas y distribución...**
 
 Pulsa **Guardar y aplicar** para reconstruir únicamente las vistas de Rainmeter. HWiNFO, el puente local y la grabación permanecen compartidos. La selección se conserva en `displayViews` dentro de `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` y vuelve a aplicarse al iniciar Windows.
 
-La primera vista mantiene la selección hecha en el instalador. Al actualizar desde una versión anterior, esa pantalla y las preferencias existentes se migran automáticamente. Teléfonos y tabletas aún no funcionan como pantallas remotas; esa extensión está prevista para una versión posterior y requerirá controles explícitos de red y privacidad.
+La primera vista mantiene la selección hecha en el instalador. El editor se abre automáticamente al terminar cualquier instalación para elegir módulos y distribución; posteriormente puede abrirse siempre desde el icono de bandeja. En una actualización se cargan y conservan las configuraciones creadas previamente por 1.5. Teléfonos y tabletas aún no funcionan como pantallas remotas; esa extensión está prevista para una versión posterior y requerirá controles explícitos de red y privacidad.
 
 ## Fondo ambiental configurable
 

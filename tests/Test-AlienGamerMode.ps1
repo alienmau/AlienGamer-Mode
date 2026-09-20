@@ -47,13 +47,14 @@ $recorderSource = Get-Content (Join-Path $root 'src\AlienGamerEventRecorder.ps1'
 $commandSource = Get-Content (Join-Path $root 'src\AlienGamerModeCommand.ps1') -Raw
 $launcherSource = Get-Content (Join-Path $root 'src\AlienGamerModeLauncher.vbs') -Raw
 $fallbackStopSource = Get-Content (Join-Path $root 'src\Stop-AlienGamerMode.ps1') -Raw
+$layoutEditorSource = Get-Content (Join-Path $root 'src\Show-AlienGamerLayoutEditor.ps1') -Raw
 Assert ($installerSource -notmatch 'New-ScheduledTaskAction[^\r\n]+-WorkingDirectory') 'La tarea elevada no debe depender de WorkingDirectory.'
 Assert ($installerSource -match 'Settings\.Compatibility\s*=\s*2') 'La tarea debe usar compatibilidad Vista y el motor clasico.'
 Assert ($installerSource -notmatch 'UseUnifiedSchedulingEngine\s*=') 'No se debe tocar UseUnifiedSchedulingEngine porque actualiza la tarea a Win7.'
 Assert ($installerSource -match 'Set-Content -LiteralPath \$Path -Encoding ASCII') 'El INI de HWiNFO debe guardarse como ASCII sin BOM.'
 Assert ($installerSource -match 'function Merge-MissingConfiguration' -and $installerSource -match 'Merge-MissingConfiguration \$config \$configDefaults') 'Las actualizaciones no incorporan parámetros nuevos a configuraciones existentes.'
 Assert ($installerSource -match '\$config\.language = \$Language' -and $innoSource -match 'Name: "english"' -and $innoSource -match 'Name: "spanish"' -and $innoSource -match 'ShowLanguageDialog=yes' -and $innoSource -match '-Language ""\{language\}""') 'El instalador no permite seleccionar y guardar español o inglés.'
-Assert ($innoSource -match '#define MyAppVersion "1\.5\.1"' -and $innoSource -match 'AlienGamerMode-Setup-1\.5\.1') 'El instalador no está versionado como 1.5.1.'
+Assert ($innoSource -match '#define MyAppVersion "1\.5\.2"' -and $innoSource -match 'AlienGamerMode-Setup-1\.5\.2') 'El instalador no está versionado como 1.5.2.'
 Assert ($installerSource -match 'AlienGamerEventRecorder\\\.ps1' -and $installerSource -match 'recording-state\.json' -and $installerSource -match 'event-prebuffer-state\.json') 'La actualización no detiene grabadores antiguos ni limpia su estado de control.'
 Assert ($installerSource -match 'installer\.uninstallShortcut' -and $installerSource -match 'installedDocs') 'El paquete no instala documentación o acceso de desinstalación.'
 Assert ($installerSource -match '(?s)\$form\.ShowDialog\(\).*?if \(\$script:launchAfterClose\)' -and $installerSource -notmatch '\$taskbarCheck\.Checked\) \{ \[Windows\.Forms\.MessageBox\]::Show\(''Windows 11') 'El agente o los avisos todavía pueden superponerse al instalador.'
@@ -166,6 +167,9 @@ Assert ($agentSource -match 'function Show-DisplayLayoutEditor' -and $agentSourc
 Assert ($installerSource -match '\$config\.schemaVersion\s*=\s*3' -and $installerSource -match 'upgradeToMultiDisplay' -and $installerSource -match 'displayViews' -and $installerSource -match 'ConvertTo-Json -Depth 20') 'La actualización no migra de forma segura la configuración multidisplay.'
 Assert ($agentSource -match 'function Initialize-MultiDisplayConfiguration' -and $agentSource -match 'Configuración visual migrada' -and $agentSource -match 'Set-AgentConfigProperty.*processorPanelVisible.*\$true') 'El agente no repara una configuración 1.4 que haya sobrevivido al instalador.'
 Assert ($agentSource -match 'function Complete-DisplayLayoutEditor' -and $agentSource -match 'RedirectStandardError' -and $agentSource -notmatch 'Show-AlienGamerLayoutEditor\.ps1[^\r\n]+-Wait') 'El editor de pantallas todavía puede bloquear el menú de bandeja.'
+Assert ($layoutEditorSource -match '\[switch\]\$HideConsole' -and $layoutEditorSource -match 'GetConsoleWindow' -and $layoutEditorSource -match 'ShowWindow' -and $agentSource -match 'WindowStyle Minimized' -and $agentSource -match '-HideConsole') 'El editor no separa correctamente la consola oculta de su ventana gráfica.'
+Assert ($agentSource -match 'layoutEditorStartedAt' -and $agentSource -match 'MainWindowHandle -eq 0' -and $agentSource -match 'liberó el menú') 'El menú puede quedar deshabilitado si el editor no publica una ventana.'
+Assert ($agentSource -match '\[switch\]\$OpenLayoutEditor' -and $launcherSource -match 'activate-layout' -and $installerSource -match 'openLayoutAfterClose\s*=\s*\$true') 'La instalación no abre el editor de distribución al finalizar.'
 Assert ($agentSource -match "tray\.compactOverlay" -and $agentSource -match "tray\.markIncident" -and $agentSource -match "Invoke-RecorderCommand '-StartBuffer'" -and $agentSource -match "Invoke-RecorderCommand '-StopBuffer'") 'La bandeja no controla modo compacto, marcas o ciclo del búfer previo.'
 Assert ($agentSource -match "dialog\.waitApply" -and $agentSource -match "'!HideMeterGroup'" -and $agentSource -match 'Refresh-DisplaySkins') 'El cambio de módulos no informa progreso o no actualiza todas las vistas.'
 Assert ($agentSource -notmatch "Items\.Add\('Salir del modo'\)" -and $agentSource -match "tray\.closeApp") 'La bandeja conserva acciones redundantes o nombres ambiguos.'

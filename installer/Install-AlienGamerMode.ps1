@@ -31,6 +31,7 @@ $iconPath = Join-Path $assetRoot 'AlienGamerMode.ico'
 $script:launchAfterClose = $false
 $script:launchProgram = $null
 $script:launchArguments = $null
+$script:openLayoutAfterClose = $false
 
 function Get-MajorMinorVersion([string]$Path) {
     if (-not (Test-Path $Path)) { return [version]'0.0' }
@@ -95,6 +96,14 @@ function Backup-And-RemovePreviousEditions {
     $officialSkin = Join-Path $skinRoot 'AlienGamerMode'
     $previewSkin = Join-Path $skinRoot 'AlienGamerModeUniversal'
 
+    # Solicita primero un cierre cooperativo del agente. Esto funciona incluso
+    # cuando WMI no puede leer la línea de comandos de un proceso anterior.
+    try {
+        $createdStopEvent=$false
+        $agentStopEvent=[Threading.EventWaitHandle]::new($false,[Threading.EventResetMode]::AutoReset,'Local\AlienGamerMode.Stop',[ref]$createdStopEvent)
+        if(-not $createdStopEvent){[void]$agentStopEvent.Set();Start-Sleep -Milliseconds 1200}
+        $agentStopEvent.Dispose()
+    } catch { }
     # Detiene agentes, puentes y tareas anteriores antes de sustituir archivos.
     foreach ($root in @($dataRoot,$previewData)) {
         $pidFile = Join-Path $root 'bridge.pid'
@@ -360,9 +369,12 @@ $installButton.Add_Click({
         if ($taskbarCheck.Checked) { $completion += "`r`n`r`n$(T 'installer.pinNotice')" }
         if ($legacyBackup) { $completion += "`r`n`r`n$(T 'installer.backup')`r`n$legacyBackup" }
         [Windows.Forms.MessageBox]::Show($form,$completion,(T 'installer.completeTitle'),[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+        # Toda instalación termina en el editor visual. En una actualización se
+        # cargan las preferencias existentes; el usuario puede confirmarlas o cancelarlo.
+        $script:openLayoutAfterClose = $true
         $script:launchAfterClose = -not $NoLaunch
         $script:launchProgram = $wscript
-        $script:launchArguments = $args
+        $script:launchArguments = if($script:openLayoutAfterClose){"//B //NoLogo `"$launcher`" activate-layout"}else{$args}
         $form.Close()
     } catch {
         $installButton.Enabled=$true; $status.Text=T 'installer.notCompleted'
