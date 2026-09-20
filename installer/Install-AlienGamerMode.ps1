@@ -7,9 +7,9 @@ Add-Type -AssemblyName System.Drawing
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = New-Object Security.Principal.WindowsPrincipal($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Language `"$Language`""
+    $arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Language `"$Language`""
     if ($NoLaunch) { $arguments += ' -NoLaunch' }
-    Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments
+    Start-Process powershell.exe -Verb RunAs -WindowStyle Hidden -ArgumentList $arguments
     exit
 }
 
@@ -29,7 +29,7 @@ $rainmeterPath = "$env:ProgramFiles\Rainmeter\Rainmeter.exe"
 $hwinfoPath = "$env:ProgramFiles\HWiNFO64\HWiNFO64.exe"
 $iconPath = Join-Path $assetRoot 'AlienGamerMode.ico'
 $script:launchAfterClose = $false
-$script:launchPowerShell = $null
+$script:launchProgram = $null
 $script:launchArguments = $null
 
 function Get-MajorMinorVersion([string]$Path) {
@@ -105,9 +105,13 @@ function Backup-And-RemovePreviousEditions {
     }
     try {
         Get-CimInstance Win32_Process | Where-Object {
-            $_.Name -match 'powershell' -and $_.CommandLine -match 'AlienGamerMode(?:Universal)?Agent\.ps1'
+            $_.Name -match 'powershell' -and $_.CommandLine -match 'AlienGamerMode(?:Universal)?Agent\.ps1|AlienGamerEventRecorder\.ps1'
         } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     } catch { }
+    # Una grabación iniciada antes de actualizar conserva el script viejo en
+    # memoria. Se detiene sin finalizarla: el CSV queda intacto para recuperación
+    # y se eliminan únicamente los archivos de control de la sesión interrumpida.
+    Remove-Item -LiteralPath (Join-Path $dataRoot 'recording-state.json'),(Join-Path $dataRoot 'recording.stop'),(Join-Path $dataRoot 'event-prebuffer-state.json'),(Join-Path $dataRoot 'event-prebuffer.stop') -Force -ErrorAction SilentlyContinue
     foreach ($taskName in @('AlienGamerMode-On','AlienGamerMode-Off','AlienGamerModeUniversal-HWiNFO','AlienGamerMode-HWiNFO')) {
         Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
@@ -198,7 +202,7 @@ function Add-Label([string]$Text,[int]$Y) { $l=New-Object Windows.Forms.Label; $
 [void](Add-Label (T 'installer.monitor') 155)
 $monitorBox = New-Object Windows.Forms.ComboBox
 $monitorBox.DropDownStyle = 'DropDownList'; $monitorBox.SetBounds(30,178,625,29)
-foreach ($m in @($discovery.monitors)) { [void]$monitorBox.Items.Add("$($m.deviceName) · $($m.width)x$($m.height) · $(if($m.primary){T 'installer.primary'}else{T 'installer.secondary'})") }
+foreach ($m in @($discovery.monitors)) { [void]$monitorBox.Items.Add("$($m.friendlyName) · $($m.deviceName) · $($m.width)x$($m.height) · $(if($m.primary){T 'installer.primary'}else{T 'installer.secondary'})") }
 if ($monitorBox.Items.Count) { $monitorBox.SelectedIndex = if ($monitorBox.Items.Count -gt 1) { 1 } else { 0 } }
 $form.Controls.Add($monitorBox)
 
@@ -253,6 +257,8 @@ $installButton.Add_Click({
         $selectedGpu = @($discovery.gpus)[$gpuBox.SelectedIndex]
         $selectedStorage = @($discovery.storage)[$storageBox.SelectedIndex]
         $config.display.targetMonitor = $selectedMonitor.deviceName
+        if ($config.display.PSObject.Properties['targetMonitorId']) { $config.display.targetMonitorId = $selectedMonitor.pnpDeviceId }
+        else { $config.display | Add-Member NoteProperty targetMonitorId ([string]$selectedMonitor.pnpDeviceId) }
         $config.hardware.preferredGpu = $selectedGpu.name
         $config.hardware.preferredStorage = $selectedStorage.friendlyName
         $config.installation.desktopShortcut = $desktopCheck.Checked
@@ -312,19 +318,20 @@ $installButton.Add_Click({
         Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue
         Start-Sleep -Milliseconds 500
 
-        $agent = Join-Path $installRoot 'AlienGamerModeAgent.ps1'
-        $args = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$agent`" -Activate"
+        $launcher = Join-Path $installRoot 'AlienGamerModeLauncher.vbs'
+        $wscript = "$env:SystemRoot\System32\wscript.exe"
+        $args = "//B //NoLogo `"$launcher`" activate"
         $desktopLink = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Activar AlienGamer Mode.lnk'
-        if ($desktopCheck.Checked) { New-Shortcut $desktopLink $powershell $args (Join-Path $installRoot 'assets\AlienGamerMode.ico') }
+        if ($desktopCheck.Checked) { New-Shortcut $desktopLink $wscript $args (Join-Path $installRoot 'assets\AlienGamerMode.ico') }
         $startFolder = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\AlienGamer Mode'
         if ($startMenuCheck.Checked) {
             New-Item -ItemType Directory -Path $startFolder -Force | Out-Null
-            New-Shortcut (Join-Path $startFolder 'AlienGamer Mode.lnk') $powershell $args (Join-Path $installRoot 'assets\AlienGamerMode.ico')
+            New-Shortcut (Join-Path $startFolder 'AlienGamer Mode.lnk') $wscript $args (Join-Path $installRoot 'assets\AlienGamerMode.ico')
             $uninstallScript = Join-Path $installRoot 'Uninstall-AlienGamerMode.ps1'
             New-Shortcut (Join-Path $startFolder ((T 'installer.uninstallShortcut') + '.lnk')) $powershell "-NoProfile -ExecutionPolicy Bypass -File `"$uninstallScript`"" (Join-Path $installRoot 'assets\AlienGamerMode.ico')
         }
         $startupLink = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\AlienGamer Mode.lnk'
-        if ($startupCheck.Checked) { New-Shortcut $startupLink $powershell "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$agent`"" (Join-Path $installRoot 'assets\AlienGamerMode.ico') } elseif (Test-Path $startupLink) { Remove-Item $startupLink -Force }
+        if ($startupCheck.Checked) { New-Shortcut $startupLink $wscript "//B //NoLogo `"$launcher`" agent" (Join-Path $installRoot 'assets\AlienGamerMode.ico') } elseif (Test-Path $startupLink) { Remove-Item $startupLink -Force }
 
         $status.Text=T 'installer.finished'; $form.Refresh()
         $completion = T 'installer.complete'
@@ -333,7 +340,7 @@ $installButton.Add_Click({
         if ($legacyBackup) { $completion += "`r`n`r`n$(T 'installer.backup')`r`n$legacyBackup" }
         [Windows.Forms.MessageBox]::Show($form,$completion,(T 'installer.completeTitle'),[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Information) | Out-Null
         $script:launchAfterClose = -not $NoLaunch
-        $script:launchPowerShell = $powershell
+        $script:launchProgram = $wscript
         $script:launchArguments = $args
         $form.Close()
     } catch {
@@ -348,7 +355,7 @@ $installButton.Add_Click({
 # Un segundo pulso de activación evita perder la orden durante la creación inicial
 # del mutex o del evento local del agente.
 if ($script:launchAfterClose) {
-    Start-Process $script:launchPowerShell -WindowStyle Hidden -ArgumentList $script:launchArguments | Out-Null
+    Start-Process $script:launchProgram -WindowStyle Hidden -ArgumentList $script:launchArguments | Out-Null
     Start-Sleep -Milliseconds 1500
-    Start-Process $script:launchPowerShell -WindowStyle Hidden -ArgumentList $script:launchArguments | Out-Null
+    Start-Process $script:launchProgram -WindowStyle Hidden -ArgumentList $script:launchArguments | Out-Null
 }

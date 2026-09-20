@@ -4,6 +4,7 @@
   "language": "es-MX",
   "display": {
     "targetMonitor": "auto",
+    "targetMonitorId": "auto",
     "preference": "secondary",
     "referenceWidth": 1711,
     "referenceHeight": 1023,
@@ -58,6 +59,11 @@
       "sizeScale": 1.0,
       "color": "255,112,20",
       "updateFps": 10,
+      "gpuProtectionThreshold": 88,
+      "thermalMinimumParticles": 8,
+      "thermalMaximumParticles": 32,
+      "thermalBaseSpeed": 0.75,
+      "thermalSizeScale": 1.0,
       "minimumParticles": 8,
       "maximumParticles": 48
     }
@@ -82,6 +88,7 @@
     "incidentWindowAfterSeconds": 15,
     "privacyAssistant": true,
     "saveRawCsvBesideReport": true,
+    "saveVisualReportBesideReport": true,
     "comparisonHistorySessions": 10
   },
   "installation": {

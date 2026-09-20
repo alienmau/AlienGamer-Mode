@@ -5,7 +5,7 @@
 - Windows 10 u 11 de 64 bits.
 - PowerShell 5.1 o posterior.
 - Un monitor con resolución mínima recomendada de 1280 × 720.
-- Microsoft Excel sólo es necesario para generar el reporte final `.xlsx` de **Grabar evento**.
+- Microsoft Excel sólo es necesario para generar el libro opcional `.xlsx` de **Grabar evento**. El reporte visual HTML y el CSV bruto no dependen de Excel.
 
 ## Rainmeter
 

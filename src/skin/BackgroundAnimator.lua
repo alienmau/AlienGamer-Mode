@@ -9,6 +9,9 @@ local currentColor, targetColor = {255, 112, 20}, {255, 112, 20}
 local lastEnabled, lastCount, lastTint = nil, nil, ''
 local frameTimes, sensorTick, invalidFrameSamples = {}, 0, 0
 local thermalPressure = 0
+local gpuProtectionThreshold = 88
+local thermalMinimumParticles, thermalMaximumParticles = 8, 32
+local thermalBaseSpeed, thermalSizeScale = 0.75, 1.0
 local elapsed = 0
 
 local function clamp(value, minimum, maximum)
@@ -82,6 +85,7 @@ local function updateThermalTargets()
     end
 
     local smoothness = activity * 0.45
+    local framePressure = 0
     if #frameTimes >= 2 then
         local sum = 0
         for _, value in ipairs(frameTimes) do sum = sum + value end
@@ -92,13 +96,21 @@ local function updateThermalTargets()
         local pace = clamp((50 - average) / 41.7, 0, 1)
         local stabilityPenalty = clamp((deviation / math.max(average, 1)) * 1.8, 0, 0.65)
         smoothness = pace * (1 - stabilityPenalty)
+        framePressure = clamp((average - 20) / 30 + stabilityPenalty * 0.5, 0, 1)
     elseif fps and fps > 0 then
         smoothness = clamp((fps - 20) / 100, 0, 1)
     end
 
     local density = clamp(smoothness * 0.70 + activity * 0.30, 0, 1)
-    targetCount = 8 + (configuredCount - 8) * density
-    targetSpeed = clamp(globalSpeed * (0.45 + activity * 0.55), 0.2, globalSpeed)
+    local requestedCount = thermalMinimumParticles + (thermalMaximumParticles - thermalMinimumParticles) * density
+    -- Cuando el juego ya está saturando la GPU, el fondo debe ceder recursos en
+    -- vez de aumentar partículas por la lectura de actividad. La reducción es
+    -- progresiva y también considera frame time degradado para evitar saltos.
+    local gpuPressure = clamp(((gpuUse or 0) - gpuProtectionThreshold) / math.max(100 - gpuProtectionThreshold, 1), 0, 1)
+    local protection = math.max(gpuPressure, framePressure * 0.55)
+    targetCount = thermalMinimumParticles + (requestedCount - thermalMinimumParticles) * (1 - protection * 0.82)
+    targetSpeed = clamp(thermalBaseSpeed * (0.45 + activity * 0.55) * (1 - protection * 0.55), 0.2, thermalBaseSpeed)
+    targetSizeScale = thermalSizeScale
 end
 
 local function resetParticle(particle, initial)
@@ -174,6 +186,11 @@ function Initialize()
     globalSpeed = clamp(tonumber(SELF:GetOption('ParticleSpeed', '0.65')) or 0.65, 0.2, 1.5)
     currentSpeed, targetSpeed = globalSpeed, globalSpeed
     targetSizeScale = clamp(tonumber(SELF:GetOption('ParticleSize', '1.00')) or 1.0, 0.7, 1.6)
+    gpuProtectionThreshold = clamp(tonumber(SELF:GetOption('GpuProtectionThreshold', '88')) or 88, 70, 98)
+    thermalMinimumParticles = clamp(tonumber(SELF:GetOption('ThermalMinimumParticles', '8')) or 8, 4, 16)
+    thermalMaximumParticles = clamp(tonumber(SELF:GetOption('ThermalMaximumParticles', '32')) or 32, thermalMinimumParticles, 40)
+    thermalBaseSpeed = clamp(tonumber(SELF:GetOption('ThermalBaseSpeed', '0.75')) or 0.75, 0.2, 1.2)
+    thermalSizeScale = clamp(tonumber(SELF:GetOption('ThermalSizeScale', '1.00')) or 1.0, 0.7, 1.3)
     currentSizeScale = targetSizeScale
     currentColor = parseColor(SKIN:GetVariable('BackgroundParticleColor', '255,112,20'))
     targetColor = {currentColor[1], currentColor[2], currentColor[3]}

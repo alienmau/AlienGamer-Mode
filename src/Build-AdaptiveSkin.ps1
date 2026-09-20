@@ -30,6 +30,11 @@ $backgroundColor = if ($backgroundEffect -and ([string]$backgroundEffect.color) 
     '{0},{1},{2}' -f [Math]::Min(255,[int]$Matches[1]), [Math]::Min(255,[int]$Matches[2]), [Math]::Min(255,[int]$Matches[3])
 } else { '255,112,20' }
 $backgroundFps = if ($backgroundEffect -and $null -ne $backgroundEffect.updateFps) { [Math]::Max(2, [Math]::Min(10, [int]$backgroundEffect.updateFps)) } else { 10 }
+$backgroundGpuProtection = if ($backgroundEffect -and $null -ne $backgroundEffect.gpuProtectionThreshold) { [Math]::Max(70, [Math]::Min(98, [int]$backgroundEffect.gpuProtectionThreshold)) } else { 88 }
+$backgroundThermalMinimum = if ($backgroundEffect -and $null -ne $backgroundEffect.thermalMinimumParticles) { [Math]::Max(4, [Math]::Min(16, [int]$backgroundEffect.thermalMinimumParticles)) } else { 8 }
+$backgroundThermalMaximum = if ($backgroundEffect -and $null -ne $backgroundEffect.thermalMaximumParticles) { [Math]::Max($backgroundThermalMinimum, [Math]::Min(40, [int]$backgroundEffect.thermalMaximumParticles)) } else { 32 }
+$backgroundThermalSpeed = if ($backgroundEffect -and $null -ne $backgroundEffect.thermalBaseSpeed) { [Math]::Max(0.2, [Math]::Min(1.2, [double]$backgroundEffect.thermalBaseSpeed)) } else { 0.75 }
+$backgroundThermalSize = if ($backgroundEffect -and $null -ne $backgroundEffect.thermalSizeScale) { [Math]::Max(0.7, [Math]::Min(1.3, [double]$backgroundEffect.thermalSizeScale)) } else { 1.0 }
 $backgroundDivider = [Math]::Max(1, [Math]::Round(10 / $backgroundFps))
 $processorPanelVisible = if ($profile.features -and $null -ne $profile.features.processorPanelVisible) { [bool]$profile.features.processorPanelVisible } else { $true }
 $performancePanelVisible = if ($profile.features -and $null -ne $profile.features.performancePanelVisible) { [bool]$profile.features.performancePanelVisible } else { $true }
@@ -62,6 +67,8 @@ $recorderPath = Join-Path $InstallRoot 'AlienGamerEventRecorder.ps1'
 $text = $text -replace '(?m)^EventRecorderPath=.*$', ('EventRecorderPath=' + $recorderPath)
 $commandPath = Join-Path $InstallRoot 'AlienGamerModeCommand.ps1'
 $text = $text -replace '(?m)^CommandPath=.*$', ('CommandPath=' + $commandPath)
+$launcherPath = Join-Path $InstallRoot 'AlienGamerModeLauncher.vbs'
+$text = $text -replace '(?m)^LauncherPath=.*$', ('LauncherPath=' + $launcherPath)
 $text = $text -replace '(?m)^BridgeUrl=.*$', ('BridgeUrl=http://127.0.0.1:' + [int]$profile.bridgePort + '/v2/status')
 $backgroundSize = "0,0,$([int]$monitor.width),$([int]$monitor.height)"
 $text = [regex]::Replace($text, '(?ms)(^\[MeterBackground\].*?^Shape=Rectangle )0,0,1711,1023', {
@@ -114,6 +121,11 @@ $text = [regex]::Replace($text, '(?m)^BackgroundParticleCount=.*$', ('Background
 $text = [regex]::Replace($text, '(?m)^BackgroundParticleSpeed=.*$', ('BackgroundParticleSpeed=' + $backgroundSpeed.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)), 1)
 $text = [regex]::Replace($text, '(?m)^BackgroundParticleSize=.*$', ('BackgroundParticleSize=' + $backgroundSizeScale.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)), 1)
 $text = [regex]::Replace($text, '(?m)^BackgroundParticleColor=.*$', ('BackgroundParticleColor=' + $backgroundColor), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundGpuProtection=.*$', ('BackgroundGpuProtection=' + $backgroundGpuProtection), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundThermalMinimum=.*$', ('BackgroundThermalMinimum=' + $backgroundThermalMinimum), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundThermalMaximum=.*$', ('BackgroundThermalMaximum=' + $backgroundThermalMaximum), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundThermalSpeed=.*$', ('BackgroundThermalSpeed=' + $backgroundThermalSpeed.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)), 1)
+$text = [regex]::Replace($text, '(?m)^BackgroundThermalSize=.*$', ('BackgroundThermalSize=' + $backgroundThermalSize.ToString('0.00', [Globalization.CultureInfo]::InvariantCulture)), 1)
 
 $particleMeters = New-Object Text.StringBuilder
 foreach ($particleIndex in 1..48) {
@@ -367,13 +379,13 @@ Y=$recordHitY
 W=$recordHitW
 H=$recordHitH
 Shape=Rectangle 0,0,$recordHitW,$recordHitH | Fill Color 0,0,0,1 | StrokeWidth 0
-LeftMouseUpAction=["C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "#EventRecorderPath#" -Toggle -BridgeUrl "#BridgeUrl#" -RainmeterConfig "AlienGamerMode"]
+LeftMouseUpAction=["C:\Windows\System32\wscript.exe" //B //NoLogo "#LauncherPath#" "record-toggle" "#BridgeUrl#"]
 MouseOverAction=[!SetVariable RecordHover 1]
 MouseLeaveAction=[!SetVariable RecordHover 0]
 MouseActionCursor=1
 ToolTipText=$($ui.skin.recordTooltip)
 DynamicVariables=1
-RightMouseUpAction=["C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "#EventRecorderPath#" -MarkIncident -BridgeUrl "#BridgeUrl#" -RainmeterConfig "AlienGamerMode"]
+RightMouseUpAction=["C:\Windows\System32\wscript.exe" //B //NoLogo "#LauncherPath#" "mark-incident" "#BridgeUrl#"]
 $compactHitHidden
 
 [HitArea_Off]
@@ -383,7 +395,7 @@ Y=$offHitY
 W=$offHitW
 H=$offHitH
 Shape=Rectangle 0,0,$offHitW,$offHitH | Fill Color 0,0,0,1 | StrokeWidth 0
-LeftMouseUpAction=["C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "#CommandPath#" -Stop]
+LeftMouseUpAction=["C:\Windows\System32\wscript.exe" //B //NoLogo "#LauncherPath#" "stop"]
 MouseOverAction=[!SetVariable OffHover 1]
 MouseLeaveAction=[!SetVariable OffHover 0]
 MouseActionCursor=1

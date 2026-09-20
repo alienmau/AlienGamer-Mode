@@ -15,7 +15,7 @@
 
 AlienGamer Mode is a Rainmeter and HWiNFO dashboard that detects the available hardware, adapts its layout to the selected display and avoids presenting missing sensors as real zero values.
 
-Version 1.3.1 adds a **thermal dynamic background**: firefly color follows validated thermal pressure, density follows recent frame-time fluidity and stability, and movement speed follows CPU/GPU activity with gradual transitions. It retains the complete Event Intelligence feature set introduced in 1.3.0.
+Version 1.4.0 automatically creates a visual HTML report with charts whenever a recording ends, alongside the Excel workbook and raw CSV. It also includes the fully hidden startup and reliable OFF fallback introduced in 1.3.5.
 
 ## Highlights
 
@@ -52,7 +52,7 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.3.1.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.4.0.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 
@@ -64,13 +64,17 @@ Right-click the AlienGamer Mode tray icon and choose **Language → English** or
 
 Open **Background** from the tray icon and choose **Off**, **Custom**, or **Thermal dynamic**. Custom mode keeps the user-selected color. Thermal mode compares valid CPU, maximum-core and GPU temperatures against component-specific thresholds; the most demanding valid state controls the firefly color. A reported thermal-throttling flag forces the critical red state.
 
-Firefly density blends recent frame-time fluidity/stability with CPU/GPU activity, while movement speed follows the highest valid CPU/GPU load. Attack and decay smoothing prevents abrupt visual changes. Missing sensors are ignored rather than interpreted as real zero values. The configurable particle count and speed act as safe maximums in thermal mode, and all choices persist in the user configuration.
+Firefly density blends recent frame-time fluidity/stability with CPU/GPU activity. When GPU saturation or degraded frame time is detected, thermal mode gradually reduces particles and movement to yield resources to the game. Custom firefly controls are available only in **Custom** mode; **Thermal dynamic** uses separate conservative automatic parameters. Missing sensors are ignored rather than interpreted as real zero values.
+
+Use **Configure hardware and display...** from the tray to change the target display, GPU or primary storage without reinstalling. Displays are saved by physical identity, so the selection survives Windows renaming `DISPLAY1` to another number.
 
 ## Recording a performance event
 
 While the monitor is active it keeps a local rolling buffer covering the previous 60 seconds. When you notice stutter, freezes or another suspicious behavior, press **Record event**. Choose **Mark incident now** in the tray menu whenever the symptom appears; right-clicking the skin's record button also creates a marker.
 
-The Excel report includes raw samples, incident windows, P95/P99 frame time, a 0–100 stability score, preliminary evidence and recommendations, comparison with the previous local session and a privacy sheet. A raw CSV is saved beside the workbook for independent or AI-assisted analysis.
+Finishing a recording creates three companion files: a responsive standalone HTML report, an Excel workbook and the raw CSV. The visual report opens in any modern browser without an Internet connection and includes an executive summary, a 0–100 stability score, separate correctly scaled FPS and frame-time charts, temperatures, utilization and marked incidents. The workbook retains raw samples, incident windows, comparison with the previous local session and a privacy sheet. The CSV remains available for independent or AI-assisted analysis.
+
+Excel is optional. If it is not installed or workbook creation fails, AlienGamer Mode still preserves the visual report and raw CSV whenever possible.
 
 The resulting report can help correlate the symptom with overheating, resource saturation, throttling or frame-time instability. Its interpretation is preliminary: it does not prove a root cause or replace game logs, detailed SMART diagnostics, network analysis or specialized traces.
 

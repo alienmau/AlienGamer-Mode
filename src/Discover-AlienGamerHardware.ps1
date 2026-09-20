@@ -55,9 +55,58 @@ namespace AlienGamer {
 '@
 }
 
+if (-not ('AlienGamer.NativeDisplays' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+namespace AlienGamer {
+  public sealed class DisplayIdentity {
+    public string DeviceName { get; set; }
+    public string FriendlyName { get; set; }
+    public string PnpDeviceId { get; set; }
+  }
+  public static class NativeDisplays {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct DISPLAY_DEVICE {
+      public int cb;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceString;
+      public uint StateFlags;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceID;
+      [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
+    }
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    static extern bool EnumDisplayDevices(string device, uint index, ref DISPLAY_DEVICE display, uint flags);
+    static DISPLAY_DEVICE NewDevice() { var value = new DISPLAY_DEVICE(); value.cb = Marshal.SizeOf(value); return value; }
+    public static DisplayIdentity[] Read() {
+      var result = new List<DisplayIdentity>();
+      for (uint adapterIndex = 0; ; adapterIndex++) {
+        var adapter = NewDevice();
+        if (!EnumDisplayDevices(null, adapterIndex, ref adapter, 0)) break;
+        if (String.IsNullOrWhiteSpace(adapter.DeviceName)) continue;
+        var monitor = NewDevice();
+        if (!EnumDisplayDevices(adapter.DeviceName, 0, ref monitor, 0)) continue;
+        result.Add(new DisplayIdentity {
+          DeviceName = adapter.DeviceName,
+          FriendlyName = monitor.DeviceString ?? "",
+          PnpDeviceId = (monitor.DeviceID ?? "").ToUpperInvariant()
+        });
+      }
+      return result.ToArray();
+    }
+  }
+}
+'@
+}
+
+$displayIdentities = @([AlienGamer.NativeDisplays]::Read())
 $screens = @([Windows.Forms.Screen]::AllScreens | ForEach-Object {
+    $identity = $displayIdentities | Where-Object DeviceName -eq $_.DeviceName | Select-Object -First 1
     [pscustomobject]@{
         deviceName = $_.DeviceName
+        friendlyName = if ($identity) { $identity.FriendlyName } else { $_.DeviceName }
+        pnpDeviceId = if ($identity) { $identity.PnpDeviceId } else { '' }
         primary = $_.Primary
         x = $_.Bounds.X
         y = $_.Bounds.Y

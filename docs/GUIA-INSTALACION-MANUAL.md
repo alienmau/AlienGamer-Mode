@@ -33,7 +33,7 @@ Mientras el agente está abierto, el logotipo aparece en los iconos ocultos de W
 - Abrir registros y reportes;
 - Cerrar AlienGamer Mode.
 
-**Detener monitor** desactiva la skin y cierra el puente, pero conserva el agente en la bandeja para poder activarlo nuevamente. **Cerrar AlienGamer Mode** también retira el agente. HWiNFO y Rainmeter sólo se cierran automáticamente cuando fueron iniciados por esta edición. Si existe una grabación, se finaliza antes de detener el monitor.
+**Detener monitor** y el botón **OFF** desactivan la skin, detienen el puente, el búfer y los procesos de presentación/sensores asociados, pero conservan el agente en la bandeja para poder activar el monitor nuevamente. **Cerrar AlienGamer Mode** también retira el agente. El agente funciona en segundo plano mediante Windows Script Host: no debe aparecer una consola de PowerShell permanente. Si existe una grabación, se finaliza antes de detener el monitor. Si el agente no responde, OFF aplica automáticamente un cierre de respaldo después de tres segundos.
 
 ## Grabar evento
 
@@ -43,15 +43,19 @@ La versión 1.3.0 incluye automáticamente los 60 segundos previos. Si el sínto
 
 ### Fondo térmico 1.3.1
 
-Desde el icono de bandeja abre **Fondo** y selecciona **Dinámico térmico**. El modo personalizado conserva el color manual; el térmico usa las temperaturas válidas de CPU/Core Max y GPU, y adapta densidad y velocidad a la fluidez y actividad. La selección se conserva al reiniciar. **Configurar luciérnagas...** establece los límites máximos de cantidad, velocidad y tamaño para ambos modos.
+Desde el icono de bandeja abre **Fondo** y selecciona **Dinámico térmico**. El modo personalizado conserva y habilita cantidad, velocidad, tamaño y color manuales. El modo térmico usa parámetros automáticos propios, temperaturas válidas de CPU/Core Max y GPU, y reduce su carga si detecta saturación de GPU o pérdida de fluidez. Mientras esté activo, los controles manuales permanecen deshabilitados.
 
-Conserva juntos el `.xlsx` y el archivo `-datos-brutos.csv`. Puedes analizarlos manualmente, enviarlos a un técnico o pedir a una IA que busque correlaciones, recordando que el resumen es preliminar y no representa una verdad absoluta.
+### Cambiar equipo o pantalla sin reinstalar
 
-Al finalizar, el programa solicita dónde guardar un libro de Excel. El reporte reúne la línea temporal de FPS, *frame time*, RAM, VRAM, uso y temperatura de CPU/GPU, temperatura del almacenamiento, carga por procesador lógico y alertas térmicas o de potencia que estén disponibles. También contiene un resumen, máximos, percentiles, procesos activos y una interpretación preliminar.
+Abre el icono de bandeja y selecciona **Configurar equipo y pantalla...**. Puedes cambiar el monitor de destino, la GPU supervisada y la unidad principal. La pantalla se guarda mediante su identidad física para resistir cambios de numeración de Windows.
+
+Conserva juntos el archivo `-visual.html`, el `.xlsx` y el archivo `-datos-brutos.csv`. Puedes analizarlos manualmente, enviarlos a un técnico o pedir a una IA que busque correlaciones, recordando que el resumen es preliminar y no representa una verdad absoluta.
+
+Al finalizar, el programa solicita una ubicación y genera automáticamente un reporte visual HTML, un libro de Excel y un CSV bruto. El HTML reúne un resumen ejecutivo, la puntuación de estabilidad y gráficas separadas de FPS, *frame time*, temperaturas y utilización. El libro añade la cronología detallada, carga por procesador lógico, máximos, percentiles, procesos activos, comparación e interpretación preliminar.
 
 Este documento puede ayudar a relacionar el momento exacto del problema con calentamiento, saturación, *throttling*, límites de potencia o inestabilidad del tiempo de cuadro. Resulta útil para que un técnico investigue con más contexto y para detectar tendencias antes de que sean recurrentes. No representa un diagnóstico definitivo: algunas causas requieren además registros del juego, red, controladores, SMART detallado o trazas especializadas.
 
-Si la creación del libro falla, la captura CSV se conserva en `%LOCALAPPDATA%\AlienGamerMode\GrabacionesPendientes` para no perder la evidencia.
+Si Excel no está instalado o la creación del libro falla, el programa conserva el reporte visual y el CSV siempre que sea posible. La captura pendiente permanece además en `%LOCALAPPDATA%\AlienGamerMode\GrabacionesPendientes` para no perder la evidencia.
 
 ## Diagnóstico
 

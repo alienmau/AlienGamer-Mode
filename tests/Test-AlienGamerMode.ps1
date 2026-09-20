@@ -30,8 +30,10 @@ Assert ($config.dataSource.bridgePort -eq 27843) 'La edición oficial debe usar 
 Assert ($config.appearance.backgroundEffect.enabled -eq $true -and $config.appearance.backgroundEffect.updateFps -le 10) 'El fondo ambiental no tiene una configuración equilibrada y personalizable.'
 Assert ($config.appearance.backgroundEffect.particleCount -ge 8 -and $config.appearance.backgroundEffect.particleCount -le 48 -and $config.appearance.backgroundEffect.speed -ge 0.2 -and $config.appearance.backgroundEffect.sizeScale -ge 0.7 -and $config.appearance.backgroundEffect.sizeScale -le 1.6 -and $config.appearance.backgroundEffect.color -match '^\d+,\d+,\d+$') 'Las luciérnagas no tienen cantidad, velocidad, tamaño y color configurables dentro de límites seguros.'
 Assert ($config.appearance.backgroundEffect.mode -eq 'manual') 'El fondo no define un modo inicial compatible y persistente.'
+Assert ($config.display.targetMonitorId -eq 'auto') 'La configuración no contempla una identidad física estable para el monitor.'
+Assert ($config.appearance.backgroundEffect.thermalMinimumParticles -ge 4 -and $config.appearance.backgroundEffect.thermalMaximumParticles -le 40 -and $config.appearance.backgroundEffect.thermalMaximumParticles -gt $config.appearance.backgroundEffect.thermalMinimumParticles) 'El modo térmico no tiene límites propios y conservadores.'
 Assert ($config.features.processorPanelVisible -eq $true -and $config.features.performancePanelVisible -eq $true) 'Los módulos opcionales deben iniciar visibles en una instalación nueva.'
-Assert ($config.features.compactOverlay -eq $false -and $config.eventIntelligence.preEventBufferSeconds -eq 60 -and $config.eventIntelligence.privacyAssistant -eq $true) 'La configuración 1.3.0 no define modo compacto, búfer y privacidad con valores seguros.'
+Assert ($config.features.compactOverlay -eq $false -and $config.eventIntelligence.preEventBufferSeconds -eq 60 -and $config.eventIntelligence.privacyAssistant -eq $true -and $config.eventIntelligence.saveVisualReportBesideReport -eq $true) 'La configuración no define modo compacto, búfer, privacidad y reporte visual con valores seguros.'
 Assert (Test-Path (Join-Path $root 'src\Start-AlienGamerHWiNFO.ps1')) 'Falta el iniciador elevado de HWiNFO.'
 $hwinfoLauncherSource = Get-Content (Join-Path $root 'src\Start-AlienGamerHWiNFO.ps1') -Raw
 $installerSource = Get-Content (Join-Path $root 'installer\Install-AlienGamerMode.ps1') -Raw
@@ -41,19 +43,25 @@ $agentSource = Get-Content (Join-Path $root 'src\AlienGamerModeAgent.ps1') -Raw
 $discoverySource = Get-Content (Join-Path $root 'src\Discover-AlienGamerHardware.ps1') -Raw
 $bridgeSource = Get-Content (Join-Path $root 'src\AlienGamerBridge.ps1') -Raw
 $recorderSource = Get-Content (Join-Path $root 'src\AlienGamerEventRecorder.ps1') -Raw
+$commandSource = Get-Content (Join-Path $root 'src\AlienGamerModeCommand.ps1') -Raw
+$launcherSource = Get-Content (Join-Path $root 'src\AlienGamerModeLauncher.vbs') -Raw
+$fallbackStopSource = Get-Content (Join-Path $root 'src\Stop-AlienGamerMode.ps1') -Raw
 Assert ($installerSource -notmatch 'New-ScheduledTaskAction[^\r\n]+-WorkingDirectory') 'La tarea elevada no debe depender de WorkingDirectory.'
 Assert ($installerSource -match 'Settings\.Compatibility\s*=\s*2') 'La tarea debe usar compatibilidad Vista y el motor clasico.'
 Assert ($installerSource -notmatch 'UseUnifiedSchedulingEngine\s*=') 'No se debe tocar UseUnifiedSchedulingEngine porque actualiza la tarea a Win7.'
 Assert ($installerSource -match 'Set-Content -LiteralPath \$Path -Encoding ASCII') 'El INI de HWiNFO debe guardarse como ASCII sin BOM.'
 Assert ($installerSource -match 'function Merge-MissingConfiguration' -and $installerSource -match 'Merge-MissingConfiguration \$config \$configDefaults') 'Las actualizaciones no incorporan parámetros nuevos a configuraciones existentes.'
 Assert ($installerSource -match '\$config\.language = \$Language' -and $innoSource -match 'Name: "english"' -and $innoSource -match 'Name: "spanish"' -and $innoSource -match 'ShowLanguageDialog=yes' -and $innoSource -match '-Language ""\{language\}""') 'El instalador no permite seleccionar y guardar español o inglés.'
-Assert ($innoSource -match '#define MyAppVersion "1\.3\.1"' -and $innoSource -match 'AlienGamerMode-Setup-1\.3\.1') 'El instalador no está versionado como 1.3.1.'
+Assert ($innoSource -match '#define MyAppVersion "1\.4\.0"' -and $innoSource -match 'AlienGamerMode-Setup-1\.4\.0') 'El instalador no está versionado como 1.4.0.'
+Assert ($installerSource -match 'AlienGamerEventRecorder\\\.ps1' -and $installerSource -match 'recording-state\.json' -and $installerSource -match 'event-prebuffer-state\.json') 'La actualización no detiene grabadores antiguos ni limpia su estado de control.'
 Assert ($installerSource -match 'installer\.uninstallShortcut' -and $installerSource -match 'installedDocs') 'El paquete no instala documentación o acceso de desinstalación.'
 Assert ($installerSource -match '(?s)\$form\.ShowDialog\(\).*?if \(\$script:launchAfterClose\)' -and $installerSource -notmatch '\$taskbarCheck\.Checked\) \{ \[Windows\.Forms\.MessageBox\]::Show\(''Windows 11') 'El agente o los avisos todavía pueden superponerse al instalador.'
 Assert ($innoSource -match '-WindowStyle Hidden' -and $innoSource -notmatch 'Flags:[^\r\n]*runhidden' -and $installerSource -match '\$form\.TopMost\s*=\s*\$true') 'El empaquetador puede ocultar nuevamente el formulario de configuración.'
 Assert ($uninstallerSource -match "ProgramData 'AlienGamerMode\\App'" -and $uninstallerSource -match 'SkinPath=') 'El desinstalador no apunta a las rutas reales de programa y skin.'
 Assert ($agentSource -match '\.GetEnumerator\(\)') 'La escritura de posición de Rainmeter debe enumerar claves sin crear líneas vacías.'
 Assert ($agentSource -match "'!Move'.*profile\.monitor\.x.*profile\.monitor\.y") 'El agente no fuerza la skin al monitor elegido después de activarla.'
+Assert ($discoverySource -match 'NativeDisplays' -and $discoverySource -match 'pnpDeviceId') 'La detección no conserva una identidad física estable del monitor.'
+Assert ($agentSource -match 'function Ensure-MonitorPosition' -and $agentSource -match 'TotalSeconds -lt 5') 'El agente no reafirma periódicamente el monitor elegido.'
 Assert ($discoverySource -notmatch 'SetProcessDpiAwareness\s*\(\s*2\s*\)') 'La detección no debe entregar píxeles físicos que Rainmeter escalará por segunda vez.'
 Assert ($bridgeSource -match 'ToString\(''0\.0'', \$culture\)' -and $bridgeSource -notmatch '0\.0###') 'Los valores visuales deben limitarse a un decimal.'
 Assert ($bridgeSource -match '1000\.0 / \$fps' -and $bridgeSource -match 'Limit-Reading') 'El puente no valida rangos y coherencia FPS/frame time en tiempo real.'
@@ -78,6 +86,7 @@ Assert ($backgroundAnimatorSource -match 'fadeStart' -and $backgroundAnimatorSou
 Assert ($backgroundAnimatorSource -match 'math\.random\(\)\s*<\s*0\.30' -and $backgroundAnimatorSource -match 'currentSizeScale.*targetSizeScale') 'No se conserva la distribución 70/30 o la transición gradual de tamaño.'
 Assert ($backgroundAnimatorSource -match 'updateThermalTargets' -and $backgroundAnimatorSource -match "mode ~= 'thermal'" -and $backgroundAnimatorSource -match "measureValue\('FRAME_TIME'\)" -and $backgroundAnimatorSource -match 'smoothness \* 0\.70 \+ activity \* 0\.30' -and $backgroundAnimatorSource -match 'invalidFrameSamples >= 3') 'El modo térmico no relaciona sensores validados, fluidez y actividad o conserva frame time obsoleto.'
 Assert ($backgroundAnimatorSource -match 'targetCount >= currentCount and 0\.08 or 0\.035' -and $backgroundAnimatorSource -match "SetOptionGroup.*AmbientParticles.*ImageTint") 'El modo térmico no suaviza densidad/color o no actualiza el tinte del grupo.'
+Assert ($backgroundAnimatorSource -match 'thermalMinimumParticles' -and $backgroundAnimatorSource -match 'thermalMaximumParticles' -and $backgroundAnimatorSource -match 'gpuProtectionThreshold' -and $backgroundAnimatorSource -match 'protection \* 0\.82') 'El modo térmico no usa parámetros propios o no reduce carga ante saturación.'
 
 $testRoot = Join-Path $root 'build\tests'
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
@@ -132,17 +141,24 @@ Assert ($ini -match '(?ms)^\[GameStatusBackground\].*?^Shape=Rectangle 720,575,9
 Assert ($ini -match '(?ms)^\[Outline_CORE0\].*?^Y=690$') 'La primera fila de procesadores no quedó 30 px más abajo.'
 Assert ($ini -match '(?m)^RegExp=.*' -and @([regex]::Matches(([regex]::Match($ini,'(?m)^RegExp=(.*)$').Groups[1].Value),'\(\-\?\[0\-9\]')).Count -ge 0) 'No generó el contrato del puente.'
 Assert ($ini -match 'SetOptionGroup OLEDShift') 'No protegió el fondo fijo durante el pixel shift.'
-Assert ($ini -notmatch '(?m)^Plugin=RunCommand$' -and @([regex]::Matches($ini,'(?m)^LeftMouseUpAction=\["C:\\Windows\\System32\\WindowsPowerShell')).Count -ge 5) 'Los botones siguen dependiendo de RunCommand o no ejecutan PowerShell directamente.'
-Assert ($ini -notmatch 'AlienGamerMode-Off' -and $ini -match 'AlienGamerModeCommand\.ps1') 'OFF todavía depende de la tarea de la edición estable.'
+Assert ($ini -notmatch '(?m)^Plugin=RunCommand$' -and $ini -notmatch '(?m)^LeftMouseUpAction=\["C:\\Windows\\System32\\WindowsPowerShell' -and @([regex]::Matches($ini,'(?m)^LeftMouseUpAction=\["C:\\Windows\\System32\\wscript\.exe"')).Count -ge 5) 'Los botones no usan el iniciador sin consola o aún ejecutan PowerShell directamente.'
+Assert ($ini -notmatch 'AlienGamerMode-Off' -and $ini -match 'AlienGamerModeLauncher\.vbs') 'OFF todavía depende de la tarea o de una consola visible.'
 Assert ($ini -match '(?ms)^\[MeterOffButton\].*?^MouseActionCursor=1' -and $ini -match '(?ms)^\[MeterRecordButton\].*?^MouseActionCursor=1') 'OFF o Grabar no tienen un área clicable explícita.'
-$commandSource = Get-Content (Join-Path $root 'src\AlienGamerModeCommand.ps1') -Raw
 Assert ($commandSource -match '(?s)if \(\$Stop.*?!DeactivateConfig.*?AlienGamerMode') 'El comando OFF no conserva un respaldo visual cuando el agente no responde.'
 Assert ($commandSource -match 'stop-monitor\.request\.json' -and $agentSource -match 'Test-StopRequest') 'OFF no cuenta con un canal alterno fiable entre Rainmeter y el agente.'
+Assert ($launcherSource -match 'shell\.Run command, 0, False' -and $launcherSource -match 'Case "activate"' -and $launcherSource -match 'Case "stop"') 'El iniciador no mantiene el agente y las órdenes completamente ocultos.'
+Assert ($installerSource -match '\$wscript' -and $installerSource -match 'AlienGamerModeLauncher\.vbs' -and $installerSource -notmatch 'New-Shortcut \$desktopLink \$powershell \$args') 'Los accesos directos todavía hospedan el agente en una consola de PowerShell.'
+Assert ($commandSource -match 'AddSeconds\(3\)' -and $commandSource -match 'Stop-AlienGamerMode\.ps1' -and $fallbackStopSource -match 'Stop-Process -Name Rainmeter' -and $fallbackStopSource -match 'Stop-Process -Name HWiNFO64') 'OFF no limita la espera o carece de limpieza independiente cuando el agente no responde.'
 Assert ($agentSource -match 'if \(\$stopEvent\.WaitOne\(0\) -or \(Test-StopRequest\)\) \{ Stop-Monitor \}') 'El agente no procesa la solicitud de OFF mediante la misma función que el menú de bandeja.'
 Assert ($recorderSource -match "LOCALAPPDATA 'AlienGamerMode'" -and $recorderSource -match "Status = 'recording'" -and $recorderSource -match "Status = 'finalizing'") 'La grabación no conserva un estado compartido y persistente.'
 Assert ($recorderSource -match 'preEventBufferSeconds' -and $recorderSource -match 'BufferWorker' -and $recorderSource -match 'MarkIncident' -and $recorderSource -match 'Get-StabilityMetrics' -and $recorderSource -match 'Datos_brutos' -and $recorderSource -match 'Protect-SystemMetadata') 'Event Intelligence no incorpora búfer previo, incidentes, estabilidad, datos brutos y privacidad.'
+Assert ($recorderSource -match 'function New-VisualReport' -and $recorderSource -match 'function New-VisualChartSvg' -and $recorderSource -match 'saveVisualReportBesideReport' -and $recorderSource -match 'Text\.UTF8Encoding\(\$false\)') 'El reporte visual autónomo no está integrado o no garantiza UTF-8.'
+Assert ($recorderSource.Contains("PSObject.Properties['TimestampLocal']") -and $recorderSource -match 'TryParseExact' -and $recorderSource -match 'if \(-not \$parsed\) \{ continue \}') 'El reporte no protege listas de incidentes vacías o fechas inválidas.'
+Assert ($recorderSource -notmatch '\[datetime\]::Parse\(' -and $recorderSource -match '\$validPreRows' -and $recorderSource -match "PSObject.Properties\['FechaHora'\]") 'El búfer previo todavía puede fallar con fechas vacías o inválidas.'
 Assert ($agentSource -match "tray\.stopMonitor" -and $agentSource -match "tray\.finishRecording" -and $agentSource -match "tray\.finalizingReport") 'La bandeja no refleja los estados dinámicos del monitor y la grabación.'
 Assert ($agentSource -match "tray\.backgroundThermal" -and $agentSource -match "Set-BackgroundMode 'thermal'" -and $agentSource -match "tray\.configureFireflies" -and $agentSource -match 'Show-BackgroundSettings' -and $agentSource -match 'BackgroundEffectMode' -and $agentSource -match 'Windows\.Forms\.TrackBar' -and $agentSource -match 'Windows\.Forms\.ColorDialog') 'La bandeja no permite elegir y conservar los modos apagado, personalizado y térmico.'
+Assert ($agentSource -match 'backgroundConfigItem\.Enabled.*mode -eq ''manual''' -and $agentSource -match 'thermalBaseSpeed' -and $agentSource -match 'thermalSizeScale') 'Los controles manuales siguen disponibles en modo térmico o este no conserva parámetros independientes.'
+Assert ($agentSource -match 'tray\.hardwareConfiguration' -and $agentSource -match 'function Show-HardwareSettings' -and $agentSource -match 'targetMonitorId' -and $agentSource -match 'preferredStorage') 'La bandeja no permite reconfigurar pantalla, GPU y almacenamiento sin reinstalar.'
 Assert ($agentSource -match "tray\.visibleModules" -and $agentSource -match "tray\.processorsLoad" -and $agentSource -match "tray\.performanceAlerts" -and $agentSource -match "tray\.clock" -and $agentSource -match 'Set-ModuleVisibility') 'La bandeja no permite personalizar y guardar los módulos visibles.'
 Assert ($agentSource -match "tray\.compactOverlay" -and $agentSource -match "tray\.markIncident" -and $agentSource -match "Invoke-RecorderCommand '-StartBuffer'" -and $agentSource -match "Invoke-RecorderCommand '-StopBuffer'") 'La bandeja no controla modo compacto, marcas o ciclo del búfer previo.'
 Assert ($agentSource -match "dialog\.waitApply" -and $agentSource -match "'!HideMeterGroup'" -and $agentSource -match '\$profile\.features = \$config\.features') 'El cambio de módulos no informa progreso o sigue rehaciendo la detección completa.'
@@ -179,6 +195,7 @@ $syntheticProfile | ConvertTo-Json -Depth 8 | Set-Content $thermalProfilePath -E
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'src\Build-AdaptiveSkin.ps1') -ProfilePath $thermalProfilePath -OutputDirectory $thermalSkinRoot | Out-Null
 $thermalIni = Get-Content (Join-Path $thermalSkinRoot 'AlienGamerMode.ini') -Raw
 Assert ($thermalIni -match '(?m)^BackgroundEffectMode=thermal$' -and $thermalIni -match '(?ms)^\[BackgroundScript\].*?^Mode=#BackgroundEffectMode#$') 'El generador no conserva el modo térmico seleccionado.'
+Assert ($thermalIni -match '(?m)^BackgroundThermalMinimum=8$' -and $thermalIni -match '(?m)^BackgroundThermalMaximum=32$' -and $thermalIni -match '(?ms)^\[BackgroundScript\].*?^ThermalMaximumParticles=#BackgroundThermalMaximum#$') 'La skin térmica no recibe sus límites independientes.'
 $syntheticProfile.appearance.backgroundEffect.mode = 'manual'
 
 $syntheticProfile.language = 'en-US'

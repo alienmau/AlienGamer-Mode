@@ -15,7 +15,7 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
-La versión 1.3.1 incorpora un **fondo dinámico térmico**: las luciérnagas cambian de color según la presión térmica validada, aumentan o disminuyen según la fluidez reciente y adaptan su velocidad a la actividad de CPU/GPU con transiciones suaves. Conserva además **Event Intelligence**, sus 60 segundos previos y los reportes técnicos de la versión 1.3.0.
+La versión 1.4.0 genera automáticamente un reporte visual HTML con gráficas al finalizar cada grabación, además del Excel y el CSV bruto. También incorpora el arranque completamente oculto y el cierre OFF de respaldo de la versión 1.3.5.
 
 ## ¿Por qué AlienGamer Mode?
 
@@ -83,7 +83,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.3.1.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.4.0.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -95,9 +95,11 @@ El fondo utiliza pequeñas partículas con degradado radial: el centro conserva 
 
 Desde el icono de AlienGamer Mode, el submenú **Fondo** ofrece **Desactivado**, **Personalizado** y **Dinámico térmico**. En modo personalizado se utiliza el color elegido por el usuario. En modo térmico, CPU, núcleo máximo y GPU se comparan con sus propios umbrales y prevalece el estado válido más exigente: azul para temperatura saludable, naranja para elevada y rojo para alta o con alerta térmica.
 
-La densidad térmica combina 70% de fluidez/estabilidad reciente de *frame time* y 30% de actividad CPU/GPU. La velocidad responde a la mayor carga válida entre CPU y GPU. Los cambios utilizan interpolación: el crecimiento reacciona pronto y el descenso es más gradual para que no aparezcan o desaparezcan partículas de golpe. Si FPS o un sensor térmico no están disponibles, el sistema ignora esa lectura y utiliza solamente datos válidos; no convierte `N/D` en cero real.
+La densidad térmica combina 70% de fluidez/estabilidad reciente de *frame time* y 30% de actividad CPU/GPU. La velocidad responde a la mayor carga válida entre CPU y GPU. Si la GPU se acerca a saturación o el *frame time* se degrada, el fondo cede recursos reduciendo progresivamente partículas y movimiento. Los cambios utilizan interpolación para evitar saltos. Si FPS o un sensor térmico no están disponibles, el sistema ignora esa lectura y utiliza solamente datos válidos; no convierte `N/D` en cero real.
 
-**Configurar luciérnagas...** permite elegir entre 8 y 48 partículas, ajustar velocidad y tamaño, y seleccionar cualquier color. En modo térmico, cantidad y velocidad funcionan como límites de intensidad; el color queda bajo control del estado térmico. El tamaño se ajusta entre 70% y 160%. Todos los valores, incluido `appearance.backgroundEffect.mode`, se conservan en `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json`.
+**Configurar luciérnagas...** está disponible únicamente en modo **Personalizado** y permite elegir entre 8 y 48 partículas, ajustar velocidad y tamaño, y seleccionar cualquier color. **Dinámico térmico** usa parámetros automáticos independientes y conservadores; sus controles manuales se deshabilitan para evitar configuraciones contradictorias. Todos los valores se conservan en `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json`.
+
+Desde el icono de bandeja, **Configurar equipo y pantalla...** permite volver a elegir monitor, GPU y almacenamiento principal sin reinstalar. La pantalla se conserva mediante su identidad física, por lo que sigue siendo reconocible aunque Windows cambie su nombre interno de `DISPLAY1` a otro número.
 
 El submenú **Módulos visibles** permite ocultar por separado **Procesadores / carga**, **FPS, frame time y alertas** y el **Reloj**. Los tres aparecen en una instalación nueva. La selección se guarda en `features.processorPanelVisible`, `features.performancePanelVisible` y `features.clock`, por lo que se conserva al detener el monitor, cerrar el agente o reiniciar Windows. Ocultar un módulo no elimina sus sensores: siguen disponibles para la grabación técnica de eventos.
 
@@ -115,7 +117,7 @@ Si durante una partida notas tirones, congelamientos, teletransportes, caídas d
 
 Mientras el monitor está activo conserva localmente los últimos 60 segundos. Al iniciar la grabación incorpora ese contexto previo. Durante la captura selecciona **Marcar incidente ahora** en el icono de bandeja —o usa clic derecho sobre el botón de grabación— cada vez que notes el problema.
 
-AlienGamer Mode toma muestras y conserva, cuando el equipo dispone de ellas, métricas como FPS, *frame time*, uso y temperatura de CPU y GPU, VRAM, RAM, temperatura del almacenamiento, carga por núcleo y señales de límite térmico o de potencia. Al finalizar, solicita dónde guardar un reporte de Excel con:
+AlienGamer Mode toma muestras y conserva, cuando el equipo dispone de ellas, métricas como FPS, *frame time*, uso y temperatura de CPU y GPU, VRAM, RAM, temperatura del almacenamiento, carga por núcleo y señales de límite térmico o de potencia. Al finalizar, solicita una ubicación y guarda tres archivos complementarios: un reporte visual HTML, un libro de Excel y el CSV bruto. El reporte visual se abre en cualquier navegador, no requiere conexión y contiene:
 
 - contexto previo, cronología y ventanas de 15 segundos antes y después de cada marca;
 - datos brutos completos en el libro y en un CSV adicional;
@@ -124,6 +126,8 @@ AlienGamer Mode toma muestras y conserva, cuando el equipo dispone de ellas, mé
 - procesos activos, contexto del equipo y alertas observadas;
 - interpretación, evidencia y recomendación preliminares;
 - asistente de privacidad para ocultar identificadores del equipo y PID.
+
+El HTML presenta FPS y *frame time* en gráficas separadas con escalas correctas, además de temperaturas, utilización e incidentes. Excel es opcional: si no está disponible, el reporte visual y el CSV aún pueden generarse y conservar la evidencia.
 
 El reporte permite relacionar el instante del problema con temperaturas elevadas, saturación de recursos, límites térmicos o de potencia y variaciones anormales del tiempo de cuadro. Puede aportar datos técnicos valiosos a un especialista y ayudar a detectar una condición antes de que se vuelva recurrente. Es una herramienta de orientación: no sustituye los registros internos del juego, diagnósticos SMART detallados, análisis de red ni trazas especializadas, y por sí sola no confirma una falla de hardware.
 

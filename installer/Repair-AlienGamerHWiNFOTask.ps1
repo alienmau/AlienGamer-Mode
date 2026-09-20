@@ -93,8 +93,8 @@ try {
     Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 600
 
-    $command = Join-Path $installRoot 'AlienGamerModeCommand.ps1'
-    Start-Process $powershell -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$command`" -Activate"
+    $launcher = Join-Path $installRoot 'AlienGamerModeLauncher.vbs'
+    Start-Process "$env:SystemRoot\System32\wscript.exe" -WindowStyle Hidden -ArgumentList "//B //NoLogo `"$launcher`" activate"
     [Windows.Forms.MessageBox]::Show('La tarea de sensores fue reparada y validada. AlienGamer Mode se está iniciando.','Reparación completada','OK','Information') | Out-Null
 } catch {
     [Windows.Forms.MessageBox]::Show($_.Exception.Message,'No se completó la reparación','OK','Error') | Out-Null

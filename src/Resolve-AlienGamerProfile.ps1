@@ -45,7 +45,9 @@ function To-Mapping($Reading) {
     return [pscustomobject]@{ available=$true; key=$Reading.Key; sensor=$Reading.Sensor; label=$Reading.Label; unit=$Reading.Unit }
 }
 
-$monitor = if ($MonitorDeviceName) { $discovery.monitors | Where-Object deviceName -eq $MonitorDeviceName | Select-Object -First 1 } else { $null }
+$monitorIdentity = if ($config.display.PSObject.Properties['targetMonitorId']) { [string]$config.display.targetMonitorId } else { '' }
+$monitor = if ($monitorIdentity -and $monitorIdentity -ne 'auto') { $discovery.monitors | Where-Object pnpDeviceId -eq $monitorIdentity | Select-Object -First 1 } else { $null }
+if (-not $monitor -and $MonitorDeviceName) { $monitor = $discovery.monitors | Where-Object deviceName -eq $MonitorDeviceName | Select-Object -First 1 }
 if (-not $monitor -and $config.display.targetMonitor -ne 'auto') { $monitor = $discovery.monitors | Where-Object deviceName -eq $config.display.targetMonitor | Select-Object -First 1 }
 if (-not $monitor -and $config.display.preference -eq 'secondary') { $monitor = $discovery.monitors | Where-Object { -not $_.primary } | Select-Object -First 1 }
 if (-not $monitor) { $monitor = $discovery.monitors | Where-Object primary | Select-Object -First 1 }

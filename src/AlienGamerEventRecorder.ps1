@@ -55,7 +55,7 @@ function Read-State {
 }
 
 function Get-EventIntelligenceSettings {
-    $settings = [ordered]@{ preEventBufferSeconds=60; incidentWindowBeforeSeconds=15; incidentWindowAfterSeconds=15; privacyAssistant=$true; saveRawCsvBesideReport=$true; comparisonHistorySessions=10 }
+    $settings = [ordered]@{ preEventBufferSeconds=60; incidentWindowBeforeSeconds=15; incidentWindowAfterSeconds=15; privacyAssistant=$true; saveRawCsvBesideReport=$true; saveVisualReportBesideReport=$true; comparisonHistorySessions=10 }
     try {
         $config = Get-Content (Join-Path $RuntimeRoot 'AlienGamerMode.json') -Raw | ConvertFrom-Json
         if ($config.eventIntelligence) {
@@ -128,16 +128,21 @@ function Start-RecordingWorker {
     $preRows = @()
     if (Test-Path $BufferPath) { try { $preRows = @(Get-Content $BufferPath -Raw | ConvertFrom-Json) } catch { $preRows=@() } }
     $recordingStart = Get-Date
+    $validPreRows = New-Object 'System.Collections.Generic.List[object]'
     foreach ($preRow in $preRows) {
-        try {
-            $captured = [datetime]::Parse([string]$preRow.FechaHora)
-            $preRow.Segundos = [math]::Round(($captured - $recordingStart).TotalSeconds,3)
-            if (-not $preRow.PSObject.Properties['Fase']) { $preRow | Add-Member NoteProperty Fase 'Pre-evento' } else { $preRow.Fase='Pre-evento' }
-            if (-not $preRow.PSObject.Properties['Incidente']) { $preRow | Add-Member NoteProperty Incidente 0 }
-            if (-not $preRow.PSObject.Properties['IncidenteEtiqueta']) { $preRow | Add-Member NoteProperty IncidenteEtiqueta '' }
-        } catch { }
+        if ($null -eq $preRow -or -not $preRow.PSObject.Properties['FechaHora']) { continue }
+        $captured = [datetime]::MinValue
+        $timestampText = [string]$preRow.FechaHora
+        $parsed = [datetime]::TryParseExact($timestampText, 'yyyy-MM-dd HH:mm:ss.fff', $Invariant, [Globalization.DateTimeStyles]::AssumeLocal, [ref]$captured)
+        if (-not $parsed) { $parsed = [datetime]::TryParse($timestampText, $Invariant, [Globalization.DateTimeStyles]::AssumeLocal, [ref]$captured) }
+        if (-not $parsed) { continue }
+        $preRow.Segundos = [math]::Round(($captured - $recordingStart).TotalSeconds,3)
+        if (-not $preRow.PSObject.Properties['Fase']) { $preRow | Add-Member NoteProperty Fase 'Pre-evento' } else { $preRow.Fase='Pre-evento' }
+        if (-not $preRow.PSObject.Properties['Incidente']) { $preRow | Add-Member NoteProperty Incidente 0 }
+        if (-not $preRow.PSObject.Properties['IncidenteEtiqueta']) { $preRow | Add-Member NoteProperty IncidenteEtiqueta '' }
+        $validPreRows.Add($preRow)
     }
-    if ($preRows.Count) { $preRows | Export-Csv -LiteralPath $csv -NoTypeInformation -Encoding UTF8 }
+    if ($validPreRows.Count) { @($validPreRows) | Export-Csv -LiteralPath $csv -NoTypeInformation -Encoding UTF8 }
     '[]' | Set-Content $markers -Encoding UTF8
 
     $powershell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -209,7 +214,7 @@ function Get-FrameClass([double]$FrameTime) {
     if ($FrameTime -le 0) { return 'Sin dato' }
     if ($FrameTime -lt 8.3) { return 'Excelente' }
     if ($FrameTime -lt 16.7) { return 'Fluido' }
-    if ($FrameTime -le 33.3) { return 'Atencion' }
+    if ($FrameTime -le 33.3) { return 'Atención' }
     return 'Baja fluidez'
 }
 
@@ -325,14 +330,24 @@ function Get-StabilityMetrics($Rows) {
 
 function Get-IncidentAnalysis($Rows,$Markers,$Settings) {
     $analyses = New-Object 'System.Collections.Generic.List[object]'
-    foreach($marker in @($Markers)) {
-        $when = [datetime]::Parse([string]$marker.TimestampLocal)
+    foreach($marker in @($Markers | Where-Object { $null -ne $_ -and $_.PSObject.Properties['TimestampLocal'] })) {
+        $when = [datetime]::MinValue
+        $timestampText = [string]$marker.TimestampLocal
+        $parsed = [datetime]::TryParseExact($timestampText, 'yyyy-MM-dd HH:mm:ss.fff', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeLocal, [ref]$when)
+        if (-not $parsed) { $parsed = [datetime]::TryParse($timestampText, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeLocal, [ref]$when) }
+        if (-not $parsed) { continue }
         $from = $when.AddSeconds(-[int]$Settings.incidentWindowBeforeSeconds)
         $to = $when.AddSeconds([int]$Settings.incidentWindowAfterSeconds)
-        $window = @($Rows | Where-Object { try { $sampleTime=[datetime]::Parse([string]$_.FechaHora); $sampleTime -ge $from -and $sampleTime -le $to } catch { $false } })
+        $window = @($Rows | Where-Object {
+            $sampleTime = [datetime]::MinValue
+            $sampleText = [string]$_.FechaHora
+            $sampleParsed = [datetime]::TryParseExact($sampleText, 'yyyy-MM-dd HH:mm:ss.fff', [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeLocal, [ref]$sampleTime)
+            $sampleParsed -and $sampleTime -ge $from -and $sampleTime -le $to
+        })
         $diagnosis = Get-Diagnosis $window
         $stability = Get-StabilityMetrics $window
-        $analyses.Add([pscustomobject]@{ Index=$marker.Index; Timestamp=$marker.TimestampLocal; WindowStart=$from.ToString('yyyy-MM-dd HH:mm:ss'); WindowEnd=$to.ToString('yyyy-MM-dd HH:mm:ss'); Samples=$window.Count; StabilityScore=$stability.Score; StabilityGrade=$stability.Grade; PreliminaryInterpretation=$diagnosis.Verdict; Evidence=$diagnosis.Evidence })
+        $markerLabel=if($marker.PSObject.Properties['Label']){[string]$marker.Label}else{"Incidente $($marker.Index)"}
+        $analyses.Add([pscustomobject]@{ Index=$marker.Index; Label=$markerLabel; Timestamp=$marker.TimestampLocal; WindowStart=$from.ToString('yyyy-MM-dd HH:mm:ss'); WindowEnd=$to.ToString('yyyy-MM-dd HH:mm:ss'); Samples=$window.Count; StabilityScore=$stability.Score; StabilityGrade=$stability.Grade; PreliminaryInterpretation=$diagnosis.Verdict; Evidence=$diagnosis.Evidence })
     }
     return $analyses.ToArray()
 }
@@ -369,22 +384,22 @@ function Get-Diagnosis($Rows) {
     $verdict = New-Object 'System.Collections.Generic.List[string]'
     $severity = 'Normal'
     if ($thermal -gt 0) {
-        if ($thermalStreak -ge 3 -or ($thermal / $valid.Count) -ge 0.10) { $verdict.Add('Limitacion termica sostenida probable'); $severity='Alta' }
-        else { $verdict.Add('Evento termico transitorio'); if ($severity -eq 'Normal') { $severity='Observacion' } }
-        $evidence.Add("Alertas termicas en $thermal muestras (~$thermal s acumulados), racha maxima ~$thermalStreak s; CPU max $maxCpuTemp C, GPU max $maxGpuTemp C.")
+        if ($thermalStreak -ge 3 -or ($thermal / $valid.Count) -ge 0.10) { $verdict.Add('Limitación térmica sostenida probable'); $severity='Alta' }
+        else { $verdict.Add('Evento térmico transitorio'); if ($severity -eq 'Normal') { $severity='Observación' } }
+        $evidence.Add("Alertas térmicas en $thermal muestras (~$thermal s acumulados), racha máxima ~$thermalStreak s; CPU máx. $maxCpuTemp °C, GPU máx. $maxGpuTemp °C.")
     }
     if ($power -gt 0) {
-        if ($powerStreak -ge 3 -or ($power / $valid.Count) -ge 0.10) { $verdict.Add('Limite de potencia sostenido'); if ($severity -notin @('Alta')) { $severity='Media' } }
-        else { $verdict.Add('Limite de potencia transitorio'); if ($severity -eq 'Normal') { $severity='Observacion' } }
-        $evidence.Add("Limite de potencia en $power muestras (~$power s acumulados), racha maxima ~$powerStreak s.")
+        if ($powerStreak -ge 3 -or ($power / $valid.Count) -ge 0.10) { $verdict.Add('Límite de potencia sostenido'); if ($severity -notin @('Alta')) { $severity='Media' } }
+        else { $verdict.Add('Límite de potencia transitorio'); if ($severity -eq 'Normal') { $severity='Observación' } }
+        $evidence.Add("Límite de potencia en $power muestras (~$power s acumulados), racha máxima ~$powerStreak s.")
     }
-    if ($maxVram -ge 90) { $verdict.Add('Presion de VRAM'); $evidence.Add("VRAM alcanzo $([math]::Round($maxVram,1))%."); if ($severity -eq 'Normal') { $severity='Media' } }
-    if ($maxRam -ge 90) { $verdict.Add('Presion de memoria RAM'); $evidence.Add("RAM alcanzo $([math]::Round($maxRam,1))%."); if ($severity -eq 'Normal') { $severity='Media' } }
-    if ($maxSsdTemp -ge 65) { $verdict.Add('SSD caliente'); $evidence.Add("SSD alcanzo $maxSsdTemp C."); if ($severity -eq 'Normal') { $severity='Media' } }
+    if ($maxVram -ge 90) { $verdict.Add('Presión de VRAM'); $evidence.Add("VRAM alcanzó $([math]::Round($maxVram,1))%."); if ($severity -eq 'Normal') { $severity='Media' } }
+    if ($maxRam -ge 90) { $verdict.Add('Presión de memoria RAM'); $evidence.Add("RAM alcanzó $([math]::Round($maxRam,1))%."); if ($severity -eq 'Normal') { $severity='Media' } }
+    if ($maxSsdTemp -ge 65) { $verdict.Add('SSD caliente'); $evidence.Add("SSD alcanzó $maxSsdTemp °C."); if ($severity -eq 'Normal') { $severity='Media' } }
     if ($p95Frame -gt 33.3 -and $maxGpuUse -ge 95) { $verdict.Add('Cuello de botella GPU probable'); $evidence.Add("Frame time P95 $([math]::Round($p95Frame,1)) ms con GPU hasta $maxGpuUse%."); $severity='Alta' }
     elseif ($p95Frame -gt 33.3 -and $maxCpuUse -ge 90) { $verdict.Add('Cuello de botella CPU probable'); $evidence.Add("Frame time P95 $([math]::Round($p95Frame,1)) ms con CPU hasta $maxCpuUse%."); $severity='Alta' }
     elseif ($p95Frame -gt 33.3) { $verdict.Add('Tirones sin causa concluyente en sensores visibles'); $evidence.Add("Frame time P95 $([math]::Round($p95Frame,1)) ms; revisar juego, shaders, almacenamiento, red y procesos en segundo plano."); if ($severity -eq 'Normal') { $severity='Media' } }
-    if ($verdict.Count -eq 0) { $verdict.Add('Sin anomalias claras durante la captura'); $evidence.Add("Frame time P95 $([math]::Round($p95Frame,1)) ms; no se activaron limites termicos o de potencia.") }
+    if ($verdict.Count -eq 0) { $verdict.Add('Sin anomalías claras durante la captura'); $evidence.Add("Frame time P95 $([math]::Round($p95Frame,1)) ms; no se activaron límites térmicos o de potencia.") }
     $recommendation = if($thermal -gt 0){'Revisar refrigeración, ventilación, pasta térmica y límites del fabricante; confirmar la duración de la limitación.'}
         elseif($power -gt 0){'Revisar plan de energía, cargador, límites de potencia y comportamiento esperado del fabricante.'}
         elseif($maxVram -ge 90){'Reducir texturas o resolución y repetir la captura para comprobar si mejora la estabilidad.'}
@@ -395,6 +410,101 @@ function Get-Diagnosis($Rows) {
         elseif($p95Frame -gt 33.3){'Comparar otra sesión y revisar shaders, red, almacenamiento y procesos en segundo plano.'}
         else{'No se detectó una señal concluyente. Conservar el reporte como referencia y comparar si el síntoma se repite.'}
     return [pscustomobject]@{ Verdict=($verdict -join ' | '); Evidence=($evidence -join ' '); Severity=$severity; Recommendation=$recommendation }
+}
+
+function ConvertTo-HtmlText($Value) {
+    return [Net.WebUtility]::HtmlEncode([string]$Value)
+}
+
+function Format-VisualNumber([double]$Value, [string]$Format='0.0') {
+    if ([double]::IsNaN($Value) -or [double]::IsInfinity($Value) -or $Value -lt 0) { return 'N/D' }
+    return $Value.ToString($Format, $Invariant)
+}
+
+function Get-PositiveMetric($Rows, [string]$Property, [string]$Operation='Maximum') {
+    $values = @($Rows | ForEach-Object { if ($_.PSObject.Properties[$Property]) { [double]$_.$Property } } | Where-Object { $_ -ge 0 })
+    if (-not $values.Count) { return -1.0 }
+    $measurement = $values | Measure-Object -Minimum -Maximum -Average
+    return [double]$measurement.$Operation
+}
+
+function Select-VisualRows($Rows, [int]$Maximum=700) {
+    $all = @($Rows)
+    if ($all.Count -le $Maximum) { return $all }
+    $step = [math]::Ceiling($all.Count / [double]$Maximum)
+    $selected = New-Object 'System.Collections.Generic.List[object]'
+    for ($index=0; $index -lt $all.Count; $index += $step) { $selected.Add($all[$index]) }
+    if ($selected[$selected.Count-1] -ne $all[-1]) { $selected.Add($all[-1]) }
+    return $selected.ToArray()
+}
+
+function New-VisualChartSvg($Rows, [object[]]$Series, [string]$Title, [bool]$StartAtZero=$true, [string]$Unit='', [string]$IncidentLabel='INCIDENTE', [string]$EmptySamples='Sin muestras disponibles.', [string]$EmptyReadings='No hay lecturas válidas para esta gráfica.') {
+    $width=1000.0; $height=300.0; $left=62.0; $right=24.0; $top=30.0; $bottom=42.0
+    $plotWidth=$width-$left-$right; $plotHeight=$height-$top-$bottom
+    $all=@($Rows); $sampled=@(Select-VisualRows $all)
+    if (-not $all.Count) { return "<section class='chart-card'><h3>$(ConvertTo-HtmlText $Title)</h3><p class='empty'>$(ConvertTo-HtmlText $EmptySamples)</p></section>" }
+    $xValues=@($all|ForEach-Object{[double]$_.Segundos});$xMin=($xValues|Measure-Object -Minimum).Minimum;$xMax=($xValues|Measure-Object -Maximum).Maximum
+    if($xMax-le$xMin){$xMax=$xMin+1}
+    $allY=New-Object 'System.Collections.Generic.List[double]'
+    foreach($seriesItem in $Series){foreach($row in $all){if($row.PSObject.Properties[$seriesItem.Field]){$value=[double]$row.($seriesItem.Field);if($value-ge[double]$seriesItem.Minimum){$allY.Add($value)}}}}
+    if(-not$allY.Count){return "<section class='chart-card'><h3>$(ConvertTo-HtmlText $Title)</h3><p class='empty'>$(ConvertTo-HtmlText $EmptyReadings)</p></section>"}
+    $measured=$allY|Measure-Object -Minimum -Maximum;$yMin=if($StartAtZero){0.0}else{[math]::Floor(([double]$measured.Minimum-5)/5)*5};$yMax=[double]$measured.Maximum
+    if($yMax-le$yMin){$yMax=$yMin+1}else{$yMax=$yMax+($yMax-$yMin)*0.08}
+    $f={param([double]$n)$n.ToString('0.##',$Invariant)}
+    $builder=New-Object Text.StringBuilder
+    [void]$builder.Append("<section class='chart-card'><h3>$(ConvertTo-HtmlText $Title)</h3><svg class='chart' viewBox='0 0 1000 300' role='img' aria-label='$(ConvertTo-HtmlText $Title)'>")
+    for($grid=0;$grid-le4;$grid++){$ratio=$grid/4.0;$y=$top+$plotHeight*(1-$ratio);$label=$yMin+($yMax-$yMin)*$ratio;[void]$builder.Append("<line class='grid' x1='$left' y1='$(&$f $y)' x2='$($width-$right)' y2='$(&$f $y)'/><text class='axis y-axis' x='$($left-10)' y='$(&$f ($y+4))'>$([Net.WebUtility]::HtmlEncode((Format-VisualNumber $label '0.#')))$([Net.WebUtility]::HtmlEncode($Unit))</text>")}
+    foreach($row in $all|Where-Object{[int]$_.Incidente-gt0}){$x=$left+(([double]$row.Segundos-$xMin)/($xMax-$xMin))*$plotWidth;[void]$builder.Append("<line class='incident-line' x1='$(&$f $x)' y1='$top' x2='$(&$f $x)' y2='$($top+$plotHeight)'/><text class='incident-label' x='$(&$f ($x+5))' y='$($top+14)'>$(ConvertTo-HtmlText $IncidentLabel)</text>")}
+    foreach($seriesItem in $Series){$path=New-Object Text.StringBuilder;$drawing=$false;foreach($row in $sampled){$value=if($row.PSObject.Properties[$seriesItem.Field]){[double]$row.($seriesItem.Field)}else{-1};if($value-lt[double]$seriesItem.Minimum){$drawing=$false;continue};$x=$left+(([double]$row.Segundos-$xMin)/($xMax-$xMin))*$plotWidth;$y=$top+$plotHeight-(($value-$yMin)/($yMax-$yMin))*$plotHeight;$command=if($drawing){'L'}else{'M'};[void]$path.Append("$command$(&$f $x),$(&$f $y) ");$drawing=$true};if($path.Length){[void]$builder.Append("<path class='series' d='$path' stroke='$($seriesItem.Color)'/>")}}
+    $startLabel=if([string]$all[0].FechaHora -match '(\d{2}:\d{2}:\d{2})'){$Matches[1]}else{'Inicio'};$endLabel=if([string]$all[-1].FechaHora -match '(\d{2}:\d{2}:\d{2})'){$Matches[1]}else{'Fin'}
+    [void]$builder.Append("<text class='axis' x='$left' y='$($height-12)'>$startLabel</text><text class='axis end' x='$($width-$right)' y='$($height-12)'>$endLabel</text></svg><div class='legend'>")
+    foreach($seriesItem in $Series){[void]$builder.Append("<span><i style='background:$($seriesItem.Color)'></i>$(ConvertTo-HtmlText $seriesItem.Label)</span>")}
+    [void]$builder.Append('</div></section>')
+    return $builder.ToString()
+}
+
+function New-VisualReport([string]$CsvPath,[string]$MetadataPath,[string]$MarkerPath,[string]$Destination,[bool]$PrivacyProtected,[string]$ExcelFileName,[string]$RawFileName) {
+    $rows=@(Import-Csv -LiteralPath $CsvPath)
+    if(-not$rows.Count){throw 'La captura no contiene muestras para el reporte visual.'}
+    $metadata=Get-Content -LiteralPath $MetadataPath -Raw|ConvertFrom-Json
+    $settings=Get-EventIntelligenceSettings
+    $markers=@();if(Test-Path $MarkerPath){try{$parsed=Get-Content $MarkerPath -Raw|ConvertFrom-Json;if($null-ne$parsed){$markers=@($parsed|Where-Object{$null-ne$_-and$_.PSObject.Properties['TimestampLocal']})}}catch{$markers=@()}}
+    if($PrivacyProtected){$metadata.Sistema=Protect-SystemMetadata $metadata.Sistema}
+    $valid=@($rows|Where-Object{$_.MuestraValida-eq'True'-or$_.MuestraValida-eq$true})
+    $diagnosis=Get-Diagnosis $rows;$stability=Get-StabilityMetrics $rows;$incidents=@(Get-IncidentAnalysis $rows $markers $settings)
+    $duration=if($rows.Count-gt1){[math]::Max(0,[double]$rows[-1].Segundos-[double]$rows[0].Segundos)}else{0}
+    $fpsAverage=Get-PositiveMetric $valid 'FPS' 'Average';$fpsMinimum=@($valid|ForEach-Object{[double]$_.FPS}|Where-Object{$_-gt0}|Measure-Object -Minimum).Minimum
+    if($null-eq$fpsMinimum){$fpsMinimum=-1}
+    $cpuMax=Get-PositiveMetric $valid 'CPUTemperaturaC';$coreMax=Get-PositiveMetric $valid 'CoreMaxTemperaturaC';$gpuMax=Get-PositiveMetric $valid 'GPUTemperaturaC'
+    $ramMax=Get-PositiveMetric $valid 'RAMUsoPct';$vramMax=Get-PositiveMetric $valid 'VRAMUsoPct'
+    $thermalCount=@($valid|Where-Object{[int]$_.CPUAlertaTermica-gt0-or[int]$_.GPUAlertaTermica-gt0}).Count
+    $powerCount=@($valid|Where-Object{[int]$_.CPUAlertaPotencia-gt0-or[int]$_.GPUAlertaPotencia-gt0}).Count
+    $isEnglish=$language-eq'en-US'
+    $copy=if($isEnglish){@{title='AlienGamer Mode — Visual event report';summary='Executive summary';session='Captured session';stability='Stability';samples='Valid samples';duration='Duration';fps='Average FPS';fpsMin='Minimum FPS';frame='Frame time P95';cpu='Maximum CPU';gpu='Maximum GPU';memory='Memory pressure';interpretation='Preliminary interpretation';evidence='Observed evidence';recommendation='Suggested next step';charts='Session timeline';fpsChart='Frames per second (FPS)';frameChart='Frame time';temperatures='Component temperatures';utilization='System utilization';incidents='Marked incidents';comparison='Comparison baseline';system='System context';privacy='Protected for sharing';full='Full technical detail';warning='This interpretation is based on correlations in the available sensors. It does not prove a cause or replace a complete technical diagnosis.';noIncidents='No incidents were explicitly marked during this recording.';previous='The previous local session remains available in the Excel comparison sheet.';files='Companion evidence';excel='Excel workbook';raw='Raw CSV';incident='INCIDENT';emptySamples='No samples are available.';emptyReadings='No valid readings are available for this chart.';label='Label';time='Time';tableSamples='Samples';tableStability='Stability';tableInterpretation='Interpretation';minimum='min';coreMax='Core max';thermalFlags='Thermal flags';powerFlags='Power flags';localFooter='Generated locally by AlienGamer Mode. No data was sent over the Internet.'}}else{@{title='AlienGamer Mode — Reporte visual de evento';summary='Resumen ejecutivo';session='Sesión capturada';stability='Estabilidad';samples='Muestras válidas';duration='Duración';fps='FPS promedio';fpsMin='FPS mínimos';frame='Frame time P95';cpu='CPU máxima';gpu='GPU máxima';memory='Presión de memoria';interpretation='Interpretación preliminar';evidence='Evidencia observada';recommendation='Siguiente paso sugerido';charts='Cronología de la sesión';fpsChart='Fotogramas por segundo (FPS)';frameChart='Tiempo por fotograma';temperatures='Temperaturas de componentes';utilization='Uso del sistema';incidents='Incidentes marcados';comparison='Referencia comparativa';system='Contexto del sistema';privacy='Protegido para compartir';full='Detalle técnico completo';warning='Esta interpretación se basa en correlaciones de los sensores disponibles. No demuestra una causa ni sustituye un diagnóstico técnico completo.';noIncidents='No se marcaron incidentes explícitos durante esta grabación.';previous='La sesión local anterior permanece disponible en la hoja Comparación del libro de Excel.';files='Evidencia complementaria';excel='Libro de Excel';raw='CSV de datos brutos';incident='INCIDENTE';emptySamples='Sin muestras disponibles.';emptyReadings='No hay lecturas válidas para esta gráfica.';label='Etiqueta';time='Hora';tableSamples='Muestras';tableStability='Estabilidad';tableInterpretation='Interpretación';minimum='mín.';coreMax='Máximo de núcleos';thermalFlags='Alertas térmicas';powerFlags='Alertas de potencia';localFooter='Generado localmente por AlienGamer Mode. No se enviaron datos a Internet.'}}
+    $seriesFps=@([pscustomobject]@{Field='FPS';Label='FPS';Color='#37f58a';Minimum=0.01})
+    $seriesFrame=@([pscustomobject]@{Field='FrameTimeMs';Label='Frame time (ms)';Color='#ffb020';Minimum=0.01})
+    $seriesTemp=@([pscustomobject]@{Field='CPUTemperaturaC';Label='CPU';Color='#ff6b3d';Minimum=0},[pscustomobject]@{Field='CoreMaxTemperaturaC';Label='Core max';Color='#ff2d55';Minimum=0},[pscustomobject]@{Field='GPUTemperaturaC';Label='GPU';Color='#2eb8ff';Minimum=0},[pscustomobject]@{Field='SSDTemperaturaC';Label='SSD';Color='#ffe082';Minimum=0})
+    $seriesUse=@([pscustomobject]@{Field='GPUUsoPct';Label='GPU';Color='#6548ff';Minimum=0},[pscustomobject]@{Field='CPUUsoPct';Label='CPU';Color='#25d9ef';Minimum=0},[pscustomobject]@{Field='RAMUsoPct';Label='RAM';Color='#ff3445';Minimum=0},[pscustomobject]@{Field='VRAMUsoPct';Label='VRAM';Color='#85d000';Minimum=0})
+    $charts=(New-VisualChartSvg $rows $seriesFps $copy.fpsChart $true ' FPS' $copy.incident $copy.emptySamples $copy.emptyReadings)+(New-VisualChartSvg $rows $seriesFrame $copy.frameChart $true ' ms' $copy.incident $copy.emptySamples $copy.emptyReadings)+(New-VisualChartSvg $rows $seriesTemp $copy.temperatures $false '°C' $copy.incident $copy.emptySamples $copy.emptyReadings)+(New-VisualChartSvg $rows $seriesUse $copy.utilization $true '%' $copy.incident $copy.emptySamples $copy.emptyReadings)
+    $incidentRows=if($incidents.Count){($incidents|ForEach-Object{"<tr><td>$(ConvertTo-HtmlText $_.Index)</td><td>$(ConvertTo-HtmlText $_.Label)</td><td>$(ConvertTo-HtmlText $_.Timestamp)</td><td>$(ConvertTo-HtmlText $_.Samples)</td><td>$($_.StabilityScore)/100 — $(ConvertTo-HtmlText $_.StabilityGrade)</td><td>$(ConvertTo-HtmlText $_.PreliminaryInterpretation)</td></tr>"})-join''}else{"<tr><td colspan='6'>$(ConvertTo-HtmlText $copy.noIncidents)</td></tr>"}
+    $systemRows=($metadata.Sistema.PSObject.Properties|Where-Object{$_.Name-notlike'ProcesosConMayorRAM*'}|ForEach-Object{"<tr><th>$(ConvertTo-HtmlText $_.Name)</th><td>$(ConvertTo-HtmlText $_.Value)</td></tr>"})-join''
+    $privacyLabel=if($PrivacyProtected){$copy.privacy}else{$copy.full}
+    $durationText='{0:00}:{1:00}'-f[Math]::Floor($duration/60),[Math]::Floor($duration%60)
+    $interpretation=if($isEnglish){"Stability was rated $($stability.Grade.ToLowerInvariant()) with a score of $($stability.Score)/100. Thermal flags appeared in $thermalCount samples and power-limit flags in $powerCount samples."}else{$diagnosis.Verdict}
+    $evidence=if($isEnglish){"Frame time P95: $($stability.P95) ms; P99: $($stability.P99) ms; maximum CPU: $(Format-VisualNumber $cpuMax) °C; maximum GPU: $(Format-VisualNumber $gpuMax) °C."}else{$diagnosis.Evidence}
+    $recommendation=if($isEnglish){'Review the marked windows and compare another capture under the same game, scene, power and cooling conditions.'}else{$diagnosis.Recommendation}
+    $html=@"
+<!doctype html><html lang="$(if($isEnglish){'en'}else{'es'})"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>$(ConvertTo-HtmlText $copy.title)</title><style>
+:root{color-scheme:dark;--bg:#05070a;--panel:rgba(20,25,35,.86);--line:#354052;--text:#edf3ff;--muted:#93a1b7;--cyan:#25d9ef;--orange:#ff7a18;--red:#ff3445}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 75% 0,#10222b 0,transparent 32%),linear-gradient(180deg,#040609,#080b10);color:var(--text);font:15px/1.55 Segoe UI,Arial,sans-serif}.page{max-width:1180px;margin:auto;padding:48px 28px 80px}header{border-bottom:1px solid #273142;padding-bottom:28px;margin-bottom:28px}.eyebrow{color:var(--cyan);font-weight:700;letter-spacing:.18em;text-transform:uppercase}h1{font-size:clamp(30px,5vw,54px);line-height:1.05;margin:.3em 0}.meta,.muted{color:var(--muted)}.badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.badge{border:1px solid #344153;border-radius:999px;padding:6px 12px;background:#101722}.summary{display:grid;grid-template-columns:1.4fr .6fr;gap:20px}.panel,.metric,.chart-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 14px 38px #0006}.panel{padding:24px}.verdict{font-size:22px;font-weight:700;color:#fff}.warning{border-left:3px solid var(--orange);padding:12px 16px;background:#21150c;color:#ffd7b3;border-radius:0 10px 10px 0}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}.metric{padding:18px}.metric b{display:block;font-size:27px;color:#fff}.metric span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.section-title{font-size:26px;margin:42px 0 16px}.chart-card{padding:20px;margin:16px 0}.chart-card h3{margin:0 0 10px}.chart{width:100%;height:auto;display:block}.grid{stroke:#253042;stroke-width:1}.axis{fill:#8997ad;font-size:11px}.y-axis{text-anchor:end}.end{text-anchor:end}.series{fill:none;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}.incident-line{stroke:var(--red);stroke-width:1.5;stroke-dasharray:5 5}.incident-label{fill:#ff6070;font-size:10px;font-weight:700}.legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:12px}.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid #293345;vertical-align:top}th{color:#9fb0c7}.files a{color:var(--cyan)}details{margin-top:20px}summary{cursor:pointer;color:var(--cyan);font-weight:600}.footer{margin-top:36px;color:var(--muted);font-size:12px}@media(max-width:800px){.summary{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.page{padding:28px 14px}}@media(max-width:480px){.metrics{grid-template-columns:1fr}}@media print{body{background:#fff;color:#111}.page{max-width:none;padding:12mm}.panel,.metric,.chart-card{background:#fff;color:#111;box-shadow:none;break-inside:avoid}.meta,.muted,.axis,.legend{color:#444;fill:#444}.verdict,.metric b{color:#111}}
+</style></head><body><main class="page"><header><div class="eyebrow">AlienGamer Mode</div><h1>$(ConvertTo-HtmlText $copy.title)</h1><div class="meta">$(ConvertTo-HtmlText $copy.session): $(ConvertTo-HtmlText $metadata.InicioLocal) — $(ConvertTo-HtmlText $metadata.FinLocal)</div><div class="badges"><span class="badge">$(ConvertTo-HtmlText $privacyLabel)</span><span class="badge">$($valid.Count) / $($rows.Count) $(ConvertTo-HtmlText $copy.samples)</span><span class="badge">$($incidents.Count) $(ConvertTo-HtmlText $copy.incidents)</span></div></header>
+<section class="summary"><div class="panel"><h2>$(ConvertTo-HtmlText $copy.summary)</h2><div class="verdict">$(ConvertTo-HtmlText $interpretation)</div><h3>$(ConvertTo-HtmlText $copy.evidence)</h3><p>$(ConvertTo-HtmlText $evidence)</p><h3>$(ConvertTo-HtmlText $copy.recommendation)</h3><p>$(ConvertTo-HtmlText $recommendation)</p><p class="warning">$(ConvertTo-HtmlText $copy.warning)</p></div><div class="panel"><h2>$(ConvertTo-HtmlText $copy.stability)</h2><div style="font-size:64px;font-weight:800;color:var(--cyan)">$($stability.Score)<small style="font-size:20px;color:var(--muted)">/100</small></div><div class="verdict">$(ConvertTo-HtmlText $stability.Grade)</div><p class="muted">$(ConvertTo-HtmlText $stability.Reasons)</p></div></section>
+<section class="metrics"><div class="metric"><span>$(ConvertTo-HtmlText $copy.duration)</span><b>$durationText</b></div><div class="metric"><span>$(ConvertTo-HtmlText $copy.fps)</span><b>$(Format-VisualNumber $fpsAverage)</b><small class="muted">$(ConvertTo-HtmlText $copy.minimum) $(Format-VisualNumber ([double]$fpsMinimum))</small></div><div class="metric"><span>$(ConvertTo-HtmlText $copy.frame)</span><b>$(Format-VisualNumber ([double]$stability.P95)) ms</b></div><div class="metric"><span>$(ConvertTo-HtmlText $copy.cpu)</span><b>$(Format-VisualNumber $cpuMax) °C</b><small class="muted">$(ConvertTo-HtmlText $copy.coreMax) $(Format-VisualNumber $coreMax) °C</small></div><div class="metric"><span>$(ConvertTo-HtmlText $copy.gpu)</span><b>$(Format-VisualNumber $gpuMax) °C</b></div><div class="metric"><span>$(ConvertTo-HtmlText $copy.memory)</span><b>RAM $(Format-VisualNumber $ramMax)%</b><small class="muted">VRAM $(Format-VisualNumber $vramMax)%</small></div><div class="metric"><span>$(ConvertTo-HtmlText $copy.thermalFlags)</span><b>$thermalCount</b></div><div class="metric"><span>$(ConvertTo-HtmlText $copy.powerFlags)</span><b>$powerCount</b></div></section>
+<h2 class="section-title">$(ConvertTo-HtmlText $copy.charts)</h2>$charts
+<h2 class="section-title">$(ConvertTo-HtmlText $copy.incidents)</h2><section class="panel table-wrap"><table><thead><tr><th>#</th><th>$(ConvertTo-HtmlText $copy.label)</th><th>$(ConvertTo-HtmlText $copy.time)</th><th>$(ConvertTo-HtmlText $copy.tableSamples)</th><th>$(ConvertTo-HtmlText $copy.tableStability)</th><th>$(ConvertTo-HtmlText $copy.tableInterpretation)</th></tr></thead><tbody>$incidentRows</tbody></table></section>
+<h2 class="section-title">$(ConvertTo-HtmlText $copy.files)</h2><section class="panel files"><p><a href="$(ConvertTo-HtmlText $ExcelFileName)">$(ConvertTo-HtmlText $copy.excel)</a> · <a href="$(ConvertTo-HtmlText $RawFileName)">$(ConvertTo-HtmlText $copy.raw)</a></p><p class="muted">$(ConvertTo-HtmlText $copy.previous)</p></section>
+<details class="panel"><summary>$(ConvertTo-HtmlText $copy.system)</summary><div class="table-wrap"><table><tbody>$systemRows</tbody></table></div></details><p class="footer">$(ConvertTo-HtmlText $copy.localFooter) $(ConvertTo-HtmlText $copy.warning)</p></main></body></html>
+"@
+    [IO.File]::WriteAllText($Destination,$html,(New-Object Text.UTF8Encoding($false)))
 }
 
 function Write-ExcelMatrix($Sheet, [int]$StartRow, [int]$StartColumn, $Rows) {
@@ -417,7 +527,12 @@ function New-ExcelReport([string]$CsvPath, [string]$MetadataPath, [string]$Marke
     $metadata = Get-Content -LiteralPath $MetadataPath -Raw | ConvertFrom-Json
     $settings = Get-EventIntelligenceSettings
     $markers = @()
-    if(Test-Path $MarkerPath){try{$markers=@(Get-Content $MarkerPath -Raw | ConvertFrom-Json)}catch{$markers=@()}}
+    if(Test-Path $MarkerPath){
+        try {
+            $parsedMarkers = Get-Content $MarkerPath -Raw | ConvertFrom-Json
+            if ($null -ne $parsedMarkers) { $markers = @($parsedMarkers | Where-Object { $null -ne $_ -and $_.PSObject.Properties['TimestampLocal'] }) }
+        } catch { $markers=@() }
+    }
     if($PrivacyProtected){$metadata.Sistema=Protect-SystemMetadata $metadata.Sistema}
     $diagnosis = Get-Diagnosis $rows
     $stability = Get-StabilityMetrics $rows
@@ -571,10 +686,22 @@ function Finish-Recording([string]$CsvPath, [string]$MetadataPath, [string]$Mark
     $dialog.FileName = 'AlienGamerMode-Evento-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.xlsx'
     $dialog.InitialDirectory = [Environment]::GetFolderPath('MyDocuments')
     if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        New-ExcelReport $CsvPath $MetadataPath $MarkerPath $dialog.FileName $privacyProtected
-        if([bool]$settings.saveRawCsvBesideReport){$rawDestination=[IO.Path]::Combine([IO.Path]::GetDirectoryName($dialog.FileName),([IO.Path]::GetFileNameWithoutExtension($dialog.FileName)+'-datos-brutos.csv'));Copy-Item $CsvPath $rawDestination -Force}
-        [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.saved')`n$($dialog.FileName)", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
-        Remove-Item -LiteralPath $CsvPath,$MetadataPath,$MarkerPath -Force -ErrorAction SilentlyContinue
+        $directory=[IO.Path]::GetDirectoryName($dialog.FileName);$baseName=[IO.Path]::GetFileNameWithoutExtension($dialog.FileName)
+        $rawDestination=[IO.Path]::Combine($directory,($baseName+'-datos-brutos.csv'))
+        $visualDestination=[IO.Path]::Combine($directory,($baseName+'-visual.html'))
+        $visualError=$null;$excelError=$null
+        if([bool]$settings.saveVisualReportBesideReport){try{New-VisualReport $CsvPath $MetadataPath $MarkerPath $visualDestination $privacyProtected ([IO.Path]::GetFileName($dialog.FileName)) ([IO.Path]::GetFileName($rawDestination))}catch{$visualError=$_.Exception.Message}}
+        try{New-ExcelReport $CsvPath $MetadataPath $MarkerPath $dialog.FileName $privacyProtected}catch{$excelError=$_.Exception.Message}
+        if([bool]$settings.saveRawCsvBesideReport){Copy-Item $CsvPath $rawDestination -Force}
+        if(-not$visualError-and-not$excelError){
+            $savedPaths="$($dialog.FileName)`n$visualDestination`n$rawDestination"
+            [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.saved')`n$savedPaths", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
+            Remove-Item -LiteralPath $CsvPath,$MetadataPath,$MarkerPath -Force -ErrorAction SilentlyContinue
+        }else{
+            $partial=@();if(Test-Path$visualDestination){$partial+=$visualDestination};if(Test-Path$dialog.FileName){$partial+=$dialog.FileName};if(Test-Path$rawDestination){$partial+=$rawDestination}
+            $errors=@($visualError,$excelError|Where-Object{$_})-join"`r`n"
+            [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.failed')`n$errors`n`n$(T 'recorder.csvPreserved')`n$CsvPath`n`n$($partial-join"`r`n")",'AlienGamer Mode','OK','Warning')|Out-Null
+        }
     } else {
         [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.pending')`n$CsvPath", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
     }

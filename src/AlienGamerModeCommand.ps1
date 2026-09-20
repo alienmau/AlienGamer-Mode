@@ -30,21 +30,29 @@ try {
         # El agente puede estar elevado y negar acceso al evento con nombre.
         # En ese caso recogerá la solicitud escrita en disco.
     } else {
-        $agent = Join-Path $PSScriptRoot 'AlienGamerModeAgent.ps1'
-        Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$agent`" -Activate"
+        $launcher = Join-Path $PSScriptRoot 'AlienGamerModeLauncher.vbs'
+        Start-Process "$env:SystemRoot\System32\wscript.exe" -WindowStyle Hidden -ArgumentList "//B //NoLogo `"$launcher`" agent-activate"
     }
 }
 
 if ($Stop) {
     # El agente confirma el cierre eliminando la solicitud después de detener
     # grabación, puente, HWiNFO y Rainmeter en el orden habitual.
-    $deadline = [DateTime]::UtcNow.AddSeconds(45)
+    $deadline = [DateTime]::UtcNow.AddSeconds(3)
     while ((Test-Path -LiteralPath $stopRequestPath) -and [DateTime]::UtcNow -lt $deadline) {
         Start-Sleep -Milliseconds 100
     }
 
-    # Respaldo visual para instalaciones donde el agente no se esté ejecutando.
-    if ((Test-Path -LiteralPath $stopRequestPath) -and (Test-Path -LiteralPath $rainmeter)) {
-        & $rainmeter '!DeactivateConfig' 'AlienGamerMode'
+    # Si el agente se cerró junto con su antigua consola, ejecuta la misma
+    # limpieza de forma determinista en vez de dejar procesos o consolas vivos.
+    if (Test-Path -LiteralPath $stopRequestPath) {
+        $fallback = Join-Path $PSScriptRoot 'Stop-AlienGamerMode.ps1'
+        if (Test-Path -LiteralPath $fallback) {
+            & $fallback -Quiet
+        }
+        elseif (Test-Path -LiteralPath $rainmeter) {
+            & $rainmeter '!DeactivateConfig' 'AlienGamerMode'
+            Remove-Item -LiteralPath $stopRequestPath -Force -ErrorAction SilentlyContinue
+        }
     }
 }

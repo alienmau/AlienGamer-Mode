@@ -55,6 +55,7 @@ function Get-ConfiguredLanguage {
 
 $script:language = Get-ConfiguredLanguage
 $script:ui = Get-AGTranslations -Language $script:language
+$script:lastPositionCheck = [DateTime]::MinValue
 function T([string]$Path) { return Get-AGText -Translations $script:ui -Path $Path }
 
 function Test-StopRequest {
@@ -194,6 +195,11 @@ function Set-BackgroundSettings($Settings) {
             updateFps=10
             minimumParticles=8
             maximumParticles=48
+            gpuProtectionThreshold=88
+            thermalMinimumParticles=8
+            thermalMaximumParticles=32
+            thermalBaseSpeed=0.75
+            thermalSizeScale=1.0
         }).GetEnumerator()) {
             if ($config.appearance.backgroundEffect.PSObject.Properties[$entry.Key]) { $config.appearance.backgroundEffect.($entry.Key) = $entry.Value }
             else { $config.appearance.backgroundEffect | Add-Member NoteProperty $entry.Key $entry.Value }
@@ -351,6 +357,71 @@ function Show-BackgroundSettings {
     $form.Dispose()
 }
 
+function Show-HardwareSettings {
+    $temporaryDiscovery = Join-Path $dataRoot 'hardware-settings.discovery.json'
+    $form = $null
+    try {
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $temporaryDiscovery -AllowMissingHWiNFO | Out-Null
+        $discovery = Get-Content -LiteralPath $temporaryDiscovery -Raw | ConvertFrom-Json
+        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+        $monitors = @($discovery.monitors)
+        $gpus = @($discovery.gpus)
+        $storage = @($discovery.storage)
+        if (-not $monitors.Count) { throw (T 'dialog.noMonitors') }
+
+        $form = New-Object Windows.Forms.Form
+        $form.Text = T 'dialog.hardwareTitle'
+        $form.FormBorderStyle = 'FixedDialog'; $form.StartPosition = 'CenterScreen'
+        $form.ClientSize = New-Object Drawing.Size(650,345); $form.MaximizeBox=$false; $form.MinimizeBox=$false; $form.TopMost=$true
+
+        $monitorLabel=New-Object Windows.Forms.Label; $monitorLabel.Text=T 'installer.monitor'; $monitorLabel.SetBounds(24,22,600,22); $form.Controls.Add($monitorLabel)
+        $monitorBox=New-Object Windows.Forms.ComboBox; $monitorBox.DropDownStyle='DropDownList'; $monitorBox.SetBounds(24,47,602,29)
+        foreach($monitor in $monitors){[void]$monitorBox.Items.Add("$($monitor.friendlyName) · $($monitor.deviceName) · $($monitor.width)x$($monitor.height) · $(if($monitor.primary){T 'installer.primary'}else{T 'installer.secondary'})")}
+        $monitorIndex=0
+        for($i=0;$i -lt $monitors.Count;$i++){
+            if (($config.display.targetMonitorId -and $config.display.targetMonitorId -ne 'auto' -and $monitors[$i].pnpDeviceId -eq $config.display.targetMonitorId) -or
+                ($config.display.targetMonitor -and $monitors[$i].deviceName -eq $config.display.targetMonitor)) { $monitorIndex=$i; break }
+        }
+        $monitorBox.SelectedIndex=$monitorIndex; $form.Controls.Add($monitorBox)
+
+        $gpuLabel=New-Object Windows.Forms.Label; $gpuLabel.Text=T 'installer.gpu'; $gpuLabel.SetBounds(24,94,600,22); $form.Controls.Add($gpuLabel)
+        $gpuBox=New-Object Windows.Forms.ComboBox; $gpuBox.DropDownStyle='DropDownList'; $gpuBox.SetBounds(24,119,602,29)
+        foreach($gpu in $gpus){[void]$gpuBox.Items.Add($gpu.name)}
+        if($gpuBox.Items.Count){$gpuBox.SelectedIndex=0;for($i=0;$i -lt $gpus.Count;$i++){if($gpus[$i].name -eq $config.hardware.preferredGpu){$gpuBox.SelectedIndex=$i;break}}}; $form.Controls.Add($gpuBox)
+
+        $storageLabel=New-Object Windows.Forms.Label; $storageLabel.Text=T 'installer.storage'; $storageLabel.SetBounds(24,166,600,22); $form.Controls.Add($storageLabel)
+        $storageBox=New-Object Windows.Forms.ComboBox; $storageBox.DropDownStyle='DropDownList'; $storageBox.SetBounds(24,191,602,29)
+        foreach($drive in $storage){[void]$storageBox.Items.Add("$($drive.friendlyName) · $($drive.busType) · $([Math]::Round($drive.sizeBytes/1GB)) GB")}
+        if($storageBox.Items.Count){$storageBox.SelectedIndex=0;for($i=0;$i -lt $storage.Count;$i++){if($storage[$i].friendlyName -eq $config.hardware.preferredStorage){$storageBox.SelectedIndex=$i;break}}}; $form.Controls.Add($storageBox)
+
+        $note=New-Object Windows.Forms.Label; $note.Text=T 'dialog.hardwareNote'; $note.ForeColor=[Drawing.Color]::DimGray; $note.SetBounds(24,235,602,42); $form.Controls.Add($note)
+        $apply=New-Object Windows.Forms.Button; $apply.Text=T 'dialog.apply'; $apply.DialogResult='OK'; $apply.SetBounds(440,292,88,32); $form.Controls.Add($apply)
+        $cancel=New-Object Windows.Forms.Button; $cancel.Text=T 'dialog.cancel'; $cancel.DialogResult='Cancel'; $cancel.SetBounds(538,292,88,32); $form.Controls.Add($cancel)
+        $form.AcceptButton=$apply; $form.CancelButton=$cancel
+        if($form.ShowDialog() -ne 'OK'){return}
+
+        $selectedMonitor=$monitors[$monitorBox.SelectedIndex]
+        $config.display.targetMonitor=[string]$selectedMonitor.deviceName
+        if($config.display.PSObject.Properties['targetMonitorId']){$config.display.targetMonitorId=[string]$selectedMonitor.pnpDeviceId}else{$config.display|Add-Member NoteProperty targetMonitorId ([string]$selectedMonitor.pnpDeviceId)}
+        if($gpuBox.SelectedIndex -ge 0){$config.hardware.preferredGpu=[string]$gpus[$gpuBox.SelectedIndex].name}
+        if($storageBox.SelectedIndex -ge 0){$config.hardware.preferredStorage=[string]$storage[$storageBox.SelectedIndex].friendlyName}
+        $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
+        $wasActive=Test-MonitorActive
+        if($wasActive){
+            Stop-Monitor
+            Start-Monitor
+        }
+        Write-AgentLog ('Hardware actualizado: monitor={0}; id={1}; GPU={2}; unidad={3}.' -f $config.display.targetMonitor,$config.display.targetMonitorId,$config.hardware.preferredGpu,$config.hardware.preferredStorage)
+        $script:tray.ShowBalloonTip(2500,'AlienGamer Mode',(T 'dialog.hardwareApplied'),[Windows.Forms.ToolTipIcon]::Info)
+    } catch {
+        Write-AgentLog "No se pudo cambiar la configuración del equipo: $($_.Exception.Message)"
+        [Windows.Forms.MessageBox]::Show($_.Exception.Message,'AlienGamer Mode','OK','Error') | Out-Null
+    } finally {
+        if($form){$form.Dispose()}
+        Remove-Item -LiteralPath $temporaryDiscovery -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Apply-AgentLanguage {
     if (-not $script:monitorItem) { return }
     $script:backgroundConfigItem.Text = T 'tray.configureFireflies'
@@ -367,6 +438,7 @@ function Apply-AgentLanguage {
     $script:languageItem.Text = T 'tray.language'
     $script:spanishItem.Text = T 'tray.spanish'
     $script:englishItem.Text = T 'tray.english'
+    $script:hardwareConfigItem.Text = T 'tray.hardwareConfiguration'
     $script:configItem.Text = T 'tray.advancedConfiguration'
     $script:logsItem.Text = T 'tray.openLogs'
     $script:exitItem.Text = T 'tray.closeApp'
@@ -444,6 +516,7 @@ function Update-TrayMenuState {
     $script:backgroundOffItem.Checked = -not [bool]$script:backgroundSettings.enabled
     $script:backgroundManualItem.Checked = [bool]$script:backgroundSettings.enabled -and $script:backgroundSettings.mode -eq 'manual'
     $script:backgroundThermalItem.Checked = [bool]$script:backgroundSettings.enabled -and $script:backgroundSettings.mode -eq 'thermal'
+    $script:backgroundConfigItem.Enabled = [bool]$script:backgroundSettings.enabled -and $script:backgroundSettings.mode -eq 'manual'
     $moduleSettings = Get-ModuleVisibilitySettings
     $script:processorPanelItem.Checked = [bool]$moduleSettings.processorPanelVisible
     $script:performancePanelItem.Checked = [bool]$moduleSettings.performancePanelVisible
@@ -469,6 +542,20 @@ function Set-RainmeterSkinPosition([int]$X, [int]$Y) {
     }
     $updated = $content.Substring(0, $match.Index) + $match.Groups[1].Value + $body + $content.Substring($match.Index + $match.Length)
     [IO.File]::WriteAllText($iniPath, $updated, [Text.Encoding]::Unicode)
+}
+
+function Ensure-MonitorPosition {
+    if (-not (Test-MonitorActive) -or -not (Test-Path -LiteralPath $profilePath) -or -not (Test-Path -LiteralPath $rainmeter)) { return }
+    if (((Get-Date) - $script:lastPositionCheck).TotalSeconds -lt 5) { return }
+    $script:lastPositionCheck = Get-Date
+    try {
+        $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
+        if ($profile.monitor) {
+            & $rainmeter '!Move' ([string][int]$profile.monitor.x) ([string][int]$profile.monitor.y) 'AlienGamerMode'
+        }
+    } catch {
+        Write-AgentLog "No se pudo reafirmar la posición del monitor: $($_.Exception.Message)"
+    }
 }
 
 function Show-Loading([string]$Text) {
@@ -548,6 +635,7 @@ function Start-Monitor {
         & $rainmeter '!ActivateConfig' 'AlienGamerMode' 'AlienGamerMode.ini'
         Start-Sleep -Milliseconds 900
         & $rainmeter '!Move' ([string][int]$profile.monitor.x) ([string][int]$profile.monitor.y) 'AlienGamerMode'
+        $script:lastPositionCheck = Get-Date
         & $rainmeter '!Refresh' 'AlienGamerMode'
         $script:lastRecordingVisual = $null
         Start-Sleep -Milliseconds 350
@@ -585,7 +673,10 @@ function Stop-Monitor {
             Stop-OwnedHWiNFOTask
         }
         elseif ($state.ownedHWiNFO) { Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue }
-        if ($state.ownedRainmeter) { Stop-Process -Name Rainmeter -Force -ErrorAction SilentlyContinue }
+        # AlienGamer Mode usa Rainmeter como su proceso de presentación. OFF
+        # debe cerrar el conjunto completo aun si una ejecución anterior dejó
+        # el indicador de propiedad obsoleto al cerrarse su consola.
+        Stop-Process -Name Rainmeter -Force -ErrorAction SilentlyContinue
         Save-AgentState ([ordered]@{active=$false; stoppedAt=(Get-Date).ToString('o')})
         $script:tray.Text = T 'tray.stopped'
         Write-AgentLog 'Monitor detenido.'
@@ -619,6 +710,7 @@ $spanishItem = $languageItem.DropDownItems.Add((T 'tray.spanish'))
 $englishItem = $languageItem.DropDownItems.Add((T 'tray.english'))
 [void]$menu.Items.Add($languageItem)
 [void]$menu.Items.Add('-')
+$hardwareConfigItem = $menu.Items.Add((T 'tray.hardwareConfiguration'))
 $configItem = $menu.Items.Add((T 'tray.advancedConfiguration'))
 $logsItem = $menu.Items.Add((T 'tray.openLogs'))
 [void]$menu.Items.Add('-')
@@ -642,6 +734,7 @@ $script:modulesItem = $modulesItem
 $script:languageItem = $languageItem
 $script:spanishItem = $spanishItem
 $script:englishItem = $englishItem
+$script:hardwareConfigItem = $hardwareConfigItem
 $script:configItem = $configItem
 $script:logsItem = $logsItem
 $script:exitItem = $exitItem
@@ -680,6 +773,7 @@ $compactItem.Add_Click({
 })
 $spanishItem.Add_Click({ Set-AppLanguage 'es-MX' })
 $englishItem.Add_Click({ Set-AppLanguage 'en-US' })
+$hardwareConfigItem.Add_Click({ Show-HardwareSettings; Update-TrayMenuState })
 $configItem.Add_Click({ Start-Process notepad.exe -ArgumentList "`"$configPath`"" })
 $logsItem.Add_Click({ Start-Process explorer.exe -ArgumentList "`"$dataRoot`"" })
 $exitItem.Add_Click({ Stop-Monitor; $tray.Visible=$false; [Windows.Forms.Application]::Exit() })
@@ -690,6 +784,7 @@ $eventTimer.Add_Tick({
     if ($activateEvent.WaitOne(0)) { Start-Monitor }
     if ($stopEvent.WaitOne(0) -or (Test-StopRequest)) { Stop-Monitor }
     Update-TrayMenuState
+    Ensure-MonitorPosition
 })
 $eventTimer.Start()
 Apply-AgentLanguage

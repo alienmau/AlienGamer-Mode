@@ -1,5 +1,58 @@
 # Historial de cambios
 
+## 1.4.0 — 19 de septiembre de 2026
+
+### Nuevas funciones
+
+- Genera automáticamente un reporte visual HTML al finalizar cada grabación, junto al libro de Excel y al CSV de datos brutos.
+- El reporte funciona sin conexión, es responsivo, imprimible y puede abrirse en cualquier navegador moderno sin instalar componentes adicionales.
+- Incluye resumen ejecutivo, puntuación de estabilidad, métricas principales, cronologías independientes de FPS y *frame time*, temperaturas, uso del sistema, incidentes y contexto técnico.
+- Conserva las etiquetas de incidentes y ofrece enlaces relativos al Excel y CSV complementarios.
+
+### Mejoras
+
+- Separa FPS y *frame time* en gráficas con escalas propias para evitar comparaciones visuales engañosas.
+- Protege identificadores del equipo en el reporte visual cuando se activa el asistente de privacidad.
+- Completa la presentación en español e inglés y corrige acentos en clasificaciones, evidencias e interpretaciones.
+- Mantiene el HTML y CSV disponibles incluso si Excel no está instalado o falla la creación del libro.
+
+### Correcciones incluidas
+
+- Corrige el error de conversión de fechas al finalizar grabaciones sin incidentes o con datos pendientes de una versión anterior.
+- Evita consolas de PowerShell visibles durante el arranque, OFF y las acciones de la skin.
+- OFF aplica un cierre de respaldo si el agente no responde y detiene Rainmeter, HWiNFO, el puente y el búfer sin acumular ventanas vacías.
+
+## 1.3.5 — 19 de septiembre de 2026
+
+- Ejecuta el agente permanente mediante Windows Script Host, sin una consola de PowerShell visible que pueda cerrarse accidentalmente.
+- Los accesos directos, el inicio con Windows y el primer arranque posterior a la instalación usan el mismo lanzador silencioso.
+- OFF y Grabar ya no crean ventanas de PowerShell desde la skin.
+- Reduce de 45 a 3 segundos la espera máxima de OFF y añade una limpieza independiente si el agente no responde.
+- El cierre de respaldo detiene la skin, el puente, el búfer, Rainmeter, HWiNFO y su tarea elevada, y corrige el estado persistente.
+- OFF cierra Rainmeter incluso si una ejecución anterior dejó obsoleto el indicador interno de propiedad.
+
+## 1.3.4 — 18 de septiembre de 2026
+
+- Valida y descarta de forma segura las fechas vacías o inválidas del búfer previo de eventos.
+- Al actualizar, detiene cualquier proceso de grabación o búfer que aún conserve una versión anterior del código en memoria.
+- Conserva el CSV de una grabación interrumpida y elimina únicamente sus archivos temporales de control.
+- Evita que una actualización finalice una captura con código obsoleto y muestre nuevamente el error de conversión `DateTime`.
+
+## 1.3.3 — 18 de septiembre de 2026
+
+- Corrige la generación del reporte cuando una grabación termina sin incidentes marcados.
+- Las listas de incidentes vacías y las fechas inválidas se omiten de forma segura, sin perder la captura CSV.
+- Mantiene intactos los datos pendientes si Excel no puede completar el reporte.
+
+## 1.3.2 — 18 de septiembre de 2026
+
+- Identifica cada pantalla por su identidad física PnP, no solamente por nombres inestables como `DISPLAY1` o `DISPLAY11`.
+- Reafirma discretamente la posición de la skin para que un juego abierto previamente no la desplace al monitor principal.
+- Añade **Configurar equipo y pantalla...** a la bandeja para cambiar monitor, GPU y almacenamiento sin reinstalar.
+- Separa por completo los modos de fondo: los controles de luciérnagas solo están disponibles en **Personalizado**; **Dinámico térmico** usa límites propios.
+- El modo térmico reduce progresivamente cantidad y velocidad cuando la GPU supera el umbral de protección o empeora el *frame time*.
+- Conserva transiciones suaves al entrar o salir de protección para evitar cambios visuales bruscos.
+
 ## 1.3.1 — 17 de septiembre de 2026
 
 - Añade el submenú persistente **Fondo** con los modos **Desactivado**, **Personalizado** y **Dinámico térmico**.
