@@ -6,10 +6,10 @@
 Agente de bandeja
   ├─ inicia HWiNFO oculto y espera Shared Memory
   ├─ Discover-AlienGamerHardware.ps1
-  ├─ Resolve-AlienGamerProfile.ps1
-  ├─ Build-AdaptiveSkin.ps1
+  ├─ Build-MultiDisplaySkins.ps1
+  │   └─ Resolve-AlienGamerProfile.ps1 + Build-AdaptiveSkin.ps1 por vista
   ├─ AlienGamerBridge.ps1 (127.0.0.1:27843)
-  └─ activa AlienGamerMode en Rainmeter
+  └─ activa AlienGamerMode\\Views\\<vista> en Rainmeter
 ```
 
 ## Contrato de sensores
@@ -45,6 +45,10 @@ La firma `by Alienmau` se renderizó localmente desde Dali como `assets\Alienmau
 El estado activo se determina mediante el PID vivo de `AlienGamerBridge`, porque `Active` en `Rainmeter.ini` puede no reflejar inmediatamente una skin visible. Las zonas de captura de OFF y Grabar se generan al final del archivo, por encima del resto, y usan coordenadas físicas ya escaladas; así el área de ratón coincide con el botón dibujado incluso cuando el diseño usa `TransformationMatrix` por resolución o DPI.
 
 ## Diseño adaptable
+
+Desde 1.5.0, `displayViews` usa el esquema de configuración 3. Cada vista conserva identidad física del monitor, módulos visibles, coordenadas de referencia, tamaño de lienzo, preset y fondo. `Build-MultiDisplaySkins.ps1` genera perfiles y carpetas Rainmeter aisladas, pero el agente mantiene una sola instancia de HWiNFO, puente y grabador. El editor `Show-AlienGamerLayoutEditor.ps1` modifica únicamente la presentación; ocultar un bloque no elimina su lectura del reporte técnico.
+
+Los módulos reciben grupos `Module_<nombre>` y matrices independientes. El pixel shift aplica primero el desplazamiento común y luego recompone la matriz de cada grupo, evitando que la protección OLED borre las posiciones arrastradas. El manifiesto `display-manifest.json` relaciona cada vista con su configuración Rainmeter y coordenadas virtuales.
 
 La referencia visual mide 1711 × 1023. El generador calcula:
 

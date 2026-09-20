@@ -15,7 +15,7 @@
 
 AlienGamer Mode is a Rainmeter and HWiNFO dashboard that detects the available hardware, adapts its layout to the selected display and avoids presenting missing sensors as real zero values.
 
-Version 1.4.0 automatically creates a visual HTML report with charts whenever a recording ends, alongside the Excel workbook and raw CSV. It also includes the fully hidden startup and reliable OFF fallback introduced in 1.3.5.
+Version 1.5.0 adds a visual multi-display editor. Each local display can keep its own modules, positions, preset and background while all views share one validated HWiNFO sensor bridge and one event recorder.
 
 ## Highlights
 
@@ -29,6 +29,8 @@ Version 1.4.0 automatically creates a visual HTML report with charts whenever a 
 - Persistent visibility controls for the processor panel, FPS/alerts panel and clock.
 - Display, GPU and primary-drive selection during installation.
 - Spanish and English UI, selectable during installation or from the tray icon.
+- Multiple simultaneous local-display views with independent persistent layouts.
+- Drag-and-drop positioning for RAM, VRAM, usage, temperatures, FPS, processors, clock, header and controls.
 
 ![AlienGamer Mode running](docs/images/AlienGamerMode-dashboard.png)
 
@@ -52,9 +54,15 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.4.0.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.5.0.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
+
+## Displays and layout
+
+Open the tray menu and choose **Displays and layout...**. The editor can enable several connected displays, drag each module independently, hide any block, apply horizontal or vertical presets, and select a separate background mode for each view. **Save and apply** rebuilds only the Rainmeter views; HWiNFO, the local bridge and event recording remain shared.
+
+Layouts are stored under `displayViews` in `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` and survive restarts. Upgrading from an earlier version migrates the previously selected display into the first view. Phones and tablets are not remote companions yet; that network-facing capability is intentionally reserved for a later release with explicit privacy and access controls.
 
 ## Changing the language
 

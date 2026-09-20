@@ -11,14 +11,54 @@ $profile = Get-Content -LiteralPath $ProfilePath -Raw | ConvertFrom-Json
 $language = Resolve-AGLanguage $(if ($profile.language) { [string]$profile.language } else { 'es-MX' })
 $ui = Get-AGTranslations -Language $language
 $text = Get-Content -LiteralPath $TemplatePath -Raw -Encoding UTF8
-$referenceWidth = 1711.0
-$referenceHeight = 1023.0
+$layout = if ($profile.PSObject.Properties['layout']) { $profile.layout } else { $null }
+$referenceWidth = if ($layout -and $layout.canvas -and $layout.canvas.width) { [double]$layout.canvas.width } else { 1711.0 }
+$referenceHeight = if ($layout -and $layout.canvas -and $layout.canvas.height) { [double]$layout.canvas.height } else { 1023.0 }
 $monitor = $profile.monitor
 if (-not $monitor) { throw 'El perfil no contiene un monitor de destino.' }
 $scale = [Math]::Min([double]$monitor.width / $referenceWidth, [double]$monitor.height / $referenceHeight)
 $offsetX = [Math]::Floor(([double]$monitor.width - $referenceWidth * $scale) / 2)
 $offsetY = [Math]::Floor(([double]$monitor.height - $referenceHeight * $scale) / 2)
 $matrix = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, $offsetX, $offsetY)
+
+$moduleDefaults = [ordered]@{
+    header=@{x=35;y=20}; clock=@{x=760;y=25}; controls=@{x=1435;y=25}
+    ram=@{x=35;y=150}; vram=@{x=455;y=150}; system=@{x=875;y=150}
+    temperatures=@{x=1165;y=150}; performance=@{x=720;y=575}; processors=@{x=35;y=610}
+}
+function Get-LayoutModule([string]$Name) {
+    if (-not $layout -or -not $layout.modules) { return $null }
+    $property=$layout.modules.PSObject.Properties[$Name]
+    if($property){return $property.Value}
+    return $null
+}
+function Get-SectionModule([string]$SectionName) {
+    if($SectionName -match '^(?:MeterTitle|MeterSignature|MeterSubtitle)$'){return 'header'}
+    if($SectionName -match '^(?:ClockDigit[1-6]|ClockColons)$'){return 'clock'}
+    if($SectionName -match '^(?:MeterRecordButton|MeterRecordingDot|MeterRecordLabel|MeterOffButton|MeterOffLabel)$'){return 'controls'}
+    if($SectionName -match '^(?:Block_RAM|Tab_RAM|Outline_RAM|BG2_RAM|MeterTempGroup|Ring_MeasureRAM|Value_MeasureRAM|Label_MeasureRAM)$'){return 'ram'}
+    if($SectionName -match '^(?:Block_VRAM|Tab_VRAM|Outline_VRAM|MeterVRAMGroup|Ring_VRAM|Value_VRAM|Label_VRAM)$'){return 'vram'}
+    if($SectionName -match '^(?:Block_USE|Tab_USE|Outline_(?:GPUUSE|CPUUSE)|BG2_(?:GPUUSE|CPUUSE)|MeterUseGroup|Ring_(?:GPU_USE|CPU_USE)|Value_(?:GPU_USE|CPU_USE)|Label_(?:GPU_USE|CPU_USE))$'){return 'system'}
+    if($SectionName -match '^(?:Block_TEMP|Tab_TEMP|Outline_(?:SSD|GPU|CPU|MAX)|BG2_(?:SSD|GPU|CPU|MAX)|MeterTempGroup3|Ring_(?:GPU_TEMP|CPU_TEMP|SSD_TEMP|CORE_MAX)|Value_(?:GPU_TEMP|CPU_TEMP|SSD_TEMP|CORE_MAX)|Label_(?:GPU_TEMP|CPU_TEMP|SSD_TEMP|CORE_MAX))$'){return 'temperatures'}
+    if($SectionName -match '^(?:GameStatusBackground|FPSLabel|FPSValue|FrameTimeLabel|FrameTimeValue|FrameTimeStatus|FrameTimeHelpCircle|FrameTimeHelpText|AlertCPUText|AlertGPUText|AlertPowerText|AlertCPUBackground|AlertGPUBackground|AlertPowerBackground|AlertCPUActive|AlertGPUActive|AlertPowerActive)$'){return 'performance'}
+    if($SectionName -match '^(?:Block_CORES|Tab_CORES|MeterCoresTitle|MeterCoresLegend|Outline_CORE\d+|Ring_CORETEMP\d+|Value_CORETEMP\d+|Label_CORETEMP\d+)$'){return 'processors'}
+    return $null
+}
+function Get-ModuleMatrix([string]$Name) {
+    $module=Get-LayoutModule $Name
+    if(-not $module){return $matrix}
+    $default=$moduleDefaults[$Name]
+    $dx=([double]$module.x-[double]$default.x)*$scale
+    $dy=([double]$module.y-[double]$default.y)*$scale
+    return ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale,($offsetX+$dx),($offsetY+$dy))
+}
+function Get-ModuleShiftMatrix([string]$Name,[double]$ShiftX,[double]$ShiftY) {
+    $module=Get-LayoutModule $Name
+    $default=$moduleDefaults[$Name]
+    $dx=if($module){([double]$module.x-[double]$default.x)*$scale}else{0}
+    $dy=if($module){([double]$module.y-[double]$default.y)*$scale}else{0}
+    return ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale,($offsetX+$dx+$ShiftX),($offsetY+$dy+$ShiftY))
+}
 
 $backgroundEffect = if ($profile.appearance -and $profile.appearance.backgroundEffect) { $profile.appearance.backgroundEffect } else { $null }
 $backgroundEnabled = if ($null -ne $backgroundEffect -and $null -ne $backgroundEffect.enabled) { [bool]$backgroundEffect.enabled } else { $true }
@@ -293,6 +333,13 @@ $text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
     if ($sectionName -match $processorMeters) { $moduleGroup = 'ProcessorPanel'; $moduleVisible = $processorPanelVisible }
     elseif ($sectionName -match $performanceMeters) { $moduleGroup = 'PerformancePanel'; $moduleVisible = $performancePanelVisible }
     elseif ($sectionName -match $clockMeters) { $moduleGroup = 'ClockPanel'; $moduleVisible = $clockVisible }
+    $layoutModuleName=Get-SectionModule $sectionName
+    if($layoutModuleName){
+        $layoutModule=Get-LayoutModule $layoutModuleName
+        if($layoutModule){$moduleVisible=[bool]$layoutModule.visible}
+        $layoutGroup='Module_'+$layoutModuleName
+        if($moduleGroup){$moduleGroup+='|'+$layoutGroup}else{$moduleGroup=$layoutGroup}
+    }
     if($compactOverlay -and $sectionName -match $performanceMeters -and $block -match '(?m)^Meter='){
         if($sectionName -eq 'GameStatusBackground'){$block=$block.TrimEnd("`r","`n")+"`r`nX=$compactDx`r`nY=$compactDy`r`n"}
         else{
@@ -330,7 +377,9 @@ $text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
     if ($block -match '(?m)^Meter=' -and $sectionName -ne 'MeterBackground') {
         if ($block -match '(?m)^Group=') { $block = [regex]::Replace($block, '(?m)^Group=[^\r\n]*', { param($m) $m.Value + '|OLEDShift' }, 1) }
         else { $block = $block.TrimEnd("`r","`n") + "`r`nGroup=OLEDShift`r`n" }
-        if ($block -notmatch '(?m)^TransformationMatrix=') { $block = $block.TrimEnd("`r","`n") + "`r`nTransformationMatrix=$matrix`r`n" }
+        $sectionModule=Get-SectionModule $sectionName
+        $sectionMatrix=if($sectionModule){Get-ModuleMatrix $sectionModule}else{$matrix}
+        if ($block -notmatch '(?m)^TransformationMatrix=') { $block = $block.TrimEnd("`r","`n") + "`r`nTransformationMatrix=$sectionMatrix`r`n" }
         return $block.TrimEnd("`r","`n") + "`r`n`r`n"
     }
     return $block
@@ -340,6 +389,21 @@ $shift0 = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, $offsetX, $offsetY
 $shift1 = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, ($offsetX + 2), ($offsetY + 1))
 $shift2 = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, $offsetX, ($offsetY + 2))
 $shift3 = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, ($offsetX - 2), ($offsetY + 1))
+$moduleNames=@('header','clock','controls','ram','vram','system','temperatures','performance','processors')
+function Get-PixelShiftAction([string]$BaseMatrix,[double]$ShiftX,[double]$ShiftY) {
+    $commands=New-Object 'System.Collections.Generic.List[string]'
+    $commands.Add('[!SetOptionGroup OLEDShift TransformationMatrix "'+$BaseMatrix+'"]')
+    foreach($moduleName in $moduleNames){
+        $moduleMatrix=Get-ModuleShiftMatrix $moduleName $ShiftX $ShiftY
+        $commands.Add('[!SetOptionGroup Module_'+$moduleName+' TransformationMatrix "'+$moduleMatrix+'"]')
+    }
+    $commands.Add('[!UpdateMeterGroup OLEDShift]');$commands.Add('[!Redraw]')
+    return ($commands -join '')
+}
+$shiftAction0=Get-PixelShiftAction $shift0 0 0
+$shiftAction1=Get-PixelShiftAction $shift1 2 1
+$shiftAction2=Get-PixelShiftAction $shift2 0 2
+$shiftAction3=Get-PixelShiftAction $shift3 -2 1
 $pixelSection = @"
 [PixelShift]
 Measure=Calc
@@ -347,13 +411,13 @@ Formula=Counter % 4
 Counter=0
 UpdateDivider=1200
 IfCondition=(PixelShift = 0)
-IfTrueAction=[!SetOptionGroup OLEDShift TransformationMatrix "$shift0"][!UpdateMeterGroup OLEDShift][!Redraw]
+IfTrueAction=$shiftAction0
 IfCondition2=(PixelShift = 1)
-IfTrueAction2=[!SetOptionGroup OLEDShift TransformationMatrix "$shift1"][!UpdateMeterGroup OLEDShift][!Redraw]
+IfTrueAction2=$shiftAction1
 IfCondition3=(PixelShift = 2)
-IfTrueAction3=[!SetOptionGroup OLEDShift TransformationMatrix "$shift2"][!UpdateMeterGroup OLEDShift][!Redraw]
+IfTrueAction3=$shiftAction2
 IfCondition4=(PixelShift = 3)
-IfTrueAction4=[!SetOptionGroup OLEDShift TransformationMatrix "$shift3"][!UpdateMeterGroup OLEDShift][!Redraw]
+IfTrueAction4=$shiftAction3
 
 "@
 $text = [regex]::Replace($text, '(?ms)^\[PixelShift\].*?(?=^\[|\z)', $pixelSection, 1)
@@ -361,15 +425,19 @@ $text = [regex]::Replace($text, '(?ms)^\[PixelShift\].*?(?=^\[|\z)', $pixelSecti
 # TransformationMatrix cambia la posición dibujada, pero Rainmeter puede conservar
 # el área de ratón en las coordenadas originales. Estas capas se agregan al final,
 # por encima de todos los medidores, usando coordenadas físicas ya escaladas.
-$offHitX = [Math]::Round(1535 * $scale + $offsetX)
-$offHitY = [Math]::Round(35 * $scale + $offsetY)
+$controlsLayout=Get-LayoutModule 'controls'
+$controlsDx=if($controlsLayout){[double]$controlsLayout.x-[double]$moduleDefaults.controls.x}else{0}
+$controlsDy=if($controlsLayout){[double]$controlsLayout.y-[double]$moduleDefaults.controls.y}else{0}
+$controlsVisible=if($controlsLayout){[bool]$controlsLayout.visible}else{$true}
+$offHitX = [Math]::Round((1535+$controlsDx) * $scale + $offsetX)
+$offHitY = [Math]::Round((35+$controlsDy) * $scale + $offsetY)
 $offHitW = [Math]::Ceiling(105 * $scale)
 $offHitH = [Math]::Ceiling(40 * $scale)
-$recordHitX = [Math]::Round(1435 * $scale + $offsetX)
-$recordHitY = [Math]::Round(95 * $scale + $offsetY)
+$recordHitX = [Math]::Round((1435+$controlsDx) * $scale + $offsetX)
+$recordHitY = [Math]::Round((95+$controlsDy) * $scale + $offsetY)
 $recordHitW = [Math]::Ceiling(205 * $scale)
 $recordHitH = [Math]::Ceiling(40 * $scale)
-$compactHitHidden = if($compactOverlay){'Hidden=1'}else{''}
+$compactHitHidden = if($compactOverlay -or -not $controlsVisible){'Hidden=1'}else{''}
 $text += @"
 
 [HitArea_Record]
@@ -379,13 +447,13 @@ Y=$recordHitY
 W=$recordHitW
 H=$recordHitH
 Shape=Rectangle 0,0,$recordHitW,$recordHitH | Fill Color 0,0,0,1 | StrokeWidth 0
-LeftMouseUpAction=["C:\Windows\System32\wscript.exe" //B //NoLogo "#LauncherPath#" "record-toggle" "#BridgeUrl#"]
+LeftMouseUpAction=["C:\Windows\System32\wscript.exe" //B //NoLogo "#LauncherPath#" "record-toggle" "#BridgeUrl#" "#CURRENTCONFIG#"]
 MouseOverAction=[!SetVariable RecordHover 1]
 MouseLeaveAction=[!SetVariable RecordHover 0]
 MouseActionCursor=1
 ToolTipText=$($ui.skin.recordTooltip)
 DynamicVariables=1
-RightMouseUpAction=["C:\Windows\System32\wscript.exe" //B //NoLogo "#LauncherPath#" "mark-incident" "#BridgeUrl#"]
+RightMouseUpAction=["C:\Windows\System32\wscript.exe" //B //NoLogo "#LauncherPath#" "mark-incident" "#BridgeUrl#" "#CURRENTCONFIG#"]
 $compactHitHidden
 
 [HitArea_Off]

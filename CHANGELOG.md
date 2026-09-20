@@ -1,5 +1,27 @@
 # Historial de cambios
 
+## 1.5.0 — 20 de septiembre de 2026
+
+### Nuevas funciones
+
+- Añade **Pantallas y distribución...**, un editor visual para activar varias pantallas locales y arrastrar cada módulo a una posición independiente.
+- Permite mostrar u ocultar encabezado, reloj, controles, RAM, VRAM, uso CPU/GPU, temperaturas, FPS/alertas y procesadores por cada pantalla.
+- Incorpora diseños predefinidos completo horizontal, esencial horizontal, esencial vertical, sólo rendimiento y sólo temperaturas.
+- Permite activar el fondo y elegir modo personalizado o térmico de manera independiente por pantalla.
+
+### Arquitectura y persistencia
+
+- Genera una configuración Rainmeter aislada en `AlienGamerMode\\Views\\<vista>` por cada pantalla habilitada.
+- Todas las vistas comparten una sola instancia validada de HWiNFO, el puente local, el búfer previo y la grabación; no se duplican consultas de sensores.
+- Guarda posiciones, visibilidad, pantalla física, lienzo, preset y fondo en el nuevo esquema de configuración 3.
+- Migra la pantalla elegida y las preferencias existentes de versiones anteriores sin exigir reinstalación limpia.
+
+### Correcciones
+
+- El pixel shift OLED conserva los desplazamientos personalizados de cada módulo en lugar de restablecerlos periódicamente.
+- Grabar y marcar incidente identifican la vista Rainmeter que originó la acción y sincronizan el estado en todas las pantallas.
+- Los cambios de idioma, fondo y módulos reconstruyen todas las vistas activas sin reiniciar el puente de sensores.
+
 ## 1.4.0 — 19 de septiembre de 2026
 
 ### Nuevas funciones

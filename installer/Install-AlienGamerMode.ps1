@@ -250,6 +250,7 @@ $installButton.Add_Click({
         $configPath = Join-Path $dataRoot 'AlienGamerMode.json'
         if (-not (Test-Path $configPath)) { Copy-Item $defaultConfig $configPath }
         $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        $hadDisplayViews = $config.PSObject.Properties['displayViews'] -and @($config.displayViews).Count -gt 0
         $configDefaults = Get-Content $defaultConfig -Raw | ConvertFrom-Json
         Merge-MissingConfiguration $config $configDefaults
         $config.language = $Language
@@ -259,12 +260,22 @@ $installButton.Add_Click({
         $config.display.targetMonitor = $selectedMonitor.deviceName
         if ($config.display.PSObject.Properties['targetMonitorId']) { $config.display.targetMonitorId = $selectedMonitor.pnpDeviceId }
         else { $config.display | Add-Member NoteProperty targetMonitorId ([string]$selectedMonitor.pnpDeviceId) }
+        if (@($config.displayViews).Count -gt 0) {
+            $primaryView = @($config.displayViews)[0]
+            $primaryView.monitorId = [string]$selectedMonitor.pnpDeviceId
+            $primaryView.monitorDeviceName = [string]$selectedMonitor.deviceName
+            if (-not $hadDisplayViews) {
+                $primaryView.name = [string]$selectedMonitor.friendlyName
+                $primaryView.enabled = $true
+            }
+        }
+        $config.schemaVersion = 3
         $config.hardware.preferredGpu = $selectedGpu.name
         $config.hardware.preferredStorage = $selectedStorage.friendlyName
         $config.installation.desktopShortcut = $desktopCheck.Checked
         $config.installation.startMenuShortcut = $startMenuCheck.Checked
         $config.installation.startWithWindows = $startupCheck.Checked
-        $config | ConvertTo-Json -Depth 8 | Set-Content $configPath -Encoding UTF8
+        $config | ConvertTo-Json -Depth 20 | Set-Content $configPath -Encoding UTF8
 
         $hwinfoIni = Join-Path (Split-Path $hwinfoPath -Parent) 'HWiNFO64.INI'
         if (Get-Process HWiNFO64 -ErrorAction SilentlyContinue) {

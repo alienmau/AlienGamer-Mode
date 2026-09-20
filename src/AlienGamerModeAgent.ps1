@@ -13,6 +13,8 @@ $logPath = Join-Path $dataRoot 'agent.log'
 $profilePath = Join-Path $dataRoot 'profile.json'
 $discoveryPath = Join-Path $dataRoot 'discovery.json'
 $generatedSkin = Join-Path $dataRoot 'GeneratedSkin\AlienGamerMode'
+$profilesDirectory = Join-Path $dataRoot 'DisplayProfiles'
+$displayManifestPath = Join-Path $dataRoot 'display-manifest.json'
 $hwinfoStopSignal = Join-Path $dataRoot 'stop-hwinfo.signal'
 $stopRequestPath = Join-Path $dataRoot 'stop-monitor.request.json'
 $recordingStatePath = Join-Path $dataRoot 'recording-state.json'
@@ -117,6 +119,54 @@ function Test-MonitorActive {
     } catch { return $false }
 }
 
+function Get-DisplayManifest {
+    if(-not(Test-Path -LiteralPath $displayManifestPath)){return @()}
+    try{return @(Get-Content -LiteralPath $displayManifestPath -Raw|ConvertFrom-Json)}catch{return @()}
+}
+
+function Get-ActiveRainmeterConfigs {
+    $configs=@(Get-DisplayManifest|ForEach-Object{[string]$_.configName}|Where-Object{$_})
+    if(-not $configs.Count){$configs=@('AlienGamerMode')}
+    $configs
+}
+
+function Invoke-BuildDisplaySkins {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Build-MultiDisplaySkins.ps1') -DiscoveryPath $discoveryPath -ConfigPath $configPath -ProfilesDirectory $profilesDirectory -OutputDirectory $generatedSkin -PrimaryProfilePath $profilePath -InstallRoot $appRoot | Out-Null
+}
+
+function Install-GeneratedSkins {
+    $skinTarget=Join-Path (Get-SkinsPath) 'AlienGamerMode'
+    if(-not(Test-Path -LiteralPath $skinTarget)){New-Item -ItemType Directory -Path $skinTarget -Force|Out-Null}
+    $targetViews=Join-Path $skinTarget 'Views'
+    if(Test-Path -LiteralPath $targetViews){Remove-Item -LiteralPath $targetViews -Recurse -Force}
+    Copy-Item -Path (Join-Path $generatedSkin '*') -Destination $skinTarget -Recurse -Force
+}
+
+function Activate-DisplaySkins {
+    foreach($view in @(Get-DisplayManifest)){
+        & $rainmeter '!ActivateConfig' ([string]$view.configName) ([string]$view.ini)
+        Start-Sleep -Milliseconds 120
+        & $rainmeter '!Move' ([string][int]$view.monitor.x) ([string][int]$view.monitor.y) ([string]$view.configName)
+    }
+}
+
+function Deactivate-DisplaySkins {
+    foreach($configName in @(Get-ActiveRainmeterConfigs)){& $rainmeter '!DeactivateConfig' $configName}
+    & $rainmeter '!DeactivateConfig' 'AlienGamerMode'
+}
+
+function Refresh-DisplaySkins {
+    $wasActive=Test-MonitorActive
+    $oldConfigs=@(Get-ActiveRainmeterConfigs)
+    Invoke-BuildDisplaySkins
+    if($wasActive -and (Test-Path -LiteralPath $rainmeter)){
+        foreach($name in $oldConfigs){& $rainmeter '!DeactivateConfig' $name}
+        Install-GeneratedSkins
+        Activate-DisplaySkins
+        $script:lastRecordingVisual=$null
+    }
+}
+
 function Get-RecordingStatus {
     if (-not (Test-Path -LiteralPath $recordingStatePath)) { return 'inactive' }
     try {
@@ -137,13 +187,15 @@ function Invoke-RecordingToggle {
     $port = 27843
     try { if (Test-Path $profilePath) { $port = [int](Get-Content $profilePath -Raw | ConvertFrom-Json).bridgePort } } catch { }
     $recorder = Join-Path $appRoot 'AlienGamerEventRecorder.ps1'
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$recorder`" -Toggle -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"AlienGamerMode`""
+    $rainmeterConfig = @(Get-ActiveRainmeterConfigs)[0]
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$recorder`" -Toggle -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"$rainmeterConfig`""
 }
 
 function Invoke-RecorderCommand([string]$Command) {
     $port=27843;try{if(Test-Path $profilePath){$port=[int](Get-Content $profilePath -Raw|ConvertFrom-Json).bridgePort}}catch{}
     $recorder=Join-Path $appRoot 'AlienGamerEventRecorder.ps1'
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$recorder`" $Command -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"AlienGamerMode`"" | Out-Null
+    $rainmeterConfig = @(Get-ActiveRainmeterConfigs)[0]
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$recorder`" $Command -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"$rainmeterConfig`"" | Out-Null
 }
 
 function Mark-Incident { if((Get-RecordingStatus)-eq 'recording'){Invoke-RecorderCommand '-MarkIncident'} }
@@ -153,13 +205,15 @@ function Sync-RainmeterRecordingState([string]$Status) {
     $isRecording = $Status -eq 'recording'
     $visualState = if ($isRecording) { '1' } else { '0' }
     if ($script:lastRecordingVisual -eq $visualState) { return }
-    & $rainmeter '!SetVariable' 'RecordingActive' $visualState 'AlienGamerMode'
-    & $rainmeter '!SetOption' 'MeterRecordLabel' 'Text' $(if ($isRecording) { T 'skin.finishRecording' } else { T 'skin.recordEvent' }) 'AlienGamerMode'
-    if ($isRecording) { & $rainmeter '!ShowMeter' 'MeterRecordingDot' 'AlienGamerMode' }
-    else { & $rainmeter '!HideMeter' 'MeterRecordingDot' 'AlienGamerMode' }
-    & $rainmeter '!UpdateMeter' 'MeterRecordLabel' 'AlienGamerMode'
-    & $rainmeter '!UpdateMeter' 'MeterRecordingDot' 'AlienGamerMode'
-    & $rainmeter '!Redraw' 'AlienGamerMode'
+    foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){
+        & $rainmeter '!SetVariable' 'RecordingActive' $visualState $rainmeterConfig
+        & $rainmeter '!SetOption' 'MeterRecordLabel' 'Text' $(if ($isRecording) { T 'skin.finishRecording' } else { T 'skin.recordEvent' }) $rainmeterConfig
+        if ($isRecording) { & $rainmeter '!ShowMeter' 'MeterRecordingDot' $rainmeterConfig }
+        else { & $rainmeter '!HideMeter' 'MeterRecordingDot' $rainmeterConfig }
+        & $rainmeter '!UpdateMeter' 'MeterRecordLabel' $rainmeterConfig
+        & $rainmeter '!UpdateMeter' 'MeterRecordingDot' $rainmeterConfig
+        & $rainmeter '!Redraw' $rainmeterConfig
+    }
     $script:lastRecordingVisual = $visualState
 }
 
@@ -204,19 +258,28 @@ function Set-BackgroundSettings($Settings) {
             if ($config.appearance.backgroundEffect.PSObject.Properties[$entry.Key]) { $config.appearance.backgroundEffect.($entry.Key) = $entry.Value }
             else { $config.appearance.backgroundEffect | Add-Member NoteProperty $entry.Key $entry.Value }
         }
+        if($config.PSObject.Properties['displayViews']){
+            foreach($view in @($config.displayViews)){
+                if(-not $view.background){$view|Add-Member NoteProperty background ([pscustomobject]@{})}
+                if($view.background.PSObject.Properties['enabled']){$view.background.enabled=[bool]$Settings.enabled}else{$view.background|Add-Member NoteProperty enabled ([bool]$Settings.enabled)}
+                if($view.background.PSObject.Properties['mode']){$view.background.mode=$(if([string]$Settings.mode-eq'thermal'){'thermal'}else{'manual'})}else{$view.background|Add-Member NoteProperty mode $(if([string]$Settings.mode-eq'thermal'){'thermal'}else{'manual'})}
+            }
+        }
         $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
         $script:backgroundSettings = $Settings
         if ((Test-Path -LiteralPath $rainmeter) -and (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
-            & $rainmeter '!SetVariable' 'BackgroundEffectEnabled' $(if ($Settings.enabled) { '1' } else { '0' }) 'AlienGamerMode'
-            & $rainmeter '!SetVariable' 'BackgroundEffectMode' $(if ([string]$Settings.mode -eq 'thermal') { 'thermal' } else { 'manual' }) 'AlienGamerMode'
-            & $rainmeter '!SetVariable' 'BackgroundParticleCount' ([string][int]$Settings.particleCount) 'AlienGamerMode'
-            & $rainmeter '!SetVariable' 'BackgroundParticleSpeed' ([double]$Settings.speed).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) 'AlienGamerMode'
-            & $rainmeter '!SetVariable' 'BackgroundParticleSize' ([double]$Settings.sizeScale).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) 'AlienGamerMode'
-            & $rainmeter '!SetVariable' 'BackgroundParticleColor' ([string]$Settings.color) 'AlienGamerMode'
-            & $rainmeter '!EnableMeasure' 'BackgroundScript' 'AlienGamerMode'
-            & $rainmeter '!UpdateMeasure' 'BackgroundScript' 'AlienGamerMode'
-            & $rainmeter '!UpdateMeterGroup' 'AmbientParticles' 'AlienGamerMode'
-            & $rainmeter '!Redraw' 'AlienGamerMode'
+            foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){
+                & $rainmeter '!SetVariable' 'BackgroundEffectEnabled' $(if ($Settings.enabled) { '1' } else { '0' }) $rainmeterConfig
+                & $rainmeter '!SetVariable' 'BackgroundEffectMode' $(if ([string]$Settings.mode -eq 'thermal') { 'thermal' } else { 'manual' }) $rainmeterConfig
+                & $rainmeter '!SetVariable' 'BackgroundParticleCount' ([string][int]$Settings.particleCount) $rainmeterConfig
+                & $rainmeter '!SetVariable' 'BackgroundParticleSpeed' ([double]$Settings.speed).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) $rainmeterConfig
+                & $rainmeter '!SetVariable' 'BackgroundParticleSize' ([double]$Settings.sizeScale).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) $rainmeterConfig
+                & $rainmeter '!SetVariable' 'BackgroundParticleColor' ([string]$Settings.color) $rainmeterConfig
+                & $rainmeter '!EnableMeasure' 'BackgroundScript' $rainmeterConfig
+                & $rainmeter '!UpdateMeasure' 'BackgroundScript' $rainmeterConfig
+                & $rainmeter '!UpdateMeterGroup' 'AmbientParticles' $rainmeterConfig
+                & $rainmeter '!Redraw' $rainmeterConfig
+            }
         }
         Write-AgentLog ('Fondo actualizado: activo={0}, modo={1}, partículas={2}, velocidad={3}, tamaño={4}, color={5}.' -f $Settings.enabled,$Settings.mode,$Settings.particleCount,$Settings.speed,$Settings.sizeScale,$Settings.color)
     } catch {
@@ -260,28 +323,26 @@ function Set-ModuleVisibility([string]$Name, [bool]$Visible) {
             [Windows.Forms.Application]::DoEvents()
             if (-not $Visible) {
                 $group = if ($Name -eq 'processorPanelVisible') { 'ProcessorPanel' } elseif ($Name -eq 'performancePanelVisible') { 'PerformancePanel' } elseif($Name -eq 'clock') { 'ClockPanel' } else { 'CompactOnly' }
-                & $rainmeter '!HideMeterGroup' $group 'AlienGamerMode'
-                & $rainmeter '!Redraw' 'AlienGamerMode'
+                foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){
+                    & $rainmeter '!HideMeterGroup' $group $rainmeterConfig
+                    & $rainmeter '!Redraw' $rainmeterConfig
+                }
             }
         }
         $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
         if (-not $config.features) { $config | Add-Member NoteProperty features ([pscustomobject]@{}) }
         if ($config.features.PSObject.Properties[$Name]) { $config.features.$Name = $Visible }
         else { $config.features | Add-Member NoteProperty $Name $Visible }
+        if($config.PSObject.Properties['displayViews'] -and @($config.displayViews).Count){
+            $firstView=@($config.displayViews|Where-Object enabled|Select-Object -First 1)[0]
+            if($firstView -and $firstView.modules){
+                $viewModule=if($Name-eq'processorPanelVisible'){'processors'}elseif($Name-eq'performancePanelVisible'){'performance'}elseif($Name-eq'clock'){'clock'}else{$null}
+                if($viewModule -and $firstView.modules.PSObject.Properties[$viewModule]){$firstView.modules.$viewModule.visible=$Visible}
+            }
+        }
         $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
 
-        if ($monitorWasActive -and (Test-Path -LiteralPath $profilePath)) {
-            $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
-            if ($profile.PSObject.Properties['features']) { $profile.features = $config.features }
-            else { $profile | Add-Member NoteProperty features $config.features }
-            $profile | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $profilePath -Encoding UTF8
-            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Build-AdaptiveSkin.ps1') -ProfilePath $profilePath -TemplatePath (Join-Path $appRoot 'skin\AlienGamerMode.Template.ini') -OutputDirectory $generatedSkin -InstallRoot $appRoot | Out-Null
-            $skinTarget = Join-Path (Get-SkinsPath) 'AlienGamerMode'
-            Copy-Item -Path (Join-Path $generatedSkin '*') -Destination $skinTarget -Recurse -Force
-            & $rainmeter '!Refresh' 'AlienGamerMode'
-            Start-Sleep -Milliseconds 120
-            & $rainmeter '!Move' ([string][int]$profile.monitor.x) ([string][int]$profile.monitor.y) 'AlienGamerMode'
-        }
+        if ($monitorWasActive -and (Test-Path -LiteralPath $profilePath)) { Refresh-DisplaySkins }
         Write-AgentLog ("Visibilidad de módulo actualizada: {0}={1}." -f $Name,$Visible)
     } catch {
         Write-AgentLog "No se pudo cambiar la visibilidad del módulo: $($_.Exception.Message)"
@@ -329,7 +390,7 @@ function Show-BackgroundSettings {
     $sizeBar.Add_ValueChanged({
         $sizeValue.Text=($sizeBar.Value/100.0).ToString('0%')
         if((Test-Path -LiteralPath $rainmeter) -and (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
-            & $rainmeter '!SetVariable' 'BackgroundParticleSize' ($sizeBar.Value/100.0).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) 'AlienGamerMode'
+                foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){& $rainmeter '!SetVariable' 'BackgroundParticleSize' ($sizeBar.Value/100.0).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) $rainmeterConfig}
         }
     })
 
@@ -352,7 +413,7 @@ function Show-BackgroundSettings {
         $color=$script:selectedParticleColor
         Set-BackgroundSettings ([pscustomobject]@{enabled=$enabledCheck.Checked;mode=$current.mode;particleCount=$countBar.Value;speed=$speedBar.Value/100.0;sizeScale=$sizeBar.Value/100.0;color=('{0},{1},{2}' -f $color.R,$color.G,$color.B)})
     } elseif((Test-Path -LiteralPath $rainmeter) -and (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
-        & $rainmeter '!SetVariable' 'BackgroundParticleSize' ([double]$current.sizeScale).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) 'AlienGamerMode'
+            foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){& $rainmeter '!SetVariable' 'BackgroundParticleSize' ([double]$current.sizeScale).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) $rainmeterConfig}
     }
     $form.Dispose()
 }
@@ -403,6 +464,10 @@ function Show-HardwareSettings {
         $selectedMonitor=$monitors[$monitorBox.SelectedIndex]
         $config.display.targetMonitor=[string]$selectedMonitor.deviceName
         if($config.display.PSObject.Properties['targetMonitorId']){$config.display.targetMonitorId=[string]$selectedMonitor.pnpDeviceId}else{$config.display|Add-Member NoteProperty targetMonitorId ([string]$selectedMonitor.pnpDeviceId)}
+        if($config.PSObject.Properties['displayViews'] -and @($config.displayViews).Count){
+            $firstView=@($config.displayViews|Where-Object enabled|Select-Object -First 1)[0]
+            if($firstView){$firstView.monitorId=[string]$selectedMonitor.pnpDeviceId;$firstView.monitorDeviceName=[string]$selectedMonitor.deviceName;$firstView.name=[string]$selectedMonitor.friendlyName}
+        }
         if($gpuBox.SelectedIndex -ge 0){$config.hardware.preferredGpu=[string]$gpus[$gpuBox.SelectedIndex].name}
         if($storageBox.SelectedIndex -ge 0){$config.hardware.preferredStorage=[string]$storage[$storageBox.SelectedIndex].friendlyName}
         $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
@@ -419,6 +484,22 @@ function Show-HardwareSettings {
     } finally {
         if($form){$form.Dispose()}
         Remove-Item -LiteralPath $temporaryDiscovery -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Show-DisplayLayoutEditor {
+    try{
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath -AllowMissingHWiNFO|Out-Null
+        $arguments="-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $appRoot 'Show-AlienGamerLayoutEditor.ps1')`" -ConfigPath `"$configPath`" -DiscoveryPath `"$discoveryPath`""
+        $process=Start-Process powershell.exe -WindowStyle Hidden -ArgumentList $arguments -Wait -PassThru
+        if($process.ExitCode-eq 0){
+            if(Test-MonitorActive){Refresh-DisplaySkins}
+            Write-AgentLog 'Distribución multidisplay actualizada.'
+            $script:tray.ShowBalloonTip(2500,'AlienGamer Mode',$(if($script:language-eq'en-US'){'Display layout applied.'}else{'Distribución de pantallas aplicada.'}),[Windows.Forms.ToolTipIcon]::Info)
+        }
+    }catch{
+        Write-AgentLog "No se pudo abrir el editor multidisplay: $($_.Exception.Message)"
+        [Windows.Forms.MessageBox]::Show($_.Exception.Message,'AlienGamer Mode','OK','Error')|Out-Null
     }
 }
 
@@ -439,6 +520,7 @@ function Apply-AgentLanguage {
     $script:spanishItem.Text = T 'tray.spanish'
     $script:englishItem.Text = T 'tray.english'
     $script:hardwareConfigItem.Text = T 'tray.hardwareConfiguration'
+    $script:displayLayoutItem.Text = T 'tray.displayLayout'
     $script:configItem.Text = T 'tray.advancedConfiguration'
     $script:logsItem.Text = T 'tray.openLogs'
     $script:exitItem.Text = T 'tray.closeApp'
@@ -463,19 +545,7 @@ function Set-AppLanguage([string]$Language) {
         else { $config | Add-Member NoteProperty language $resolved }
         $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
 
-        if ($monitorWasActive -and (Test-Path -LiteralPath $profilePath)) {
-            $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
-            if ($profile.PSObject.Properties['language']) { $profile.language = $resolved }
-            else { $profile | Add-Member NoteProperty language $resolved }
-            $profile | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $profilePath -Encoding UTF8
-            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Build-AdaptiveSkin.ps1') -ProfilePath $profilePath -TemplatePath (Join-Path $appRoot 'skin\AlienGamerMode.Template.ini') -OutputDirectory $generatedSkin -InstallRoot $appRoot | Out-Null
-            $skinTarget = Join-Path (Get-SkinsPath) 'AlienGamerMode'
-            Copy-Item -Path (Join-Path $generatedSkin '*') -Destination $skinTarget -Recurse -Force
-            & $rainmeter '!Refresh' 'AlienGamerMode'
-            $script:lastRecordingVisual = $null
-            Start-Sleep -Milliseconds 150
-            & $rainmeter '!Move' ([string][int]$profile.monitor.x) ([string][int]$profile.monitor.y) 'AlienGamerMode'
-        }
+        if ($monitorWasActive -and (Test-Path -LiteralPath $profilePath)) { Refresh-DisplaySkins }
         Apply-AgentLanguage
         Update-TrayMenuState
         Write-AgentLog "Idioma actualizado: $resolved."
@@ -545,13 +615,12 @@ function Set-RainmeterSkinPosition([int]$X, [int]$Y) {
 }
 
 function Ensure-MonitorPosition {
-    if (-not (Test-MonitorActive) -or -not (Test-Path -LiteralPath $profilePath) -or -not (Test-Path -LiteralPath $rainmeter)) { return }
+    if (-not (Test-MonitorActive) -or -not (Test-Path -LiteralPath $displayManifestPath) -or -not (Test-Path -LiteralPath $rainmeter)) { return }
     if (((Get-Date) - $script:lastPositionCheck).TotalSeconds -lt 5) { return }
     $script:lastPositionCheck = Get-Date
     try {
-        $profile = Get-Content -LiteralPath $profilePath -Raw | ConvertFrom-Json
-        if ($profile.monitor) {
-            & $rainmeter '!Move' ([string][int]$profile.monitor.x) ([string][int]$profile.monitor.y) 'AlienGamerMode'
+        foreach($view in @(Get-DisplayManifest)){
+            & $rainmeter '!Move' ([string][int]$view.monitor.x) ([string][int]$view.monitor.y) ([string]$view.configName)
         }
     } catch {
         Write-AgentLog "No se pudo reafirmar la posición del monitor: $($_.Exception.Message)"
@@ -603,15 +672,12 @@ function Start-Monitor {
         if (-not (Wait-SharedMemory 30)) { throw (T 'dialog.sharedMemory') }
 
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath | Out-Null
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Resolve-AlienGamerProfile.ps1') -DiscoveryPath $discoveryPath -ConfigPath $configPath -OutputPath $profilePath | Out-Null
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Build-AdaptiveSkin.ps1') -ProfilePath $profilePath -TemplatePath (Join-Path $appRoot 'skin\AlienGamerMode.Template.ini') -OutputDirectory $generatedSkin -InstallRoot $appRoot | Out-Null
+        Invoke-BuildDisplaySkins
 
         $profile = Get-Content $profilePath -Raw | ConvertFrom-Json
         if (-not $profile.validation) { throw (T 'dialog.invalidProfile') }
         if (@($profile.validation.issues).Count) { Write-AgentLog ('Sensores descartados por validación: ' + (@($profile.validation.issues) -join '; ')) }
-        $skinTarget = Join-Path (Get-SkinsPath) 'AlienGamerMode'
-        if (-not (Test-Path $skinTarget)) { New-Item -ItemType Directory -Path $skinTarget -Force | Out-Null }
-        Copy-Item -Path (Join-Path $generatedSkin '*') -Destination $skinTarget -Recurse -Force
+        Install-GeneratedSkins
 
         Stop-Bridge
         $bridgeArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$(Join-Path $appRoot 'AlienGamerBridge.ps1')`" -ProfilePath `"$profilePath`" -StateDirectory `"$dataRoot`""
@@ -625,23 +691,21 @@ function Start-Monitor {
         if (-not $health.ok) { throw (T 'dialog.bridgeError') }
         Invoke-RecorderCommand '-StartBuffer'
 
-        Set-RainmeterSkinPosition -X ([int]$profile.monitor.x) -Y ([int]$profile.monitor.y)
         if (-not (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
             Start-Process -FilePath $rainmeter | Out-Null
             $ownedRainmeter = $true
             Start-Sleep -Seconds 2
         }
         foreach ($name in @('illustro\Clock','illustro\Disk','illustro\System','illustro\Welcome','HWiNFO')) { & $rainmeter '!DeactivateConfig' $name }
-        & $rainmeter '!ActivateConfig' 'AlienGamerMode' 'AlienGamerMode.ini'
+        Activate-DisplaySkins
         Start-Sleep -Milliseconds 900
-        & $rainmeter '!Move' ([string][int]$profile.monitor.x) ([string][int]$profile.monitor.y) 'AlienGamerMode'
         $script:lastPositionCheck = Get-Date
-        & $rainmeter '!Refresh' 'AlienGamerMode'
+        foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){& $rainmeter '!Refresh' $rainmeterConfig}
         $script:lastRecordingVisual = $null
         Start-Sleep -Milliseconds 350
-        & $rainmeter '!Move' ([string][int]$profile.monitor.x) ([string][int]$profile.monitor.y) 'AlienGamerMode'
+        Ensure-MonitorPosition
         Save-AgentState ([ordered]@{ active=$true; ownedHWiNFO=$ownedHWiNFO; ownedHWiNFOTask=$ownedHWiNFOTask; ownedRainmeter=$ownedRainmeter; activatedAt=(Get-Date).ToString('o') })
-        Write-AgentLog "Monitor activado; $(@($profile.cores).Count) procesadores lógicos monitorizados."
+        Write-AgentLog "Monitor activado en $(@(Get-DisplayManifest).Count) pantalla(s); $(@($profile.cores).Count) procesadores lógicos monitorizados."
         $script:tray.Text = T 'tray.active'
         Update-TrayMenuState
         $script:tray.ShowBalloonTip(2500, 'AlienGamer Mode', (T 'dialog.monitorActivated'), [Windows.Forms.ToolTipIcon]::Info)
@@ -665,7 +729,7 @@ function Stop-Monitor {
             Invoke-RecordingToggle
             Start-Sleep -Milliseconds 250
         }
-        if (Test-Path $rainmeter) { & $rainmeter '!DeactivateConfig' 'AlienGamerMode' }
+        if (Test-Path $rainmeter) { Deactivate-DisplaySkins }
         Invoke-RecorderCommand '-StopBuffer'
         Stop-Bridge
         $sensorTask = Get-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -ErrorAction SilentlyContinue
@@ -711,6 +775,7 @@ $englishItem = $languageItem.DropDownItems.Add((T 'tray.english'))
 [void]$menu.Items.Add($languageItem)
 [void]$menu.Items.Add('-')
 $hardwareConfigItem = $menu.Items.Add((T 'tray.hardwareConfiguration'))
+$displayLayoutItem = $menu.Items.Add((T 'tray.displayLayout'))
 $configItem = $menu.Items.Add((T 'tray.advancedConfiguration'))
 $logsItem = $menu.Items.Add((T 'tray.openLogs'))
 [void]$menu.Items.Add('-')
@@ -735,6 +800,7 @@ $script:languageItem = $languageItem
 $script:spanishItem = $spanishItem
 $script:englishItem = $englishItem
 $script:hardwareConfigItem = $hardwareConfigItem
+$script:displayLayoutItem = $displayLayoutItem
 $script:configItem = $configItem
 $script:logsItem = $logsItem
 $script:exitItem = $exitItem
@@ -774,6 +840,7 @@ $compactItem.Add_Click({
 $spanishItem.Add_Click({ Set-AppLanguage 'es-MX' })
 $englishItem.Add_Click({ Set-AppLanguage 'en-US' })
 $hardwareConfigItem.Add_Click({ Show-HardwareSettings; Update-TrayMenuState })
+$displayLayoutItem.Add_Click({ Show-DisplayLayoutEditor; Update-TrayMenuState })
 $configItem.Add_Click({ Start-Process notepad.exe -ArgumentList "`"$configPath`"" })
 $logsItem.Add_Click({ Start-Process explorer.exe -ArgumentList "`"$dataRoot`"" })
 $exitItem.Add_Click({ Stop-Monitor; $tray.Visible=$false; [Windows.Forms.Application]::Exit() })

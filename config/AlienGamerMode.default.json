@@ -1,5 +1,5 @@
 ﻿{
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "edition": "Official",
   "language": "es-MX",
   "display": {
@@ -11,6 +11,32 @@
     "safeMarginPx": 4,
     "pixelShift": { "enabled": true, "intervalSeconds": 120, "maxOffsetPx": 3 }
   },
+  "displayViews": [
+    {
+      "id": "principal",
+      "name": "AlienGamer Mode",
+      "enabled": true,
+      "monitorId": "auto",
+      "monitorDeviceName": "auto",
+      "layoutPreset": "full-horizontal",
+      "background": {
+        "enabled": true,
+        "mode": "manual"
+      },
+      "modules": {
+        "header": { "visible": true, "x": 35, "y": 20 },
+        "clock": { "visible": true, "x": 760, "y": 25 },
+        "controls": { "visible": true, "x": 1435, "y": 25 },
+        "ram": { "visible": true, "x": 35, "y": 150 },
+        "vram": { "visible": true, "x": 455, "y": 150 },
+        "system": { "visible": true, "x": 875, "y": 150 },
+        "temperatures": { "visible": true, "x": 1165, "y": 150 },
+        "performance": { "visible": true, "x": 720, "y": 575 },
+        "processors": { "visible": true, "x": 35, "y": 610 }
+      },
+      "canvas": { "width": 1711, "height": 1023 }
+    }
+  ],
   "hardware": {
     "preferredGpu": "auto",
     "preferredStorage": "system"

@@ -15,7 +15,7 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
-La versión 1.4.0 genera automáticamente un reporte visual HTML con gráficas al finalizar cada grabación, además del Excel y el CSV bruto. También incorpora el arranque completamente oculto y el cierre OFF de respaldo de la versión 1.3.5.
+La versión 1.5.0 añade un editor visual multidisplay: cada pantalla puede tener módulos, posiciones, diseño y fondo propios. Comparte una sola lectura validada de HWiNFO, por lo que no duplica el puente de sensores ni la grabación de eventos.
 
 ## ¿Por qué AlienGamer Mode?
 
@@ -46,6 +46,8 @@ Un contador de FPS dice que algo ocurrió; AlienGamer Mode ayuda a conservar el 
 - Módulos opcionales persistentes para mostrar u ocultar **Procesadores / carga**, **FPS, frame time y alertas**, y el **Reloj**.
 - Selección de monitor, GPU y unidad principal durante la instalación.
 - Interfaz en español e inglés, seleccionable durante la instalación o desde el icono de bandeja sin reiniciar los sensores.
+- Varias vistas simultáneas en monitores locales, con distribución independiente y persistente.
+- Editor visual para arrastrar RAM, VRAM, uso, temperaturas, FPS, procesadores, reloj, encabezado y controles.
 
 ## Requisitos
 
@@ -83,11 +85,25 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.4.0.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.5.0.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
 Consulta [Requisitos previos](docs/REQUISITOS-PREVIOS.md) y la [Guía de instalación manual](docs/GUIA-INSTALACION-MANUAL.md) si necesitas configurar HWiNFO o resolver un problema.
+
+## Pantallas y distribución
+
+Abre el menú del icono de bandeja y selecciona **Pantallas y distribución...**. El editor muestra cada monitor conectado y permite:
+
+- activar una o varias pantallas al mismo tiempo;
+- arrastrar cada bloque a una posición independiente;
+- mostrar u ocultar cualquier módulo sin detener los sensores;
+- aplicar diseños completos, esenciales, verticales, sólo rendimiento o sólo temperaturas;
+- activar o desactivar el fondo por pantalla y elegir fondo personalizado o térmico.
+
+Pulsa **Guardar y aplicar** para reconstruir únicamente las vistas de Rainmeter. HWiNFO, el puente local y la grabación permanecen compartidos. La selección se conserva en `displayViews` dentro de `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` y vuelve a aplicarse al iniciar Windows.
+
+La primera vista mantiene la selección hecha en el instalador. Al actualizar desde una versión anterior, esa pantalla y las preferencias existentes se migran automáticamente. Teléfonos y tabletas aún no funcionan como pantallas remotas; esa extensión está prevista para una versión posterior y requerirá controles explícitos de red y privacidad.
 
 ## Fondo ambiental configurable
 

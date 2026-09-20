@@ -195,6 +195,7 @@ $profile = [ordered]@{
     labels = $config.labels
     appearance = $config.appearance
     features = $config.features
+    layout = if ($config.PSObject.Properties['activeDisplayView']) { $config.activeDisplayView } else { $null }
 }
 
 $parent = Split-Path -Parent $OutputPath

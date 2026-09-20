@@ -1,6 +1,6 @@
 Option Explicit
 
-Dim shell, fso, appRoot, powershell, mode, command, bridgeUrl
+Dim shell, fso, appRoot, powershell, mode, command, bridgeUrl, rainmeterConfig
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
@@ -19,11 +19,15 @@ Select Case mode
     Case "record-toggle"
         bridgeUrl = "http://127.0.0.1:27843/v2/status"
         If WScript.Arguments.Count > 1 Then bridgeUrl = WScript.Arguments(1)
-        command = PsCommand(appRoot & "\AlienGamerEventRecorder.ps1", "-Toggle -BridgeUrl " & Quote(bridgeUrl) & " -RainmeterConfig " & Quote("AlienGamerMode"))
+        rainmeterConfig = "AlienGamerMode"
+        If WScript.Arguments.Count > 2 Then rainmeterConfig = WScript.Arguments(2)
+        command = PsCommand(appRoot & "\AlienGamerEventRecorder.ps1", "-Toggle -BridgeUrl " & Quote(bridgeUrl) & " -RainmeterConfig " & Quote(rainmeterConfig))
     Case "mark-incident"
         bridgeUrl = "http://127.0.0.1:27843/v2/status"
         If WScript.Arguments.Count > 1 Then bridgeUrl = WScript.Arguments(1)
-        command = PsCommand(appRoot & "\AlienGamerEventRecorder.ps1", "-MarkIncident -BridgeUrl " & Quote(bridgeUrl) & " -RainmeterConfig " & Quote("AlienGamerMode"))
+        rainmeterConfig = "AlienGamerMode"
+        If WScript.Arguments.Count > 2 Then rainmeterConfig = WScript.Arguments(2)
+        command = PsCommand(appRoot & "\AlienGamerEventRecorder.ps1", "-MarkIncident -BridgeUrl " & Quote(bridgeUrl) & " -RainmeterConfig " & Quote(rainmeterConfig))
     Case Else
         command = PsCommand(appRoot & "\AlienGamerModeAgent.ps1", "")
 End Select
