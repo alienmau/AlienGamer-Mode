@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## 1.5.1 — 20 de septiembre de 2026
+
+- Corrige la actualización desde esquema 2: una instalación 1.4 inicia con una distribución multidisplay limpia y coherente, sin mezclar `features` antiguos con visibilidad por pantalla.
+- Conserva idioma, monitor, GPU, SSD y ajustes compatibles, pero restablece únicamente reloj, procesadores, rendimiento y modo compacto para que el usuario los configure bajo el nuevo esquema.
+- El agente también detecta y repara configuraciones 1.4 que hayan sobrevivido a una instalación 1.5.0 incompleta.
+- El estado del menú **Módulos visibles** se obtiene de la primera vista habilitada, que es la misma fuente usada para dibujar la skin.
+- **Pantallas y distribución...** se abre en un proceso no bloqueante; la bandeja continúa respondiendo y aplica los cambios al cerrar el editor.
+- Los errores del editor quedan en `layout-editor.error.log` y se presentan de forma visible en lugar de dejar un proceso congelado sin explicación.
+
 ## 1.5.0 — 20 de septiembre de 2026
 
 ### Nuevas funciones

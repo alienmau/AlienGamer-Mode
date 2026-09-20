@@ -15,7 +15,7 @@
 
 AlienGamer Mode is a Rainmeter and HWiNFO dashboard that detects the available hardware, adapts its layout to the selected display and avoids presenting missing sensors as real zero values.
 
-Version 1.5.0 adds a visual multi-display editor. Each local display can keep its own modules, positions, preset and background while all views share one validated HWiNFO sensor bridge and one event recorder.
+Version 1.5.1 adds a visual multi-display editor. Each local display can keep its own modules, positions, preset and background while all views share one validated HWiNFO sensor bridge and one event recorder. This revision fixes migration from 1.4 and prevents the editor from blocking the tray menu.
 
 ## Highlights
 
@@ -54,7 +54,7 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.5.0.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.5.1.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 

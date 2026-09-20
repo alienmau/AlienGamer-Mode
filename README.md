@@ -15,7 +15,7 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
-La versión 1.5.0 añade un editor visual multidisplay: cada pantalla puede tener módulos, posiciones, diseño y fondo propios. Comparte una sola lectura validada de HWiNFO, por lo que no duplica el puente de sensores ni la grabación de eventos.
+La versión 1.5.1 añade un editor visual multidisplay: cada pantalla puede tener módulos, posiciones, diseño y fondo propios. Comparte una sola lectura validada de HWiNFO, por lo que no duplica el puente de sensores ni la grabación de eventos. Esta revisión corrige la migración visual desde 1.4 y evita que el editor bloquee el menú de bandeja.
 
 ## ¿Por qué AlienGamer Mode?
 
@@ -85,7 +85,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.5.0.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.5.1.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 

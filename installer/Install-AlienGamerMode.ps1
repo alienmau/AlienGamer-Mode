@@ -247,12 +247,22 @@ $installButton.Add_Click({
         Copy-Item -Path (Join-Path $docRoot '*') -Destination $installedDocs -Recurse -Force
         Copy-Item -LiteralPath (Join-Path $packageRoot 'README.md') -Destination (Join-Path $installRoot 'README.md') -Force
         Copy-Item -LiteralPath (Join-Path $packageRoot 'README.en.md') -Destination (Join-Path $installRoot 'README.en.md') -Force
+        Copy-Item -LiteralPath $defaultConfig -Destination (Join-Path $installRoot 'AlienGamerMode.default.json') -Force
         $configPath = Join-Path $dataRoot 'AlienGamerMode.json'
         if (-not (Test-Path $configPath)) { Copy-Item $defaultConfig $configPath }
         $config = Get-Content $configPath -Raw | ConvertFrom-Json
-        $hadDisplayViews = $config.PSObject.Properties['displayViews'] -and @($config.displayViews).Count -gt 0
+        $previousSchemaVersion = if ($config.PSObject.Properties['schemaVersion']) { [int]$config.schemaVersion } else { 1 }
+        $upgradeToMultiDisplay = $previousSchemaVersion -lt 3
         $configDefaults = Get-Content $defaultConfig -Raw | ConvertFrom-Json
         Merge-MissingConfiguration $config $configDefaults
+        if ($upgradeToMultiDisplay) {
+            # 1.4 y anteriores no tenían posiciones ni visibilidad por pantalla.
+            # Se inicia una distribución 1.5 limpia para no mezclar dos modelos.
+            $config.displayViews = @($configDefaults.displayViews | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+            foreach ($visualFeature in @('processorPanelVisible','performancePanelVisible','clock','compactOverlay')) {
+                $config.features.$visualFeature = $configDefaults.features.$visualFeature
+            }
+        }
         $config.language = $Language
         $selectedMonitor = @($discovery.monitors)[$monitorBox.SelectedIndex]
         $selectedGpu = @($discovery.gpus)[$gpuBox.SelectedIndex]
@@ -264,7 +274,7 @@ $installButton.Add_Click({
             $primaryView = @($config.displayViews)[0]
             $primaryView.monitorId = [string]$selectedMonitor.pnpDeviceId
             $primaryView.monitorDeviceName = [string]$selectedMonitor.deviceName
-            if (-not $hadDisplayViews) {
+            if ($upgradeToMultiDisplay) {
                 $primaryView.name = [string]$selectedMonitor.friendlyName
                 $primaryView.enabled = $true
             }

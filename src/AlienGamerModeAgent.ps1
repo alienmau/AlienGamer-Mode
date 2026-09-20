@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Localization.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.MultiDisplay.psm1') -Force
 
 $appRoot = $PSScriptRoot
 $dataRoot = Join-Path $env:LOCALAPPDATA 'AlienGamerMode'
@@ -37,6 +38,40 @@ if (-not (Test-Path $dataRoot)) { New-Item -ItemType Directory -Path $dataRoot -
 function Write-AgentLog([string]$Message) {
     "$(Get-Date -Format o) $Message" | Add-Content -LiteralPath $logPath -Encoding UTF8
 }
+
+function Set-AgentConfigProperty($Object,[string]$Name,$Value) {
+    if($Object.PSObject.Properties[$Name]){$Object.$Name=$Value}else{$Object|Add-Member NoteProperty $Name $Value}
+}
+
+function Initialize-MultiDisplayConfiguration {
+    if(-not(Test-Path -LiteralPath $configPath)){return}
+    try{
+        $config=Get-Content -LiteralPath $configPath -Raw|ConvertFrom-Json
+        $schema=if($config.PSObject.Properties['schemaVersion']){[int]$config.schemaVersion}else{1}
+        if($schema -ge 3 -and $config.PSObject.Properties['displayViews'] -and @($config.displayViews).Count){return}
+        $monitorDevice=if($config.display -and $config.display.PSObject.Properties['targetMonitor']){[string]$config.display.targetMonitor}else{'auto'}
+        $monitorId=if($config.display -and $config.display.PSObject.Properties['targetMonitorId']){[string]$config.display.targetMonitorId}else{'auto'}
+        $view=New-AGDisplayView -Id 'principal' -Name 'AlienGamer Mode' -MonitorId $monitorId -MonitorDeviceName $monitorDevice -Preset 'full-horizontal' -Enabled $true
+        if($config.appearance -and $config.appearance.backgroundEffect){
+            $effect=$config.appearance.backgroundEffect
+            if($effect.PSObject.Properties['enabled']){$view.background.enabled=[bool]$effect.enabled}
+            if($effect.PSObject.Properties['mode'] -and [string]$effect.mode -in @('manual','thermal')){$view.background.mode=[string]$effect.mode}
+        }
+        Set-AgentConfigProperty $config 'displayViews' @($view)
+        Set-AgentConfigProperty $config 'schemaVersion' 3
+        if(-not $config.features){Set-AgentConfigProperty $config 'features' ([pscustomobject]@{})}
+        Set-AgentConfigProperty $config.features 'processorPanelVisible' $true
+        Set-AgentConfigProperty $config.features 'performancePanelVisible' $true
+        Set-AgentConfigProperty $config.features 'clock' $true
+        Set-AgentConfigProperty $config.features 'compactOverlay' $false
+        $config|ConvertTo-Json -Depth 20|Set-Content -LiteralPath $configPath -Encoding UTF8
+        Write-AgentLog "Configuración visual migrada del esquema $schema al esquema multidisplay 3 con valores limpios."
+    }catch{
+        Write-AgentLog "No se pudo migrar la configuración multidisplay: $($_.Exception.Message)"
+    }
+}
+
+Initialize-MultiDisplayConfiguration
 
 function Read-AgentState {
     if (-not (Test-Path $statePath)) { return [pscustomobject]@{} }
@@ -309,6 +344,14 @@ function Get-ModuleVisibilitySettings {
             if ($null -ne $config.features.clock) { $settings.clock = [bool]$config.features.clock }
             if ($null -ne $config.features.compactOverlay) { $settings.compactOverlay = [bool]$config.features.compactOverlay }
         }
+        if($config.PSObject.Properties['displayViews'] -and @($config.displayViews).Count){
+            $firstView=@($config.displayViews|Where-Object enabled|Select-Object -First 1)[0]
+            if($firstView -and $firstView.modules){
+                if($firstView.modules.PSObject.Properties['processors']){$settings.processorPanelVisible=[bool]$firstView.modules.processors.visible}
+                if($firstView.modules.PSObject.Properties['performance']){$settings.performancePanelVisible=[bool]$firstView.modules.performance.visible}
+                if($firstView.modules.PSObject.Properties['clock']){$settings.clock=[bool]$firstView.modules.clock.visible}
+            }
+        }
     } catch { Write-AgentLog "No se pudo leer la visibilidad de módulos: $($_.Exception.Message)" }
     return [pscustomobject]$settings
 }
@@ -489,17 +532,44 @@ function Show-HardwareSettings {
 
 function Show-DisplayLayoutEditor {
     try{
+        if($script:layoutEditorProcess -and -not $script:layoutEditorProcess.HasExited){
+            $script:tray.ShowBalloonTip(2200,'AlienGamer Mode',$(if($script:language-eq'en-US'){'The display editor is already open.'}else{'El editor de pantallas ya está abierto.'}),[Windows.Forms.ToolTipIcon]::Info)
+            return
+        }
         & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath -AllowMissingHWiNFO|Out-Null
         $arguments="-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $appRoot 'Show-AlienGamerLayoutEditor.ps1')`" -ConfigPath `"$configPath`" -DiscoveryPath `"$discoveryPath`""
-        $process=Start-Process powershell.exe -WindowStyle Hidden -ArgumentList $arguments -Wait -PassThru
-        if($process.ExitCode-eq 0){
-            if(Test-MonitorActive){Refresh-DisplaySkins}
-            Write-AgentLog 'Distribución multidisplay actualizada.'
-            $script:tray.ShowBalloonTip(2500,'AlienGamer Mode',$(if($script:language-eq'en-US'){'Display layout applied.'}else{'Distribución de pantallas aplicada.'}),[Windows.Forms.ToolTipIcon]::Info)
-        }
+        $script:layoutEditorErrorPath=Join-Path $dataRoot 'layout-editor.error.log'
+        ''|Set-Content -LiteralPath $script:layoutEditorErrorPath -Encoding UTF8
+        $script:layoutEditorProcess=Start-Process powershell.exe -WindowStyle Hidden -ArgumentList $arguments -RedirectStandardError $script:layoutEditorErrorPath -PassThru
+        $script:displayLayoutItem.Enabled=$false
+        Write-AgentLog 'Editor multidisplay abierto sin bloquear la bandeja.'
     }catch{
         Write-AgentLog "No se pudo abrir el editor multidisplay: $($_.Exception.Message)"
         [Windows.Forms.MessageBox]::Show($_.Exception.Message,'AlienGamer Mode','OK','Error')|Out-Null
+    }
+}
+
+function Complete-DisplayLayoutEditor {
+    if(-not $script:layoutEditorProcess -or -not $script:layoutEditorProcess.HasExited){return}
+    $process=$script:layoutEditorProcess
+    $script:layoutEditorProcess=$null
+    $script:displayLayoutItem.Enabled=$true
+    $exitCode=$process.ExitCode
+    $process.Dispose()
+    if($exitCode -eq 0){
+        try{
+            if(Test-MonitorActive){Refresh-DisplaySkins}
+            Write-AgentLog 'Distribución multidisplay actualizada.'
+            $script:tray.ShowBalloonTip(2500,'AlienGamer Mode',$(if($script:language-eq'en-US'){'Display layout applied.'}else{'Distribución de pantallas aplicada.'}),[Windows.Forms.ToolTipIcon]::Info)
+        }catch{
+            Write-AgentLog "No se pudo aplicar la distribución multidisplay: $($_.Exception.Message)"
+            [Windows.Forms.MessageBox]::Show($_.Exception.Message,'AlienGamer Mode','OK','Error')|Out-Null
+        }
+    }elseif($exitCode -notin @(1,2)){
+        $details=if(Test-Path -LiteralPath $script:layoutEditorErrorPath){(Get-Content -LiteralPath $script:layoutEditorErrorPath -Raw).Trim()}else{''}
+        if(-not $details){$details=if($script:language-eq'en-US'){'The display editor could not be opened.'}else{'No se pudo abrir el editor de pantallas.'}}
+        Write-AgentLog "El editor multidisplay terminó con código ${exitCode}: $details"
+        [Windows.Forms.MessageBox]::Show($details,'AlienGamer Mode','OK','Error')|Out-Null
     }
 }
 
@@ -805,6 +875,8 @@ $script:configItem = $configItem
 $script:logsItem = $logsItem
 $script:exitItem = $exitItem
 $script:backgroundSettings = Get-BackgroundSettings
+$script:layoutEditorProcess = $null
+$script:layoutEditorErrorPath = $null
 $tray.Icon = New-Object Drawing.Icon($iconPath)
 $tray.Text = 'AlienGamer Mode'
 $tray.ContextMenuStrip = $menu
@@ -848,6 +920,7 @@ $exitItem.Add_Click({ Stop-Monitor; $tray.Visible=$false; [Windows.Forms.Applica
 $eventTimer = New-Object Windows.Forms.Timer
 $eventTimer.Interval = 500
 $eventTimer.Add_Tick({
+    Complete-DisplayLayoutEditor
     if ($activateEvent.WaitOne(0)) { Start-Monitor }
     if ($stopEvent.WaitOne(0) -or (Test-StopRequest)) { Stop-Monitor }
     Update-TrayMenuState
