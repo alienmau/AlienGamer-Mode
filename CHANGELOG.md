@@ -1,5 +1,11 @@
 # Historial de cambios
 
+## 1.5.9 — 22 de septiembre de 2026
+
+- Corrige los aros grises duplicados que podían aparecer sobre RAM, uso del sistema y temperaturas después de instalar 1.5.8.
+- Conserva la eliminación del semicírculo residual de la esquina superior izquierda sin activar los contornos auxiliares de Rainmeter.
+- Añade una prueba de regresión que impide que `BG2Style` o cualquiera de sus siete bloques auxiliares vuelva a convertirse en un medidor visible.
+
 ## 1.5.8 — 21 de septiembre de 2026
 
 - Corregida la ruta de recursos compartidos de Rainmeter en vistas multidisplay; vuelven a funcionar los arcos animados, el reloj matricial y el fondo de luciérnagas.

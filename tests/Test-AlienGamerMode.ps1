@@ -55,7 +55,7 @@ Assert ($installerSource -notmatch 'UseUnifiedSchedulingEngine\s*=') 'No se debe
 Assert ($installerSource -match 'Set-Content -LiteralPath \$Path -Encoding ASCII') 'El INI de HWiNFO debe guardarse como ASCII sin BOM.'
 Assert ($installerSource -notmatch 'Merge-MissingConfiguration \$config \$configDefaults') 'La instalación limpia todavía mezcla opciones heredadas con la configuración oficial.'
 Assert ($installerSource -match '\$config\.language = \$Language' -and $innoSource -match 'Name: "english"' -and $innoSource -match 'Name: "spanish"' -and $innoSource -match 'ShowLanguageDialog=yes' -and $innoSource -match '-Language ""\{language\}""') 'El instalador no permite seleccionar y guardar español o inglés.'
-Assert ($innoSource -match '#define MyAppVersion "1\.5\.8"' -and $innoSource -match 'AlienGamerMode-Setup-1\.5\.8') 'El instalador no está versionado como 1.5.8.'
+Assert ($innoSource -match '#define MyAppVersion "1\.5\.9"' -and $innoSource -match 'AlienGamerMode-Setup-1\.5\.9') 'El instalador no está versionado como 1.5.9.'
 Assert ($installerSource -match "Configuracion-Anterior\.json" -and $installerSource -match 'Copy-Item -LiteralPath \$defaultConfig -Destination \$configPath -Force' -and $installerSource -match "layoutPreset = 'full-horizontal'" -and $installerSource -match 'moduleProperty\.Value\.visible=\$true') 'La instalación no garantiza un diseño completo y limpio o no respalda la configuración anterior.'
 Assert ($installerSource -match 'Join-Path \$dataRoot ''DisplayProfiles''' -and $installerSource -match 'Join-Path \$dataRoot ''GeneratedSkin''' -and $installerSource -match 'Join-Path \$dataRoot ''display-manifest\.json''') 'La instalación limpia conserva artefactos visuales generados por una versión anterior.'
 Assert ($installerSource -match 'AlienGamerEventRecorder\\\.ps1' -and $installerSource -match 'recording-state\.json' -and $installerSource -match 'event-prebuffer-state\.json') 'La actualización no detiene grabadores antiguos ni limpia su estado de control.'
@@ -81,7 +81,8 @@ Assert ($clockSource -match 'recordProgress' -and $clockSource -match 'math\.sin
 Assert ($clockSource -match 'alertRings' -and $clockSource -match 'updateAlertPulses' -and $clockSource -match 'Ring_SSD_TEMP' -and $clockSource -match 'mix\(195, 255, pulse\)' -and $clockSource -match 'mix\(12, 28, pulse\)' -and $clockSource -match '"%d,0,%d,255"') 'Los anillos críticos no conservan el destello entre dos rojos sólidos.'
 $skinTemplateSource = Get-Content (Join-Path $root 'src\skin\AlienGamerMode.Template.ini') -Raw
 $styleBlock = [regex]::Match($skinTemplateSource, '(?ms)^\[BG2Style\].*?(?=^\[|\z)').Value
-Assert ($styleBlock -notmatch '(?m)^Meter=' -and @([regex]::Matches($skinTemplateSource, '(?ms)^\[BG2_[^\]]+\]\r?\nMeter=Roundline\r?\nMeterStyle=BG2Style')).Count -eq 7) 'BG2Style vuelve a dibujarse como un círculo residual en la esquina superior izquierda.'
+$auxiliaryRingBlocks = @([regex]::Matches($skinTemplateSource, '(?ms)^\[BG2_[^\]]+\].*?(?=^\[|\z)'))
+Assert ($styleBlock -notmatch '(?m)^Meter=' -and $auxiliaryRingBlocks.Count -eq 7 -and -not ($auxiliaryRingBlocks.Value -match '(?m)^Meter=')) 'Los aros auxiliares BG2 vuelven a dibujar el círculo residual o duplican los contornos de los sensores.'
 $ringAnimatorPath = Join-Path $root 'src\skin\RingAnimator.lua'
 $ringAnimatorBytes = [IO.File]::ReadAllBytes($ringAnimatorPath)
 Assert (-not ($ringAnimatorBytes.Length -ge 3 -and $ringAnimatorBytes[0] -eq 0xEF -and $ringAnimatorBytes[1] -eq 0xBB -and $ringAnimatorBytes[2] -eq 0xBF)) 'RingAnimator.lua tiene BOM UTF-8 y Rainmeter no podrá cargarlo.'
