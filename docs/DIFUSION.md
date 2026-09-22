@@ -14,6 +14,36 @@ La versión 1.3.1 añade el modo **Fondo → Dinámico térmico**: el color repr
 
 La publicación en la comunidad de Lenovo en español queda pendiente porque el servidor rechazó temporalmente el acceso automatizado. No duplicar los tres mensajes anteriores al continuar la difusión.
 
+## Actualización 1.5.9 para hilos existentes
+
+### Español
+
+**Actualización: AlienGamer Mode 1.5.9 ya está disponible.**
+
+La rama 1.5 incorpora un editor visual multidisplay: una sola instalación puede activar vistas diferentes en varios monitores, elegir los módulos visibles en cada pantalla y moverlos o redimensionarlos dentro de una previsualización con la proporción real. Cada pantalla conserva su propia distribución y puede usar fondo desactivado, personalizado o dinámico térmico.
+
+Para simplificar el icono de bandeja, las antiguas opciones globales **Fondo** y **Módulos visibles** se trasladaron a **Pantallas y distribución...**, donde ahora se configuran correctamente por monitor. El menú principal conserva las acciones generales como iniciar/detener, grabar eventos, marcar incidentes, cambiar idioma, seleccionar hardware, abrir registros y cerrar la aplicación.
+
+La versión 1.5.9 corrige una regresión de 1.5.8 que podía mostrar aros grises duplicados sobre RAM, uso del sistema y temperaturas. También mantiene eliminado el pequeño semicírculo residual de la esquina superior izquierda. Los arcos animados, el reloj matricial, las luciérnagas y las alertas térmicas permanecen activos.
+
+Próxima mejora planeada: usar teléfonos y tabletas como pantallas adicionales mediante un servicio web local y un código QR temporal, sin depender de la nube.
+
+Descarga y documentación: https://github.com/alienmau/AlienGamer-Mode/releases/latest
+
+### English
+
+**Update: AlienGamer Mode 1.5.9 is now available.**
+
+The 1.5 branch adds a visual multi-display editor. A single installation can run different views on several monitors, choose modules independently for each screen, and move or resize them inside a preview that preserves the real display aspect ratio. Every display keeps its own layout and can use an off, custom, or thermal dynamic background.
+
+To keep the tray menu efficient, the former global **Background** and **Visible modules** entries were moved into **Displays and layout...**, where they can be configured correctly per display. The main tray menu retains global actions such as starting/stopping the monitor, recording events, marking incidents, changing language, selecting hardware, opening logs, and closing the application.
+
+Version 1.5.9 fixes a 1.5.8 visual regression that could display duplicate gray rings over RAM, system usage, and temperature gauges. It also keeps the small stray upper-left corner semicircle removed. Animated rings, the matrix clock, fireflies, and thermal alerts remain available.
+
+Planned next step: allow phones and tablets to work as additional displays through a local web service and temporary QR code, without relying on cloud services.
+
+Download and documentation: https://github.com/alienmau/AlienGamer-Mode/releases/latest
+
 ## Enlaces oficiales
 
 - Proyecto: https://github.com/alienmau/AlienGamer-Mode

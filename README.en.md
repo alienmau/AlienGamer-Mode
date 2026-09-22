@@ -15,7 +15,7 @@
 
 AlienGamer Mode is a Rainmeter and HWiNFO dashboard that detects the available hardware, adapts its layout to the selected display and avoids presenting missing sensors as real zero values.
 
-Version 1.5.8 refines the visual multi-display editor and fixes Rainmeter's shared resource placement, restoring animated rings, the matrix clock, and fireflies in every view. Layout-only changes now reuse the already validated sensor profile, apply in a few seconds, and display an on-screen progress notice while finishing. Every installation still starts with a clean full layout, backs up the previous configuration, and preserves recordings and reports.
+Version 1.5.9 keeps the visual multi-display editor introduced in 1.5.8 and fixes a visual regression that could draw duplicate gray rings over RAM, system usage, and temperature gauges. It also keeps the stray upper-left corner semicircle removed. Layout-only changes reuse the already validated sensor profile, apply in a few seconds, and display an on-screen progress notice while finishing.
 
 ## Highlights
 
@@ -54,7 +54,7 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.5.8.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.5.9.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 
@@ -96,7 +96,7 @@ The next planned improvement will let a phone or tablet work as an additional re
 - Temporary sessions, device revocation, and adjustable refresh limits will protect privacy, battery life, CPU, and network usage.
 - The service will be disabled by default and will clearly show which local address is exposed.
 
-This feature is still in design and is not included in version 1.5.8.
+This feature is still in design and is not included in version 1.5.9.
 
 ## Changing the language
 

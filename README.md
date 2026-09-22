@@ -15,7 +15,7 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
-La versión 1.5.8 perfecciona el editor visual multidisplay: representa la proporción real de cada pantalla y permite mover, mostrar, ocultar y redimensionar libremente los módulos sin superponerlos. Corrige la ubicación compartida de los recursos de Rainmeter para restaurar los arcos animados, el reloj matricial y las luciérnagas en cada vista. Los cambios de distribución ahora reutilizan el perfil de sensores ya validado, se aplican en pocos segundos y muestran un aviso sobre la pantalla mientras finalizan. Cada instalación continúa iniciando con un diseño completo y limpio, respalda la configuración anterior y conserva grabaciones y reportes.
+La versión 1.5.9 conserva el editor visual multidisplay de 1.5.8 y corrige una regresión visual que podía dibujar aros grises duplicados sobre RAM, uso del sistema y temperaturas. También mantiene eliminado el semicírculo residual de la esquina superior izquierda. El editor representa la proporción real de cada pantalla y permite mover, mostrar, ocultar y redimensionar libremente los módulos sin superponerlos; los cambios reutilizan el perfil de sensores ya validado, se aplican en pocos segundos y muestran un aviso mientras finalizan.
 
 ## ¿Por qué AlienGamer Mode?
 
@@ -85,7 +85,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.5.8.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.5.9.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -138,7 +138,7 @@ La siguiente mejora planeada permitirá utilizar un teléfono o una tableta como
 - La conexión tendrá sesión temporal, controles para permitir o revocar dispositivos y límites de actualización para reducir consumo de batería, CPU y red.
 - El servicio permanecerá desactivado de forma predeterminada y mostrará claramente la dirección local que queda expuesta.
 
-Esta función está en fase de diseño; no forma parte de la versión 1.5.8.
+Esta función está en fase de diseño; no forma parte de la versión 1.5.9.
 
 ## Fondo ambiental configurable
 
