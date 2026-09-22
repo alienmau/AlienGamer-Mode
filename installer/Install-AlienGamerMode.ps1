@@ -131,6 +131,7 @@ function Backup-And-RemovePreviousEditions {
     }
 
     $itemsToArchive = @(
+        @{ Path=(Join-Path $dataRoot 'AlienGamerMode.json'); Name='Configuracion-Anterior.json' },
         @{ Path=$previewData; Name='Datos-Universal' },
         @{ Path=$previewApp; Name='Programa-Universal' },
         @{ Path=$officialSkin; Name='Skin-Anterior' },
@@ -258,20 +259,19 @@ $installButton.Add_Click({
         Copy-Item -LiteralPath (Join-Path $packageRoot 'README.en.md') -Destination (Join-Path $installRoot 'README.en.md') -Force
         Copy-Item -LiteralPath $defaultConfig -Destination (Join-Path $installRoot 'AlienGamerMode.default.json') -Force
         $configPath = Join-Path $dataRoot 'AlienGamerMode.json'
-        if (-not (Test-Path $configPath)) { Copy-Item $defaultConfig $configPath }
+        # Durante la estabilizacion del editor 1.5 cada instalacion empieza con
+        # una configuracion visual limpia. El respaldo anterior queda fuera del
+        # directorio activo; grabaciones y reportes del usuario no se eliminan.
+        Copy-Item -LiteralPath $defaultConfig -Destination $configPath -Force
+        foreach($generatedPath in @(
+            (Join-Path $dataRoot 'DisplayProfiles'),
+            (Join-Path $dataRoot 'GeneratedSkin'),
+            (Join-Path $dataRoot 'display-manifest.json'),
+            (Join-Path $dataRoot 'profile.json'),
+            (Join-Path $dataRoot 'layout-editor.error.log'),
+            (Join-Path $dataRoot 'layout-editor.trace.log')
+        )){Remove-Item -LiteralPath $generatedPath -Recurse -Force -ErrorAction SilentlyContinue}
         $config = Get-Content $configPath -Raw | ConvertFrom-Json
-        $previousSchemaVersion = if ($config.PSObject.Properties['schemaVersion']) { [int]$config.schemaVersion } else { 1 }
-        $upgradeToMultiDisplay = $previousSchemaVersion -lt 3
-        $configDefaults = Get-Content $defaultConfig -Raw | ConvertFrom-Json
-        Merge-MissingConfiguration $config $configDefaults
-        if ($upgradeToMultiDisplay) {
-            # 1.4 y anteriores no tenían posiciones ni visibilidad por pantalla.
-            # Se inicia una distribución 1.5 limpia para no mezclar dos modelos.
-            $config.displayViews = @($configDefaults.displayViews | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
-            foreach ($visualFeature in @('processorPanelVisible','performancePanelVisible','clock','compactOverlay')) {
-                $config.features.$visualFeature = $configDefaults.features.$visualFeature
-            }
-        }
         $config.language = $Language
         $selectedMonitor = @($discovery.monitors)[$monitorBox.SelectedIndex]
         $selectedGpu = @($discovery.gpus)[$gpuBox.SelectedIndex]
@@ -283,10 +283,10 @@ $installButton.Add_Click({
             $primaryView = @($config.displayViews)[0]
             $primaryView.monitorId = [string]$selectedMonitor.pnpDeviceId
             $primaryView.monitorDeviceName = [string]$selectedMonitor.deviceName
-            if ($upgradeToMultiDisplay) {
-                $primaryView.name = [string]$selectedMonitor.friendlyName
-                $primaryView.enabled = $true
-            }
+            $primaryView.name = [string]$selectedMonitor.friendlyName
+            $primaryView.enabled = $true
+            $primaryView.layoutPreset = 'full-horizontal'
+            foreach($moduleProperty in $primaryView.modules.PSObject.Properties){$moduleProperty.Value.visible=$true}
         }
         $config.schemaVersion = 3
         $config.hardware.preferredGpu = $selectedGpu.name
@@ -369,8 +369,8 @@ $installButton.Add_Click({
         if ($taskbarCheck.Checked) { $completion += "`r`n`r`n$(T 'installer.pinNotice')" }
         if ($legacyBackup) { $completion += "`r`n`r`n$(T 'installer.backup')`r`n$legacyBackup" }
         [Windows.Forms.MessageBox]::Show($form,$completion,(T 'installer.completeTitle'),[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Information) | Out-Null
-        # Toda instalación termina en el editor visual. En una actualización se
-        # cargan las preferencias existentes; el usuario puede confirmarlas o cancelarlo.
+        # Toda instalacion termina en el editor visual con el diseno completo y
+        # limpio; el usuario puede conservarlo o personalizarlo antes de aplicar.
         $script:openLayoutAfterClose = $true
         $script:launchAfterClose = -not $NoLaunch
         $script:launchProgram = $wscript

@@ -7,6 +7,7 @@
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Localization.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.MultiDisplay.psm1') -Force
 $profile = Get-Content -LiteralPath $ProfilePath -Raw | ConvertFrom-Json
 $language = Resolve-AGLanguage $(if ($profile.language) { [string]$profile.language } else { 'es-MX' })
 $ui = Get-AGTranslations -Language $language
@@ -21,11 +22,7 @@ $offsetX = [Math]::Floor(([double]$monitor.width - $referenceWidth * $scale) / 2
 $offsetY = [Math]::Floor(([double]$monitor.height - $referenceHeight * $scale) / 2)
 $matrix = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, $offsetX, $offsetY)
 
-$moduleDefaults = [ordered]@{
-    header=@{x=35;y=20}; clock=@{x=760;y=25}; controls=@{x=1435;y=25}
-    ram=@{x=35;y=150}; vram=@{x=455;y=150}; system=@{x=875;y=150}
-    temperatures=@{x=1165;y=150}; performance=@{x=720;y=575}; processors=@{x=35;y=610}
-}
+$moduleDefaults = Get-AGModuleDefinitions
 function Get-LayoutModule([string]$Name) {
     if (-not $layout -or -not $layout.modules) { return $null }
     $property=$layout.modules.PSObject.Properties[$Name]
@@ -48,16 +45,25 @@ function Get-ModuleMatrix([string]$Name) {
     $module=Get-LayoutModule $Name
     if(-not $module){return $matrix}
     $default=$moduleDefaults[$Name]
-    $dx=([double]$module.x-[double]$default.x)*$scale
-    $dy=([double]$module.y-[double]$default.y)*$scale
-    return ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale,($offsetX+$dx),($offsetY+$dy))
+    $moduleWidth=if($module.PSObject.Properties['width']){[double]$module.width}else{[double]$default.width}
+    $moduleHeight=if($module.PSObject.Properties['height']){[double]$module.height}else{[double]$default.height}
+    $localScale=[Math]::Min($moduleWidth/[double]$default.width,$moduleHeight/[double]$default.height)
+    $renderScale=$scale*$localScale
+    $tx=$offsetX+([double]$module.x*$scale)-([double]$default.x*$renderScale)
+    $ty=$offsetY+([double]$module.y*$scale)-([double]$default.y*$renderScale)
+    return ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $renderScale,$tx,$ty)
 }
 function Get-ModuleShiftMatrix([string]$Name,[double]$ShiftX,[double]$ShiftY) {
     $module=Get-LayoutModule $Name
     $default=$moduleDefaults[$Name]
-    $dx=if($module){([double]$module.x-[double]$default.x)*$scale}else{0}
-    $dy=if($module){([double]$module.y-[double]$default.y)*$scale}else{0}
-    return ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale,($offsetX+$dx+$ShiftX),($offsetY+$dy+$ShiftY))
+    if(-not $module){return ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale,($offsetX+$ShiftX),($offsetY+$ShiftY))}
+    $moduleWidth=if($module.PSObject.Properties['width']){[double]$module.width}else{[double]$default.width}
+    $moduleHeight=if($module.PSObject.Properties['height']){[double]$module.height}else{[double]$default.height}
+    $localScale=[Math]::Min($moduleWidth/[double]$default.width,$moduleHeight/[double]$default.height)
+    $renderScale=$scale*$localScale
+    $tx=$offsetX+([double]$module.x*$scale)-([double]$default.x*$renderScale)+$ShiftX
+    $ty=$offsetY+([double]$module.y*$scale)-([double]$default.y*$renderScale)+$ShiftY
+    return ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $renderScale,$tx,$ty)
 }
 
 $backgroundEffect = if ($profile.appearance -and $profile.appearance.backgroundEffect) { $profile.appearance.backgroundEffect } else { $null }
@@ -426,17 +432,23 @@ $text = [regex]::Replace($text, '(?ms)^\[PixelShift\].*?(?=^\[|\z)', $pixelSecti
 # el área de ratón en las coordenadas originales. Estas capas se agregan al final,
 # por encima de todos los medidores, usando coordenadas físicas ya escaladas.
 $controlsLayout=Get-LayoutModule 'controls'
-$controlsDx=if($controlsLayout){[double]$controlsLayout.x-[double]$moduleDefaults.controls.x}else{0}
-$controlsDy=if($controlsLayout){[double]$controlsLayout.y-[double]$moduleDefaults.controls.y}else{0}
 $controlsVisible=if($controlsLayout){[bool]$controlsLayout.visible}else{$true}
-$offHitX = [Math]::Round((1535+$controlsDx) * $scale + $offsetX)
-$offHitY = [Math]::Round((35+$controlsDy) * $scale + $offsetY)
-$offHitW = [Math]::Ceiling(105 * $scale)
-$offHitH = [Math]::Ceiling(40 * $scale)
-$recordHitX = [Math]::Round((1435+$controlsDx) * $scale + $offsetX)
-$recordHitY = [Math]::Round((95+$controlsDy) * $scale + $offsetY)
-$recordHitW = [Math]::Ceiling(205 * $scale)
-$recordHitH = [Math]::Ceiling(40 * $scale)
+$controlsDefinition=$moduleDefaults.controls
+$controlsLocalScale=if($controlsLayout){
+    $cw=if($controlsLayout.PSObject.Properties['width']){[double]$controlsLayout.width}else{[double]$controlsDefinition.width}
+    $ch=if($controlsLayout.PSObject.Properties['height']){[double]$controlsLayout.height}else{[double]$controlsDefinition.height}
+    [Math]::Min($cw/[double]$controlsDefinition.width,$ch/[double]$controlsDefinition.height)
+}else{1.0}
+$controlsX=if($controlsLayout){[double]$controlsLayout.x}else{[double]$controlsDefinition.x}
+$controlsY=if($controlsLayout){[double]$controlsLayout.y}else{[double]$controlsDefinition.y}
+$offHitX = [Math]::Round(($controlsX+100*$controlsLocalScale) * $scale + $offsetX)
+$offHitY = [Math]::Round(($controlsY+10*$controlsLocalScale) * $scale + $offsetY)
+$offHitW = [Math]::Ceiling(105 * $controlsLocalScale * $scale)
+$offHitH = [Math]::Ceiling(40 * $controlsLocalScale * $scale)
+$recordHitX = [Math]::Round($controlsX * $scale + $offsetX)
+$recordHitY = [Math]::Round(($controlsY+70*$controlsLocalScale) * $scale + $offsetY)
+$recordHitW = [Math]::Ceiling(205 * $controlsLocalScale * $scale)
+$recordHitH = [Math]::Ceiling(40 * $controlsLocalScale * $scale)
 $compactHitHidden = if($compactOverlay -or -not $controlsVisible){'Hidden=1'}else{''}
 $text += @"
 

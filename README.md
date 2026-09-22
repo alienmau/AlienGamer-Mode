@@ -15,7 +15,7 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
-La versión 1.5.2 añade un editor visual multidisplay: cada pantalla puede tener módulos, posiciones, diseño y fondo propios. Comparte una sola lectura validada de HWiNFO, por lo que no duplica el puente de sensores ni la grabación de eventos. Esta revisión hace visible el editor sin mostrar una consola, recupera automáticamente el menú si la ventana no llega a abrir y guía la configuración inicial al instalar o migrar.
+La versión 1.5.8 perfecciona el editor visual multidisplay: representa la proporción real de cada pantalla y permite mover, mostrar, ocultar y redimensionar libremente los módulos sin superponerlos. Corrige la ubicación compartida de los recursos de Rainmeter para restaurar los arcos animados, el reloj matricial y las luciérnagas en cada vista. Los cambios de distribución ahora reutilizan el perfil de sensores ya validado, se aplican en pocos segundos y muestran un aviso sobre la pantalla mientras finalizan. Cada instalación continúa iniciando con un diseño completo y limpio, respalda la configuración anterior y conserva grabaciones y reportes.
 
 ## ¿Por qué AlienGamer Mode?
 
@@ -43,11 +43,11 @@ Un contador de FPS dice que algo ocurrió; AlienGamer Mode ayuda a conservar el 
 - Protección para pantallas OLED mediante pequeños desplazamientos periódicos.
 - Grabación manual de eventos y exportación de registros para diagnóstico.
 - Agente de bandeja para activar, detener, grabar y cerrar el monitor.
-- Módulos opcionales persistentes para mostrar u ocultar **Procesadores / carga**, **FPS, frame time y alertas**, y el **Reloj**.
+- Visibilidad, posición y tamaño persistentes por pantalla para los módulos opcionales.
 - Selección de monitor, GPU y unidad principal durante la instalación.
 - Interfaz en español e inglés, seleccionable durante la instalación o desde el icono de bandeja sin reiniciar los sensores.
 - Varias vistas simultáneas en monitores locales, con distribución independiente y persistente.
-- Editor visual para arrastrar RAM, VRAM, uso, temperaturas, FPS, procesadores, reloj, encabezado y controles.
+- Editor visual para arrastrar y redimensionar RAM, VRAM, uso, temperaturas, FPS, procesadores, reloj y controles; el encabezado permanece fijo y siempre visible.
 
 ## Requisitos
 
@@ -85,7 +85,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.5.2.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.5.8.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -96,28 +96,63 @@ Consulta [Requisitos previos](docs/REQUISITOS-PREVIOS.md) y la [Guía de instala
 Abre el menú del icono de bandeja y selecciona **Pantallas y distribución...**. El editor muestra cada monitor conectado y permite:
 
 - activar una o varias pantallas al mismo tiempo;
-- arrastrar cada bloque a una posición independiente;
+- arrastrar y redimensionar cada bloque dentro de una previsualización con la proporción real de la pantalla;
 - mostrar u ocultar cualquier módulo sin detener los sensores;
 - aplicar diseños completos, esenciales, verticales, sólo rendimiento o sólo temperaturas;
-- activar o desactivar el fondo por pantalla y elegir fondo personalizado o térmico.
+- activar o desactivar el fondo por pantalla y elegir fondo personalizado o térmico;
+- ajustar cantidad, velocidad, tamaño y color de las luciérnagas cuando el fondo personalizado está activo.
+
+Los diseños predefinidos se reflejan de inmediato en la previsualización; el monitor real sólo cambia al pulsar **Guardar y aplicar**. Los bloques se mantienen dentro de la pantalla, respetan una separación mínima y no pueden solaparse. El encabezado es obligatorio y no puede arrastrarse: permanece en la esquina superior izquierda, excepto en **Esencial vertical**, donde se centra arriba para aprovechar mejor el ancho.
 
 Pulsa **Guardar y aplicar** para reconstruir únicamente las vistas de Rainmeter. HWiNFO, el puente local y la grabación permanecen compartidos. La selección se conserva en `displayViews` dentro de `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` y vuelve a aplicarse al iniciar Windows.
 
-La primera vista mantiene la selección hecha en el instalador. El editor se abre automáticamente al terminar cualquier instalación para elegir módulos y distribución; posteriormente puede abrirse siempre desde el icono de bandeja. En una actualización se cargan y conservan las configuraciones creadas previamente por 1.5. Teléfonos y tabletas aún no funcionan como pantallas remotas; esa extensión está prevista para una versión posterior y requerirá controles explícitos de red y privacidad.
+La primera vista mantiene la pantalla elegida en el instalador. El editor se abre automáticamente al terminar cualquier instalación con todos los módulos visibles y el diseño completo; el usuario puede conservarlo o personalizarlo. Durante la estabilización de la rama 1.5, cada instalación reinicia los ajustes visuales y respalda el JSON anterior, pero conserva grabaciones y reportes. Teléfonos y tabletas aún no funcionan como pantallas remotas; esa extensión está prevista para una versión posterior y requerirá controles explícitos de red y privacidad.
+
+### Varias pantallas y distribución visual
+
+AlienGamer Mode puede activar una vista distinta en cada monitor conectado desde una sola instalación:
+
+- **Pantallas independientes:** cada pantalla puede estar activada o desactivada sin detener las demás.
+- **Módulos por pantalla:** reloj, controles, RAM, VRAM, uso CPU/GPU, temperaturas, FPS/alertas y procesadores pueden mostrarse u ocultarse de forma independiente.
+- **Posición y tamaño libres:** los módulos visibles se arrastran y redimensionan dentro de una previsualización que conserva la proporción y resolución real del monitor.
+- **Protección del diseño:** el editor impide solapamientos, salidas del lienzo y separaciones inseguras. El encabezado permanece visible y fijo como identidad de la vista.
+- **Diseños predefinidos:** completo horizontal, esencial horizontal, esencial vertical, sólo rendimiento y sólo temperaturas pueden previsualizarse antes de aplicarlos.
+- **Fondos independientes:** cada pantalla puede usar fondo desactivado, personalizado o dinámico térmico. Los controles manuales sólo aparecen cuando corresponden.
+- **Persistencia:** las selecciones quedan guardadas para los siguientes arranques.
+- **Aplicación rápida:** los cambios visuales reutilizan el perfil de sensores validado, muestran `Aplicando cambios…` sobre las pantallas afectadas y evitan reiniciar HWiNFO o el puente de datos.
+
+Para que el menú del icono sea más claro, las antiguas opciones globales **Fondo** y **Módulos visibles** se trasladaron a **Pantallas y distribución...**. Allí pueden configurarse correctamente por monitor. El menú principal conserva las acciones generales: activar o detener el monitor, grabar o marcar un incidente, seleccionar idioma, reconfigurar monitor/GPU/SSD, abrir el editor, consultar registros y cerrar la aplicación.
+
+![Editor de pantallas y distribución](docs/images/AlienGamerMode-layout-editor.png)
+
+![Vista personalizada de AlienGamer Mode 1.5.8](docs/images/AlienGamerMode-dashboard-1.5.8.png)
+
+### Próxima entrega: panel móvil local
+
+La siguiente mejora planeada permitirá utilizar un teléfono o una tableta como pantalla adicional en tiempo real:
+
+- AlienGamer Mode levantará un microservicio web ligero únicamente en la red local.
+- Desde el menú se mostrará un código QR temporal para abrir directamente el panel en el dispositivo portátil.
+- El usuario podrá elegir qué módulos mostrar en cada teléfono o tableta y conservar su distribución.
+- Los datos de sensores se sincronizarán en vivo sin depender de servicios en la nube.
+- La conexión tendrá sesión temporal, controles para permitir o revocar dispositivos y límites de actualización para reducir consumo de batería, CPU y red.
+- El servicio permanecerá desactivado de forma predeterminada y mostrará claramente la dirección local que queda expuesta.
+
+Esta función está en fase de diseño; no forma parte de la versión 1.5.8.
 
 ## Fondo ambiental configurable
 
 El fondo utiliza pequeñas partículas con degradado radial: el centro conserva el color elegido y el halo se desvanece hasta ser totalmente transparente. Las luciérnagas ascienden con trayectorias, tamaños, profundidades y velocidades diferentes; su brillo pulsa con transiciones suaves. El 70% puede recorrer hasta el 75% de la altura de la pantalla y se desvanece en ese trayecto, mientras el 30% completa el 100% y rebasa ligeramente el borde superior. No utiliza, captura ni analiza audio.
 
-Desde el icono de AlienGamer Mode, el submenú **Fondo** ofrece **Desactivado**, **Personalizado** y **Dinámico térmico**. En modo personalizado se utiliza el color elegido por el usuario. En modo térmico, CPU, núcleo máximo y GPU se comparan con sus propios umbrales y prevalece el estado válido más exigente: azul para temperatura saludable, naranja para elevada y rojo para alta o con alerta térmica.
+Desde **Pantallas y distribución...**, cada monitor puede usar **Desactivado**, **Personalizado** o **Dinámico térmico** de manera independiente. En modo personalizado se utiliza el color elegido por el usuario. En modo térmico, CPU, núcleo máximo y GPU se comparan con sus propios umbrales y prevalece el estado válido más exigente: azul para temperatura saludable, naranja para elevada y rojo para alta o con alerta térmica. El antiguo menú global **Fondo** fue retirado para impedir que un cambio sobrescriba accidentalmente todas las pantallas.
 
 La densidad térmica combina 70% de fluidez/estabilidad reciente de *frame time* y 30% de actividad CPU/GPU. La velocidad responde a la mayor carga válida entre CPU y GPU. Si la GPU se acerca a saturación o el *frame time* se degrada, el fondo cede recursos reduciendo progresivamente partículas y movimiento. Los cambios utilizan interpolación para evitar saltos. Si FPS o un sensor térmico no están disponibles, el sistema ignora esa lectura y utiliza solamente datos válidos; no convierte `N/D` en cero real.
 
-**Configurar luciérnagas...** está disponible únicamente en modo **Personalizado** y permite elegir entre 8 y 48 partículas, ajustar velocidad y tamaño, y seleccionar cualquier color. **Dinámico térmico** usa parámetros automáticos independientes y conservadores; sus controles manuales se deshabilitan para evitar configuraciones contradictorias. Todos los valores se conservan en `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json`.
+Los controles de luciérnagas están disponibles en el editor únicamente cuando esa pantalla usa **Personalizado** y permiten elegir entre 8 y 48 partículas, ajustar velocidad y tamaño, y seleccionar cualquier color. **Dinámico térmico** usa parámetros automáticos independientes y conservadores; sus controles manuales se deshabilitan para evitar configuraciones contradictorias. Todos los valores se conservan en `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json`.
 
 Desde el icono de bandeja, **Configurar equipo y pantalla...** permite volver a elegir monitor, GPU y almacenamiento principal sin reinstalar. La pantalla se conserva mediante su identidad física, por lo que sigue siendo reconocible aunque Windows cambie su nombre interno de `DISPLAY1` a otro número.
 
-El submenú **Módulos visibles** permite ocultar por separado **Procesadores / carga**, **FPS, frame time y alertas** y el **Reloj**. Los tres aparecen en una instalación nueva. La selección se guarda en `features.processorPanelVisible`, `features.performancePanelVisible` y `features.clock`, por lo que se conserva al detener el monitor, cerrar el agente o reiniciar Windows. Ocultar un módulo no elimina sus sensores: siguen disponibles para la grabación técnica de eventos.
+La visibilidad de los módulos se administra desde **Pantallas y distribución...** para evitar ambigüedades cuando existen varias pantallas. Ocultar un módulo no elimina sus sensores: siguen disponibles para la grabación técnica de eventos.
 
 ## Idioma
 
@@ -147,9 +182,9 @@ El HTML presenta FPS y *frame time* en gráficas separadas con escalas correctas
 
 El reporte permite relacionar el instante del problema con temperaturas elevadas, saturación de recursos, límites térmicos o de potencia y variaciones anormales del tiempo de cuadro. Puede aportar datos técnicos valiosos a un especialista y ayudar a detectar una condición antes de que se vuelva recurrente. Es una herramienta de orientación: no sustituye los registros internos del juego, diagnósticos SMART detallados, análisis de red ni trazas especializadas, y por sí sola no confirma una falla de hardware.
 
-## Modo compacto FPS
+## Vista de rendimiento
 
-Activa **Módulos visibles → Modo compacto FPS** desde el icono de bandeja. El monitor oculta las demás capas y centra el bloque de FPS, *frame time* y alertas horizontal y verticalmente. La selección se conserva al reiniciar y no detiene la captura de sensores.
+En **Pantallas y distribución...**, selecciona el diseño **Sólo rendimiento** para centrar el bloque de FPS, *frame time* y alertas. Antes de guardar puedes moverlo, redimensionarlo o combinarlo con otros módulos. La selección se conserva al reiniciar y no detiene la captura de sensores.
 
 ## Estructura del proyecto
 

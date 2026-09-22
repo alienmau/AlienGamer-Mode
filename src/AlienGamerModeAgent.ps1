@@ -39,6 +39,14 @@ function Write-AgentLog([string]$Message) {
     "$(Get-Date -Format o) $Message" | Add-Content -LiteralPath $logPath -Encoding UTF8
 }
 
+function Write-AgentDiagnostic([string]$Message) {
+    try {
+        $path=Join-Path $dataRoot 'agent-diagnostic.log'
+        $line=(Get-Date).ToString('o')+' '+$Message+"`r`n"
+        [IO.File]::AppendAllText($path,$line,(New-Object Text.UTF8Encoding($false)))
+    } catch { }
+}
+
 function Set-AgentConfigProperty($Object,[string]$Name,$Value) {
     if($Object.PSObject.Properties[$Name]){$Object.$Name=$Value}else{$Object|Add-Member NoteProperty $Name $Value}
 }
@@ -165,8 +173,11 @@ function Get-ActiveRainmeterConfigs {
     $configs
 }
 
-function Invoke-BuildDisplaySkins {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Build-MultiDisplaySkins.ps1') -DiscoveryPath $discoveryPath -ConfigPath $configPath -ProfilesDirectory $profilesDirectory -OutputDirectory $generatedSkin -PrimaryProfilePath $profilePath -InstallRoot $appRoot | Out-Null
+function Invoke-BuildDisplaySkins([switch]$ReuseValidatedProfile) {
+    $arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $appRoot 'Build-MultiDisplaySkins.ps1'),'-DiscoveryPath',$discoveryPath,'-ConfigPath',$configPath,'-ProfilesDirectory',$profilesDirectory,'-OutputDirectory',$generatedSkin,'-PrimaryProfilePath',$profilePath,'-InstallRoot',$appRoot)
+    if($ReuseValidatedProfile){$arguments+='-ReuseValidatedProfile'}
+    & powershell.exe @arguments | Out-Null
+    if($LASTEXITCODE-ne 0){throw "Build-MultiDisplaySkins termino con codigo $LASTEXITCODE."}
 }
 
 function Install-GeneratedSkins {
@@ -190,15 +201,23 @@ function Deactivate-DisplaySkins {
     & $rainmeter '!DeactivateConfig' 'AlienGamerMode'
 }
 
-function Refresh-DisplaySkins {
+function Refresh-DisplaySkins([switch]$ReuseValidatedProfile) {
     $wasActive=Test-MonitorActive
     $oldConfigs=@(Get-ActiveRainmeterConfigs)
-    Invoke-BuildDisplaySkins
+    Write-AgentDiagnostic 'APPLY stage=build begin'
+    Remove-Item -LiteralPath $displayManifestPath -Force -ErrorAction SilentlyContinue
+    Invoke-BuildDisplaySkins -ReuseValidatedProfile:$ReuseValidatedProfile
+    if(-not(Test-Path -LiteralPath $displayManifestPath)){throw 'La reconstruccion no genero el manifiesto de pantallas.'}
+    Write-AgentDiagnostic 'APPLY stage=build complete'
     if($wasActive -and (Test-Path -LiteralPath $rainmeter)){
+        Write-AgentDiagnostic 'APPLY stage=deactivate begin'
         foreach($name in $oldConfigs){& $rainmeter '!DeactivateConfig' $name}
+        Write-AgentDiagnostic 'APPLY stage=install begin'
         Install-GeneratedSkins
+        Write-AgentDiagnostic 'APPLY stage=activate begin'
         Activate-DisplaySkins
         $script:lastRecordingVisual=$null
+        Write-AgentDiagnostic 'APPLY stage=activate complete'
     }
 }
 
@@ -250,215 +269,6 @@ function Sync-RainmeterRecordingState([string]$Status) {
         & $rainmeter '!Redraw' $rainmeterConfig
     }
     $script:lastRecordingVisual = $visualState
-}
-
-function Get-BackgroundSettings {
-    $settings = [ordered]@{ enabled=$true; mode='manual'; particleCount=26; speed=0.65; sizeScale=1.0; color='255,112,20' }
-    try {
-        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-        $effect = $config.appearance.backgroundEffect
-        if ($effect) {
-            if ($null -ne $effect.enabled) { $settings.enabled = [bool]$effect.enabled }
-            if ([string]$effect.mode -in @('manual','thermal')) { $settings.mode = [string]$effect.mode }
-            if ($null -ne $effect.particleCount) { $settings.particleCount = [Math]::Max(8,[Math]::Min(48,[int]$effect.particleCount)) }
-            if ($null -ne $effect.speed) { $settings.speed = [Math]::Max(0.2,[Math]::Min(1.5,[double]$effect.speed)) }
-            if ($null -ne $effect.sizeScale) { $settings.sizeScale = [Math]::Max(0.7,[Math]::Min(1.6,[double]$effect.sizeScale)) }
-            if ([string]$effect.color -match '^\d{1,3},\d{1,3},\d{1,3}$') { $settings.color = [string]$effect.color }
-        }
-    } catch { Write-AgentLog "No se pudo leer el fondo dinámico: $($_.Exception.Message)" }
-    return [pscustomobject]$settings
-}
-
-function Set-BackgroundSettings($Settings) {
-    try {
-        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-        if (-not $config.appearance) { $config | Add-Member NoteProperty appearance ([pscustomobject]@{}) }
-        if (-not $config.appearance.backgroundEffect) { $config.appearance | Add-Member NoteProperty backgroundEffect ([pscustomobject]@{}) }
-        foreach ($entry in ([ordered]@{
-            enabled=[bool]$Settings.enabled
-            mode=$(if ([string]$Settings.mode -eq 'thermal') { 'thermal' } else { 'manual' })
-            particleCount=[int]$Settings.particleCount
-            speed=[double]$Settings.speed
-            sizeScale=[double]$Settings.sizeScale
-            color=[string]$Settings.color
-            updateFps=10
-            minimumParticles=8
-            maximumParticles=48
-            gpuProtectionThreshold=88
-            thermalMinimumParticles=8
-            thermalMaximumParticles=32
-            thermalBaseSpeed=0.75
-            thermalSizeScale=1.0
-        }).GetEnumerator()) {
-            if ($config.appearance.backgroundEffect.PSObject.Properties[$entry.Key]) { $config.appearance.backgroundEffect.($entry.Key) = $entry.Value }
-            else { $config.appearance.backgroundEffect | Add-Member NoteProperty $entry.Key $entry.Value }
-        }
-        if($config.PSObject.Properties['displayViews']){
-            foreach($view in @($config.displayViews)){
-                if(-not $view.background){$view|Add-Member NoteProperty background ([pscustomobject]@{})}
-                if($view.background.PSObject.Properties['enabled']){$view.background.enabled=[bool]$Settings.enabled}else{$view.background|Add-Member NoteProperty enabled ([bool]$Settings.enabled)}
-                if($view.background.PSObject.Properties['mode']){$view.background.mode=$(if([string]$Settings.mode-eq'thermal'){'thermal'}else{'manual'})}else{$view.background|Add-Member NoteProperty mode $(if([string]$Settings.mode-eq'thermal'){'thermal'}else{'manual'})}
-            }
-        }
-        $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
-        $script:backgroundSettings = $Settings
-        if ((Test-Path -LiteralPath $rainmeter) -and (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
-            foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){
-                & $rainmeter '!SetVariable' 'BackgroundEffectEnabled' $(if ($Settings.enabled) { '1' } else { '0' }) $rainmeterConfig
-                & $rainmeter '!SetVariable' 'BackgroundEffectMode' $(if ([string]$Settings.mode -eq 'thermal') { 'thermal' } else { 'manual' }) $rainmeterConfig
-                & $rainmeter '!SetVariable' 'BackgroundParticleCount' ([string][int]$Settings.particleCount) $rainmeterConfig
-                & $rainmeter '!SetVariable' 'BackgroundParticleSpeed' ([double]$Settings.speed).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) $rainmeterConfig
-                & $rainmeter '!SetVariable' 'BackgroundParticleSize' ([double]$Settings.sizeScale).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) $rainmeterConfig
-                & $rainmeter '!SetVariable' 'BackgroundParticleColor' ([string]$Settings.color) $rainmeterConfig
-                & $rainmeter '!EnableMeasure' 'BackgroundScript' $rainmeterConfig
-                & $rainmeter '!UpdateMeasure' 'BackgroundScript' $rainmeterConfig
-                & $rainmeter '!UpdateMeterGroup' 'AmbientParticles' $rainmeterConfig
-                & $rainmeter '!Redraw' $rainmeterConfig
-            }
-        }
-        Write-AgentLog ('Fondo actualizado: activo={0}, modo={1}, partículas={2}, velocidad={3}, tamaño={4}, color={5}.' -f $Settings.enabled,$Settings.mode,$Settings.particleCount,$Settings.speed,$Settings.sizeScale,$Settings.color)
-    } catch {
-        Write-AgentLog "No se pudo cambiar el fondo dinámico: $($_.Exception.Message)"
-        [Windows.Forms.MessageBox]::Show((T 'dialog.saveBackgroundError'), 'AlienGamer Mode', 'OK', 'Error') | Out-Null
-    }
-}
-
-function Set-BackgroundMode([string]$Mode) {
-    $settings = Get-BackgroundSettings
-    switch ($Mode) {
-        'off' { $settings.enabled = $false }
-        'thermal' { $settings.enabled = $true; $settings.mode = 'thermal' }
-        default { $settings.enabled = $true; $settings.mode = 'manual' }
-    }
-    Set-BackgroundSettings $settings
-    Update-TrayMenuState
-}
-
-function Get-ModuleVisibilitySettings {
-    $settings = [ordered]@{ processorPanelVisible=$true; performancePanelVisible=$true; clock=$true; compactOverlay=$false }
-    try {
-        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-        if ($config.features) {
-            if ($null -ne $config.features.processorPanelVisible) { $settings.processorPanelVisible = [bool]$config.features.processorPanelVisible }
-            if ($null -ne $config.features.performancePanelVisible) { $settings.performancePanelVisible = [bool]$config.features.performancePanelVisible }
-            if ($null -ne $config.features.clock) { $settings.clock = [bool]$config.features.clock }
-            if ($null -ne $config.features.compactOverlay) { $settings.compactOverlay = [bool]$config.features.compactOverlay }
-        }
-        if($config.PSObject.Properties['displayViews'] -and @($config.displayViews).Count){
-            $firstView=@($config.displayViews|Where-Object enabled|Select-Object -First 1)[0]
-            if($firstView -and $firstView.modules){
-                if($firstView.modules.PSObject.Properties['processors']){$settings.processorPanelVisible=[bool]$firstView.modules.processors.visible}
-                if($firstView.modules.PSObject.Properties['performance']){$settings.performancePanelVisible=[bool]$firstView.modules.performance.visible}
-                if($firstView.modules.PSObject.Properties['clock']){$settings.clock=[bool]$firstView.modules.clock.visible}
-            }
-        }
-    } catch { Write-AgentLog "No se pudo leer la visibilidad de módulos: $($_.Exception.Message)" }
-    return [pscustomobject]$settings
-}
-
-function Set-ModuleVisibility([string]$Name, [bool]$Visible) {
-    $loading = $null
-    try {
-        if ($Name -notin @('processorPanelVisible','performancePanelVisible','clock','compactOverlay')) { throw 'Módulo desconocido.' }
-        $monitorWasActive = Test-MonitorActive
-        if ($monitorWasActive) {
-            $loading = Show-Loading (T 'dialog.waitApply')
-            [Windows.Forms.Application]::DoEvents()
-            if (-not $Visible) {
-                $group = if ($Name -eq 'processorPanelVisible') { 'ProcessorPanel' } elseif ($Name -eq 'performancePanelVisible') { 'PerformancePanel' } elseif($Name -eq 'clock') { 'ClockPanel' } else { 'CompactOnly' }
-                foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){
-                    & $rainmeter '!HideMeterGroup' $group $rainmeterConfig
-                    & $rainmeter '!Redraw' $rainmeterConfig
-                }
-            }
-        }
-        $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-        if (-not $config.features) { $config | Add-Member NoteProperty features ([pscustomobject]@{}) }
-        if ($config.features.PSObject.Properties[$Name]) { $config.features.$Name = $Visible }
-        else { $config.features | Add-Member NoteProperty $Name $Visible }
-        if($config.PSObject.Properties['displayViews'] -and @($config.displayViews).Count){
-            $firstView=@($config.displayViews|Where-Object enabled|Select-Object -First 1)[0]
-            if($firstView -and $firstView.modules){
-                $viewModule=if($Name-eq'processorPanelVisible'){'processors'}elseif($Name-eq'performancePanelVisible'){'performance'}elseif($Name-eq'clock'){'clock'}else{$null}
-                if($viewModule -and $firstView.modules.PSObject.Properties[$viewModule]){$firstView.modules.$viewModule.visible=$Visible}
-            }
-        }
-        $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
-
-        if ($monitorWasActive -and (Test-Path -LiteralPath $profilePath)) { Refresh-DisplaySkins }
-        Write-AgentLog ("Visibilidad de módulo actualizada: {0}={1}." -f $Name,$Visible)
-    } catch {
-        Write-AgentLog "No se pudo cambiar la visibilidad del módulo: $($_.Exception.Message)"
-        [Windows.Forms.MessageBox]::Show((T 'dialog.saveVisibilityError'), 'AlienGamer Mode', 'OK', 'Error') | Out-Null
-    } finally {
-        if ($loading) { $loading.Close(); $loading.Dispose() }
-    }
-}
-
-function Show-BackgroundSettings {
-    $current = Get-BackgroundSettings
-    $rgb = @([int[]]([string]$current.color -split ','))
-    $selectedColor = [Drawing.Color]::FromArgb($rgb[0],$rgb[1],$rgb[2])
-    $form = New-Object Windows.Forms.Form
-    $form.Text = T 'dialog.backgroundTitle'
-    $form.FormBorderStyle = 'FixedDialog'; $form.StartPosition = 'CenterScreen'
-    $form.ClientSize = New-Object Drawing.Size(470,405); $form.MaximizeBox=$false; $form.MinimizeBox=$false; $form.TopMost=$true
-
-    $enabledCheck = New-Object Windows.Forms.CheckBox
-    $enabledCheck.Text=T 'dialog.enableBackground'; $enabledCheck.Checked=[bool]$current.enabled; $enabledCheck.SetBounds(28,22,220,28)
-    $form.Controls.Add($enabledCheck)
-
-    $countLabel = New-Object Windows.Forms.Label
-    $countLabel.Text=T 'dialog.fireflyCount'; $countLabel.SetBounds(28,68,250,22); $form.Controls.Add($countLabel)
-    $countValue = New-Object Windows.Forms.Label
-    $countValue.Text=[string]$current.particleCount; $countValue.TextAlign='MiddleRight'; $countValue.SetBounds(375,68,55,22); $form.Controls.Add($countValue)
-    $countBar = New-Object Windows.Forms.TrackBar
-    $countBar.Minimum=8; $countBar.Maximum=48; $countBar.TickFrequency=5; $countBar.Value=[int]$current.particleCount; $countBar.SetBounds(24,91,410,45); $form.Controls.Add($countBar)
-    $countBar.Add_ValueChanged({$countValue.Text=[string]$countBar.Value})
-
-    $speedLabel = New-Object Windows.Forms.Label
-    $speedLabel.Text=T 'dialog.riseSpeed'; $speedLabel.SetBounds(28,147,250,22); $form.Controls.Add($speedLabel)
-    $speedValue = New-Object Windows.Forms.Label
-    $speedValue.Text=([double]$current.speed).ToString('0.00'); $speedValue.TextAlign='MiddleRight'; $speedValue.SetBounds(375,147,55,22); $form.Controls.Add($speedValue)
-    $speedBar = New-Object Windows.Forms.TrackBar
-    $speedBar.Minimum=20; $speedBar.Maximum=150; $speedBar.TickFrequency=10; $speedBar.Value=[int]([double]$current.speed*100); $speedBar.SetBounds(24,170,410,45); $form.Controls.Add($speedBar)
-    $speedBar.Add_ValueChanged({$speedValue.Text=($speedBar.Value/100.0).ToString('0.00')})
-
-    $sizeLabel = New-Object Windows.Forms.Label
-    $sizeLabel.Text=T 'dialog.generalSize'; $sizeLabel.SetBounds(28,226,250,22); $form.Controls.Add($sizeLabel)
-    $sizeValue = New-Object Windows.Forms.Label
-    $sizeValue.Text=([double]$current.sizeScale).ToString('0%'); $sizeValue.TextAlign='MiddleRight'; $sizeValue.SetBounds(365,226,65,22); $form.Controls.Add($sizeValue)
-    $sizeBar = New-Object Windows.Forms.TrackBar
-    $sizeBar.Minimum=70; $sizeBar.Maximum=160; $sizeBar.TickFrequency=10; $sizeBar.Value=[int]([double]$current.sizeScale*100); $sizeBar.SetBounds(24,249,410,45); $form.Controls.Add($sizeBar)
-    $sizeBar.Add_ValueChanged({
-        $sizeValue.Text=($sizeBar.Value/100.0).ToString('0%')
-        if((Test-Path -LiteralPath $rainmeter) -and (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
-                foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){& $rainmeter '!SetVariable' 'BackgroundParticleSize' ($sizeBar.Value/100.0).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) $rainmeterConfig}
-        }
-    })
-
-    $colorLabel = New-Object Windows.Forms.Label
-    $colorLabel.Text=T 'dialog.fireflyColor'; $colorLabel.SetBounds(28,307,210,24); $form.Controls.Add($colorLabel)
-    $colorButton = New-Object Windows.Forms.Button
-    $colorButton.Text=T 'dialog.chooseColor'; $colorButton.BackColor=$selectedColor; $colorButton.ForeColor=if(($selectedColor.R+$selectedColor.G+$selectedColor.B)-gt 420){[Drawing.Color]::Black}else{[Drawing.Color]::White}; $colorButton.SetBounds(260,300,170,35); $form.Controls.Add($colorButton)
-    $colorButton.Add_Click({
-        $picker=New-Object Windows.Forms.ColorDialog; $picker.FullOpen=$true; $picker.Color=$script:selectedParticleColor
-        if($picker.ShowDialog($form)-eq 'OK'){$script:selectedParticleColor=$picker.Color; $colorButton.BackColor=$picker.Color; $colorButton.ForeColor=if(($picker.Color.R+$picker.Color.G+$picker.Color.B)-gt 420){[Drawing.Color]::Black}else{[Drawing.Color]::White}}
-        $picker.Dispose()
-    })
-    $script:selectedParticleColor=$selectedColor
-
-    $saveButton=New-Object Windows.Forms.Button; $saveButton.Text=T 'dialog.apply'; $saveButton.DialogResult='OK'; $saveButton.SetBounds(250,357,85,32); $form.Controls.Add($saveButton)
-    $cancelButton=New-Object Windows.Forms.Button; $cancelButton.Text=T 'dialog.cancel'; $cancelButton.DialogResult='Cancel'; $cancelButton.SetBounds(345,357,85,32); $form.Controls.Add($cancelButton)
-    $form.AcceptButton=$saveButton; $form.CancelButton=$cancelButton
-    $dialogResult=$form.ShowDialog()
-    if($dialogResult -eq 'OK'){
-        $color=$script:selectedParticleColor
-        Set-BackgroundSettings ([pscustomobject]@{enabled=$enabledCheck.Checked;mode=$current.mode;particleCount=$countBar.Value;speed=$speedBar.Value/100.0;sizeScale=$sizeBar.Value/100.0;color=('{0},{1},{2}' -f $color.R,$color.G,$color.B)})
-    } elseif((Test-Path -LiteralPath $rainmeter) -and (Get-Process Rainmeter -ErrorAction SilentlyContinue)) {
-            foreach($rainmeterConfig in @(Get-ActiveRainmeterConfigs)){& $rainmeter '!SetVariable' 'BackgroundParticleSize' ([double]$current.sizeScale).ToString('0.00',[Globalization.CultureInfo]::InvariantCulture) $rainmeterConfig}
-    }
-    $form.Dispose()
 }
 
 function Show-HardwareSettings {
@@ -551,52 +361,66 @@ function Show-DisplayLayoutEditor {
 }
 
 function Complete-DisplayLayoutEditor {
-    if(-not $script:layoutEditorProcess){return}
-    if(-not $script:layoutEditorProcess.HasExited){
-        $script:layoutEditorProcess.Refresh()
-        # Una ventana que no logra publicarse nunca debe poder bloquear el menú.
-        # La revisión normal tarda menos de un segundo; se deja margen para equipos lentos.
-        if($script:layoutEditorStartedAt -and ((Get-Date)-$script:layoutEditorStartedAt).TotalSeconds -gt 12 -and $script:layoutEditorProcess.MainWindowHandle -eq 0){
-            Write-AgentLog 'El editor multidisplay no publicó una ventana; se liberó el menú para reintentar.'
-            Stop-Process -Id $script:layoutEditorProcess.Id -Force -ErrorAction SilentlyContinue
-            $script:layoutEditorProcess.WaitForExit(2000)|Out-Null
-        }else{return}
-    }
     $process=$script:layoutEditorProcess
-    $script:layoutEditorProcess=$null
-    $script:layoutEditorStartedAt=$null
-    $script:displayLayoutItem.Enabled=$true
-    $exitCode=$process.ExitCode
-    $process.Dispose()
-    if($exitCode -eq 0){
-        try{
-            if(Test-MonitorActive){Refresh-DisplaySkins}
-            Write-AgentLog 'Distribución multidisplay actualizada.'
-            $script:tray.ShowBalloonTip(2500,'AlienGamer Mode',$(if($script:language-eq'en-US'){'Display layout applied.'}else{'Distribución de pantallas aplicada.'}),[Windows.Forms.ToolTipIcon]::Info)
-        }catch{
-            Write-AgentLog "No se pudo aplicar la distribución multidisplay: $($_.Exception.Message)"
-            [Windows.Forms.MessageBox]::Show($_.Exception.Message,'AlienGamer Mode','OK','Error')|Out-Null
+    if($null-eq$process){return}
+    $stage='inspect-process'
+    try{
+        if(-not $process.HasExited){
+            $process.Refresh()
+            # Una ventana que no logra publicarse nunca debe poder bloquear el menu.
+            # La revision normal tarda menos de un segundo; se deja margen para equipos lentos.
+            if($script:layoutEditorStartedAt -and ((Get-Date)-$script:layoutEditorStartedAt).TotalSeconds -gt 12 -and $process.MainWindowHandle -eq 0){
+                Write-AgentLog 'El editor multidisplay no publico una ventana; se libero el menu para reintentar.'
+                Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+                [void]$process.WaitForExit(2000)
+            }else{return}
         }
-    }elseif($exitCode -notin @(1,2)){
-        $details=if(Test-Path -LiteralPath $script:layoutEditorErrorPath){(Get-Content -LiteralPath $script:layoutEditorErrorPath -Raw).Trim()}else{''}
-        if(-not $details){$details=if($script:language-eq'en-US'){'The display editor could not be opened.'}else{'No se pudo abrir el editor de pantallas.'}}
-        Write-AgentLog "El editor multidisplay terminó con código ${exitCode}: $details"
-        [Windows.Forms.MessageBox]::Show($details,'AlienGamer Mode','OK','Error')|Out-Null
+        $stage='read-exit-code'
+        $exitCode=[int]$process.ExitCode
+        $script:layoutEditorProcess=$null
+        $script:layoutEditorStartedAt=$null
+        if($script:displayLayoutItem){$script:displayLayoutItem.Enabled=$true}
+        $stage='dispose-process'
+        if($process){$process.Dispose()}
+        if($exitCode -eq 0){
+            $stage='refresh-display-skins'
+            $applyOverlays=@()
+            try{
+                if(Test-MonitorActive){
+                    $applyOverlays=@(Show-DisplayApplyOverlays)
+                    [Windows.Forms.Application]::DoEvents()
+                    Refresh-DisplaySkins -ReuseValidatedProfile
+                }
+            }finally{
+                foreach($overlay in @($applyOverlays)){try{$overlay.Close();$overlay.Dispose()}catch{}}
+            }
+            Write-AgentLog 'Distribución multidisplay actualizada.'
+            Write-AgentDiagnostic 'APPLY complete'
+            # Una notificación no es parte crítica de la aplicación. Si el
+            # icono se está recreando, no debe convertir un guardado válido en error.
+            if($script:tray -is [Windows.Forms.NotifyIcon]){
+                try{$script:tray.ShowBalloonTip(2500,'AlienGamer Mode',$(if($script:language-eq'en-US'){'Display layout applied.'}else{'Distribución de pantallas aplicada.'}),[Windows.Forms.ToolTipIcon]::Info)}catch{Write-AgentDiagnostic ('APPLY notification skipped: '+$_.Exception.Message)}
+            }
+        }elseif($exitCode -notin @(1,2)){
+            $details=if($script:layoutEditorErrorPath-and(Test-Path -LiteralPath $script:layoutEditorErrorPath)){(Get-Content -LiteralPath $script:layoutEditorErrorPath -Raw).Trim()}else{''}
+            if(-not $details){$details=if($script:language-eq'en-US'){'The display editor could not be opened.'}else{'No se pudo abrir el editor de pantallas.'}}
+            Write-AgentLog "El editor multidisplay termino con codigo ${exitCode}: $details"
+            [Windows.Forms.MessageBox]::Show($details,'AlienGamer Mode','OK','Error')|Out-Null
+        }
+    }catch{
+        $detail=$_.Exception.ToString()
+        Write-AgentDiagnostic "APPLY failed stage=${stage}: $detail"
+        try{Write-AgentLog "No se pudo completar el editor multidisplay en ${stage}: $detail"}catch{}
+        if($script:displayLayoutItem){$script:displayLayoutItem.Enabled=$true}
+        $script:layoutEditorProcess=$null
+        $script:layoutEditorStartedAt=$null
+        try{$process.Dispose()}catch{}
+        [Windows.Forms.MessageBox]::Show("$($_.Exception.Message)`r`n`r`nEtapa: $stage",'AlienGamer Mode','OK','Error')|Out-Null
     }
 }
 
 function Apply-AgentLanguage {
     if (-not $script:monitorItem) { return }
-    $script:backgroundConfigItem.Text = T 'tray.configureFireflies'
-    $script:backgroundMenu.Text = T 'tray.background'
-    $script:backgroundOffItem.Text = T 'tray.backgroundOff'
-    $script:backgroundManualItem.Text = T 'tray.backgroundManual'
-    $script:backgroundThermalItem.Text = T 'tray.backgroundThermal'
-    $script:modulesItem.Text = T 'tray.visibleModules'
-    $script:processorPanelItem.Text = T 'tray.processorsLoad'
-    $script:performancePanelItem.Text = T 'tray.performanceAlerts'
-    $script:clockItem.Text = T 'tray.clock'
-    $script:compactItem.Text = T 'tray.compactOverlay'
     $script:markIncidentItem.Text = T 'tray.markIncident'
     $script:languageItem.Text = T 'tray.language'
     $script:spanishItem.Text = T 'tray.spanish'
@@ -627,7 +451,7 @@ function Set-AppLanguage([string]$Language) {
         else { $config | Add-Member NoteProperty language $resolved }
         $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
 
-        if ($monitorWasActive -and (Test-Path -LiteralPath $profilePath)) { Refresh-DisplaySkins }
+        if ($monitorWasActive -and (Test-Path -LiteralPath $profilePath)) { Refresh-DisplaySkins -ReuseValidatedProfile }
         Apply-AgentLanguage
         Update-TrayMenuState
         Write-AgentLog "Idioma actualizado: $resolved."
@@ -640,7 +464,7 @@ function Set-AppLanguage([string]$Language) {
 }
 
 function Update-TrayMenuState {
-    if (-not $script:monitorItem -or -not $script:recordItem -or -not $script:backgroundMenu -or -not $script:processorPanelItem -or -not $script:performancePanelItem -or -not $script:clockItem -or -not $script:compactItem -or -not $script:markIncidentItem) { return }
+    if (-not $script:monitorItem -or -not $script:recordItem -or -not $script:markIncidentItem) { return }
     $monitorActive = Test-MonitorActive
     $recordingStatus = Get-RecordingStatus
     Sync-RainmeterRecordingState $recordingStatus
@@ -664,16 +488,6 @@ function Update-TrayMenuState {
         }
     }
     $script:markIncidentItem.Enabled = $recordingStatus -eq 'recording'
-    $script:backgroundSettings = Get-BackgroundSettings
-    $script:backgroundOffItem.Checked = -not [bool]$script:backgroundSettings.enabled
-    $script:backgroundManualItem.Checked = [bool]$script:backgroundSettings.enabled -and $script:backgroundSettings.mode -eq 'manual'
-    $script:backgroundThermalItem.Checked = [bool]$script:backgroundSettings.enabled -and $script:backgroundSettings.mode -eq 'thermal'
-    $script:backgroundConfigItem.Enabled = [bool]$script:backgroundSettings.enabled -and $script:backgroundSettings.mode -eq 'manual'
-    $moduleSettings = Get-ModuleVisibilitySettings
-    $script:processorPanelItem.Checked = [bool]$moduleSettings.processorPanelVisible
-    $script:performancePanelItem.Checked = [bool]$moduleSettings.performancePanelVisible
-    $script:clockItem.Checked = [bool]$moduleSettings.clock
-    $script:compactItem.Checked = [bool]$moduleSettings.compactOverlay
     $script:tray.Text = if ($monitorActive) { T 'tray.active' } else { T 'tray.stopped' }
 }
 
@@ -727,6 +541,26 @@ function Show-Loading([string]$Text) {
     $form.Show()
     $form.Refresh()
     return $form
+}
+
+function Show-DisplayApplyOverlays {
+    $forms=New-Object 'System.Collections.Generic.List[System.Windows.Forms.Form]'
+    $targets=@(Get-DisplayManifest)
+    if(-not $targets.Count){$targets=@([pscustomobject]@{monitor=[pscustomobject]@{x=[Windows.Forms.Screen]::PrimaryScreen.Bounds.X;y=[Windows.Forms.Screen]::PrimaryScreen.Bounds.Y;width=[Windows.Forms.Screen]::PrimaryScreen.Bounds.Width;height=[Windows.Forms.Screen]::PrimaryScreen.Bounds.Height}})}
+    foreach($target in $targets){
+        $bounds=$target.monitor
+        $form=New-Object Windows.Forms.Form
+        $form.FormBorderStyle='None';$form.ShowInTaskbar=$false;$form.TopMost=$true;$form.ControlBox=$false
+        $form.BackColor=[Drawing.Color]::FromArgb(18,22,31)
+        $width=390;$height=118
+        $form.StartPosition='Manual'
+        $form.Bounds=New-Object Drawing.Rectangle([int]($bounds.x+($bounds.width-$width)/2),[int]($bounds.y+($bounds.height-$height)/2),$width,$height)
+        $panel=New-Object Windows.Forms.Panel;$panel.Dock='Fill';$panel.Padding=New-Object Windows.Forms.Padding(2);$panel.BackColor=[Drawing.Color]::FromArgb(80,36,120);$form.Controls.Add($panel)
+        $inner=New-Object Windows.Forms.Panel;$inner.Dock='Fill';$inner.BackColor=[Drawing.Color]::FromArgb(18,22,31);$panel.Controls.Add($inner)
+        $label=New-Object Windows.Forms.Label;$label.Dock='Fill';$label.TextAlign='MiddleCenter';$label.ForeColor=[Drawing.Color]::White;$label.Font=New-Object Drawing.Font('Segoe UI Semibold',13);$label.Text=(T 'dialog.applyingLayout');$inner.Controls.Add($label)
+        $form.Show();$form.Refresh();$forms.Add($form)
+    }
+    $forms.ToArray()
 }
 
 function Start-Monitor {
@@ -838,19 +672,6 @@ $menu = New-Object Windows.Forms.ContextMenuStrip
 $monitorItem = $menu.Items.Add((T 'tray.activateMonitor'))
 $recordItem = $menu.Items.Add((T 'tray.recordEvent'))
 $markIncidentItem = $menu.Items.Add((T 'tray.markIncident'))
-$backgroundMenu = New-Object Windows.Forms.ToolStripMenuItem((T 'tray.background'))
-$backgroundOffItem = $backgroundMenu.DropDownItems.Add((T 'tray.backgroundOff'))
-$backgroundManualItem = $backgroundMenu.DropDownItems.Add((T 'tray.backgroundManual'))
-$backgroundThermalItem = $backgroundMenu.DropDownItems.Add((T 'tray.backgroundThermal'))
-[void]$backgroundMenu.DropDownItems.Add('-')
-$backgroundConfigItem = $backgroundMenu.DropDownItems.Add((T 'tray.configureFireflies'))
-[void]$menu.Items.Add($backgroundMenu)
-$modulesItem = New-Object Windows.Forms.ToolStripMenuItem((T 'tray.visibleModules'))
-$processorPanelItem = $modulesItem.DropDownItems.Add((T 'tray.processorsLoad'))
-$performancePanelItem = $modulesItem.DropDownItems.Add((T 'tray.performanceAlerts'))
-$clockItem = $modulesItem.DropDownItems.Add((T 'tray.clock'))
-$compactItem = $modulesItem.DropDownItems.Add((T 'tray.compactOverlay'))
-[void]$menu.Items.Add($modulesItem)
 $languageItem = New-Object Windows.Forms.ToolStripMenuItem((T 'tray.language'))
 $spanishItem = $languageItem.DropDownItems.Add((T 'tray.spanish'))
 $englishItem = $languageItem.DropDownItems.Add((T 'tray.english'))
@@ -867,17 +688,7 @@ $tray = New-Object Windows.Forms.NotifyIcon
 $script:tray = $tray
 $script:monitorItem = $monitorItem
 $script:recordItem = $recordItem
-$script:backgroundMenu = $backgroundMenu
-$script:backgroundOffItem = $backgroundOffItem
-$script:backgroundManualItem = $backgroundManualItem
-$script:backgroundThermalItem = $backgroundThermalItem
-$script:processorPanelItem = $processorPanelItem
-$script:performancePanelItem = $performancePanelItem
-$script:clockItem = $clockItem
-$script:compactItem = $compactItem
 $script:markIncidentItem = $markIncidentItem
-$script:backgroundConfigItem = $backgroundConfigItem
-$script:modulesItem = $modulesItem
 $script:languageItem = $languageItem
 $script:spanishItem = $spanishItem
 $script:englishItem = $englishItem
@@ -886,7 +697,6 @@ $script:displayLayoutItem = $displayLayoutItem
 $script:configItem = $configItem
 $script:logsItem = $logsItem
 $script:exitItem = $exitItem
-$script:backgroundSettings = Get-BackgroundSettings
 $script:layoutEditorProcess = $null
 $script:layoutEditorStartedAt = $null
 $script:layoutEditorErrorPath = $null
@@ -898,30 +708,6 @@ $monitorItem.Add_Click({ if (Test-MonitorActive) { Stop-Monitor } else { Start-M
 $tray.Add_DoubleClick({ if (Test-MonitorActive) { Stop-Monitor } else { Start-Monitor } })
 $recordItem.Add_Click({ Invoke-RecordingToggle })
 $markIncidentItem.Add_Click({ Mark-Incident })
-$backgroundOffItem.Add_Click({ Set-BackgroundMode 'off' })
-$backgroundManualItem.Add_Click({ Set-BackgroundMode 'manual' })
-$backgroundThermalItem.Add_Click({ Set-BackgroundMode 'thermal' })
-$backgroundConfigItem.Add_Click({ Show-BackgroundSettings; Update-TrayMenuState })
-$processorPanelItem.Add_Click({
-    $settings=Get-ModuleVisibilitySettings
-    Set-ModuleVisibility 'processorPanelVisible' (-not [bool]$settings.processorPanelVisible)
-    Update-TrayMenuState
-})
-$performancePanelItem.Add_Click({
-    $settings=Get-ModuleVisibilitySettings
-    Set-ModuleVisibility 'performancePanelVisible' (-not [bool]$settings.performancePanelVisible)
-    Update-TrayMenuState
-})
-$clockItem.Add_Click({
-    $settings=Get-ModuleVisibilitySettings
-    Set-ModuleVisibility 'clock' (-not [bool]$settings.clock)
-    Update-TrayMenuState
-})
-$compactItem.Add_Click({
-    $settings=Get-ModuleVisibilitySettings
-    Set-ModuleVisibility 'compactOverlay' (-not [bool]$settings.compactOverlay)
-    Update-TrayMenuState
-})
 $spanishItem.Add_Click({ Set-AppLanguage 'es-MX' })
 $englishItem.Add_Click({ Set-AppLanguage 'en-US' })
 $hardwareConfigItem.Add_Click({ Show-HardwareSettings; Update-TrayMenuState })
@@ -933,11 +719,15 @@ $exitItem.Add_Click({ Stop-Monitor; $tray.Visible=$false; [Windows.Forms.Applica
 $eventTimer = New-Object Windows.Forms.Timer
 $eventTimer.Interval = 500
 $eventTimer.Add_Tick({
-    Complete-DisplayLayoutEditor
-    if ($activateEvent.WaitOne(0)) { Start-Monitor }
-    if ($stopEvent.WaitOne(0) -or (Test-StopRequest)) { Stop-Monitor }
-    Update-TrayMenuState
-    Ensure-MonitorPosition
+    try{
+        Complete-DisplayLayoutEditor
+        if ($activateEvent.WaitOne(0)) { Start-Monitor }
+        if ($stopEvent.WaitOne(0) -or (Test-StopRequest)) { Stop-Monitor }
+        Update-TrayMenuState
+        Ensure-MonitorPosition
+    }catch{
+        Write-AgentLog "Error controlado en el ciclo de bandeja: $($_.Exception.ToString())"
+    }
 })
 $eventTimer.Start()
 Apply-AgentLanguage

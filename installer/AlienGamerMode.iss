@@ -1,5 +1,5 @@
 ﻿#define MyAppName "AlienGamer Mode"
-#define MyAppVersion "1.5.2"
+#define MyAppVersion "1.5.8"
 #define MyAppPublisher "Alienmau"
 
 [Setup]
@@ -13,15 +13,15 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\build\installer
-OutputBaseFilename=AlienGamerMode-Setup-1.5.2
+OutputBaseFilename=AlienGamerMode-Setup-1.5.8
 SetupIconFile=..\assets\AlienGamerMode.ico
 WizardStyle=modern
 ShowLanguageDialog=yes
 Compression=lzma2
 SolidCompression=yes
 Uninstallable=no
-VersionInfoVersion=1.5.2.0
-VersionInfoProductVersion=1.5.2.0
+VersionInfoVersion=1.5.8.0
+VersionInfoProductVersion=1.5.8.0
 VersionInfoProductName={#MyAppName}
 VersionInfoDescription=Instalador adaptable del monitor AlienGamer Mode
 VersionInfoCompany={#MyAppPublisher}

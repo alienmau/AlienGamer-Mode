@@ -1,5 +1,62 @@
 # Historial de cambios
 
+## 1.5.8 — 21 de septiembre de 2026
+
+- Corregida la ruta de recursos compartidos de Rainmeter en vistas multidisplay; vuelven a funcionar los arcos animados, el reloj matricial y el fondo de luciérnagas.
+- La compilación ahora valida que `RingAnimator.lua`, `MatrixClock.lua`, `BackgroundAnimator.lua` y `ParticleGlow.png` existan en el `@Resources` raíz antes de activar la skin.
+- Los cambios exclusivos de distribución, fondo o idioma reutilizan el perfil HWiNFO previamente validado, evitando repetir el análisis completo de sensores.
+- El tiempo medido de reconstrucción visual se redujo de 23–38 segundos a aproximadamente 1.6 segundos en el equipo de validación.
+- Mientras se aplica una distribución se muestra un aviso bilingüe y visible sobre cada pantalla configurada.
+- Eliminado un medidor de estilo que Rainmeter dibujaba como un semicírculo gris residual en la esquina superior izquierda.
+- Incorporada una exportación verificable del editor para mantener actualizadas las capturas de documentación.
+
+## 1.5.7 — 21 de septiembre de 2026
+
+- Cada instalación inicia desde la configuración oficial limpia, con el diseño completo y todos los módulos visibles.
+- Respalda el JSON anterior en `AlienGamerModeLegacyBackup` y conserva intactas las grabaciones y los reportes.
+- Elimina perfiles, skins generadas, manifiestos y trazas obsoletas antes de crear la nueva distribución.
+- Separa la aplicación crítica de la notificación de bandeja para que una notificación ausente no convierta un guardado válido en error.
+- Valida el código de salida de la reconstrucción y registra cada etapa en `agent-diagnostic.log`.
+- Al fallar, identifica la etapa exacta en lugar de mostrar solamente una expresión nula.
+
+## 1.5.6 — 20 de septiembre de 2026
+
+- Corrige la excepción que aparecía después de **Guardar y aplicar**, incluso al cambiar únicamente el fondo a dinámico térmico.
+- Protege el ciclo del agente que detecta el cierre del editor, reconstruye las skins y actualiza la bandeja; un fallo ya no puede escapar como cuadro genérico de .NET.
+- Añade captura global de excepciones de la interfaz y una traza por etapas en `%LOCALAPPDATA%\AlienGamerMode\layout-editor.trace.log`.
+- Genera el símbolo de redimensionado en tiempo de ejecución para evitar `â†˜` y otros caracteres corruptos en Windows PowerShell 5.1.
+- Valida el guardado usando una copia exacta de una configuración personalizada existente y otra con fondo térmico.
+
+## 1.5.5 — 20 de septiembre de 2026
+
+- Corrige el fallo posterior a **Guardar y aplicar** causado al intentar escribir el error original en una consola no disponible.
+- Sustituye la salida de consola por un registro UTF-8 fiable en `%LOCALAPPDATA%\AlienGamerMode\layout-editor.error.log`.
+- Deshabilita **Guardar y aplicar** mientras exista una distribución inválida e identifica la pantalla y los módulos en conflicto.
+- Verifica el evento real del botón de guardado, la escritura de la configuración y el cierre correcto del formulario.
+
+## 1.5.4 — 20 de septiembre de 2026
+
+- Corrige el error de guardado que restauraba internamente los tamaños base y producía falsos solapamientos o expresiones nulas.
+- Conserva correctamente el estado **Personalizado** y las dimensiones elegidas al mover o redimensionar cualquier módulo.
+- Recalcula el diseño completo para que rendimiento y procesadores no se crucen en pantallas 2048×1280.
+- Oculta los controles OFF/grabación en los diseños **Esencial horizontal** y **Esencial vertical**.
+- Centra el encabezado fijo en el diseño vertical y distribuye RAM, VRAM, uso y temperaturas dentro del alto disponible.
+- Amplía y estabiliza el control de redimensionado para no perder el arrastre al salir del tirador.
+- Retira el menú global **Fondo** de la bandeja; cada pantalla administra su fondo desde **Pantallas y distribución...**.
+- Añade validaciones automáticas de límites, margen y solapamiento para 2048×1280, 2560×1440 y 1080×1920.
+
+## 1.5.3 — 20 de septiembre de 2026
+
+- Rediseña **Pantallas y distribución...** con una previsualización basada en la proporción y resolución reales de cada monitor.
+- Permite mover y redimensionar libremente los módulos opcionales, sin rejilla fija y con escala proporcional.
+- Impide que los módulos se solapen, salgan de la pantalla o pierdan el margen mínimo de separación.
+- Mantiene el encabezado siempre visible, fijo en la esquina superior izquierda y fuera de la lista de módulos opcionales.
+- Aplica los diseños predefinidos inmediatamente en la previsualización; la skin real sólo cambia con **Guardar y aplicar**.
+- Añade por pantalla los controles manuales de cantidad, velocidad, tamaño y color del fondo; el modo térmico conserva parámetros automáticos.
+- Retira el menú rápido **Módulos visibles**, ambiguo al configurar varias pantallas, y deja el editor como fuente única de distribución.
+- Corrige la excepción de .NET causada por expresiones nulas y encapsula las acciones del editor para presentar errores controlados.
+- Centraliza los textos del editor en archivos UTF-8 de idioma para conservar correctamente acentos y caracteres en español.
+
 ## 1.5.2 — 20 de septiembre de 2026
 
 - Corrige el editor **Pantallas y distribución...** que podía ejecutarse oculto al intentar esconder la consola de PowerShell.

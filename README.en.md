@@ -15,7 +15,7 @@
 
 AlienGamer Mode is a Rainmeter and HWiNFO dashboard that detects the available hardware, adapts its layout to the selected display and avoids presenting missing sensors as real zero values.
 
-Version 1.5.2 adds a visual multi-display editor. Each local display can keep its own modules, positions, preset and background while all views share one validated HWiNFO sensor bridge and one event recorder. This revision displays the editor without exposing a console, automatically recovers the tray menu if its window fails to open, and guides initial setup after a fresh installation or migration.
+Version 1.5.8 refines the visual multi-display editor and fixes Rainmeter's shared resource placement, restoring animated rings, the matrix clock, and fireflies in every view. Layout-only changes now reuse the already validated sensor profile, apply in a few seconds, and display an on-screen progress notice while finishing. Every installation still starts with a clean full layout, backs up the previous configuration, and preserves recordings and reports.
 
 ## Highlights
 
@@ -26,11 +26,11 @@ Version 1.5.2 adds a visual multi-display editor. Each local display can keep it
 - Matrix-style clock, custom or thermal-dynamic ambient fireflies, and dark glass panels.
 - OLED protection through subtle periodic pixel shifting.
 - Manual event recording with a technical Excel report.
-- Persistent visibility controls for the processor panel, FPS/alerts panel and clock.
+- Persistent per-display visibility, position and size for optional modules.
 - Display, GPU and primary-drive selection during installation.
 - Spanish and English UI, selectable during installation or from the tray icon.
 - Multiple simultaneous local-display views with independent persistent layouts.
-- Drag-and-drop positioning for RAM, VRAM, usage, temperatures, FPS, processors, clock, header and controls.
+- Drag-and-resize editing for RAM, VRAM, usage, temperatures, FPS, processors, clock and controls; the header remains fixed and mandatory.
 
 ![AlienGamer Mode running](docs/images/AlienGamerMode-dashboard.png)
 
@@ -54,15 +54,49 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.5.2.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.5.8.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 
 ## Displays and layout
 
-Open the tray menu and choose **Displays and layout...**. The editor can enable several connected displays, drag each module independently, hide any block, apply horizontal or vertical presets, and select a separate background mode for each view. **Save and apply** rebuilds only the Rainmeter views; HWiNFO, the local bridge and event recording remain shared.
+Open the tray menu and choose **Displays and layout...**. The editor represents each connected screen at its real aspect ratio and can enable several displays, drag and resize each optional module, hide blocks, apply horizontal or vertical presets, and select a separate background mode for every view. Manual backgrounds expose particle count, speed, size and color controls; thermal mode manages those values automatically.
 
-Layouts are stored under `displayViews` in `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` and survive restarts. The editor opens automatically after every setup run so modules and layout can be selected; it remains available from the tray afterward. During an update, layouts already created by 1.5 are loaded and preserved. Phones and tablets are not remote companions yet; that network-facing capability is intentionally reserved for a later release with explicit privacy and access controls.
+Presets update the preview immediately, while the live dashboard changes only after **Save and apply**. Modules remain inside screen bounds, keep a minimum separation and cannot overlap. The mandatory header cannot be dragged and stays at the upper-left safety margin, except in **Essential portrait**, where it is centered at the top. Saving rebuilds only the Rainmeter views; HWiNFO, the local bridge and event recording remain shared.
+
+Layouts are stored under `displayViews` in `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` and survive restarts. The editor opens automatically after every setup run with every module visible. While the 1.5 branch is being stabilized, each installation resets visual settings and backs up the previous JSON, while recordings and reports remain untouched. Phones and tablets are not remote companions yet; that network-facing capability is intentionally reserved for a later release with explicit privacy and access controls.
+
+### Multiple displays and visual layout
+
+One AlienGamer Mode installation can activate a different view on every connected display:
+
+- Each display can be enabled or disabled without stopping the others.
+- Clock, controls, RAM, VRAM, CPU/GPU usage, temperatures, FPS/alerts, and processor modules are selected independently per display.
+- Visible modules can be dragged and resized inside a preview that preserves the real display resolution and aspect ratio.
+- The editor prevents overlaps, unsafe spacing, and out-of-bounds placement. The identifying header remains fixed and visible.
+- Full horizontal, essential horizontal, essential vertical, performance-only, and temperatures-only presets can be previewed before applying.
+- Each display has its own disabled, custom, or thermal dynamic background.
+- Layout choices persist across restarts.
+- Visual-only changes reuse the validated sensor profile, show an `Applying changes…` notice on affected displays, and avoid restarting HWiNFO or the data bridge.
+
+To keep the tray menu concise, the former global **Background** and **Visible modules** menus now live under **Displays and layout...**, where they can be configured correctly for each display. The main menu keeps global actions such as starting/stopping the monitor, recording or marking incidents, language selection, hardware/display selection, logs, and closing the app.
+
+![Displays and layout editor](docs/images/AlienGamerMode-layout-editor.png)
+
+![Customized AlienGamer Mode 1.5.8 view](docs/images/AlienGamerMode-dashboard-1.5.8.png)
+
+### Next release: local mobile dashboard
+
+The next planned improvement will let a phone or tablet work as an additional real-time display:
+
+- AlienGamer Mode will expose a lightweight web microservice only on the local network.
+- A temporary QR code will open the dashboard directly on the portable device.
+- Users will be able to select and arrange modules independently for each phone or tablet.
+- Sensor data will remain local and will not require a cloud service.
+- Temporary sessions, device revocation, and adjustable refresh limits will protect privacy, battery life, CPU, and network usage.
+- The service will be disabled by default and will clearly show which local address is exposed.
+
+This feature is still in design and is not included in version 1.5.8.
 
 ## Changing the language
 
@@ -70,7 +104,7 @@ Right-click the AlienGamer Mode tray icon and choose **Language → English** or
 
 ## Thermal dynamic background
 
-Open **Background** from the tray icon and choose **Off**, **Custom**, or **Thermal dynamic**. Custom mode keeps the user-selected color. Thermal mode compares valid CPU, maximum-core and GPU temperatures against component-specific thresholds; the most demanding valid state controls the firefly color. A reported thermal-throttling flag forces the critical red state.
+Open **Displays and layout...** to choose **Off**, **Custom**, or **Thermal dynamic** independently for every monitor. Custom mode keeps that display's selected color and particle settings. Thermal mode compares valid CPU, maximum-core and GPU temperatures against component-specific thresholds; the most demanding valid state controls the firefly color. A reported thermal-throttling flag forces the critical red state. The former global **Background** tray menu was removed so one action cannot overwrite every display.
 
 Firefly density blends recent frame-time fluidity/stability with CPU/GPU activity. When GPU saturation or degraded frame time is detected, thermal mode gradually reduces particles and movement to yield resources to the game. Custom firefly controls are available only in **Custom** mode; **Thermal dynamic** uses separate conservative automatic parameters. Missing sensors are ignored rather than interpreted as real zero values.
 
@@ -86,9 +120,9 @@ Excel is optional. If it is not installed or workbook creation fails, AlienGamer
 
 The resulting report can help correlate the symptom with overheating, resource saturation, throttling or frame-time instability. Its interpretation is preliminary: it does not prove a root cause or replace game logs, detailed SMART diagnostics, network analysis or specialized traces.
 
-## Compact FPS mode
+## Performance view
 
-Choose **Visible modules → Compact FPS mode** to hide the full dashboard and center only the FPS, frame-time and alert panel on the selected screen. The setting persists without disabling sensor capture.
+In **Displays and layout...**, choose the **Performance only** preset to center the FPS, frame-time and alert panel. Before saving, it can be moved, resized or combined with other modules. The setting persists without disabling sensor capture.
 
 ## Privacy
 

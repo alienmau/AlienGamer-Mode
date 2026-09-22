@@ -48,13 +48,16 @@ $commandSource = Get-Content (Join-Path $root 'src\AlienGamerModeCommand.ps1') -
 $launcherSource = Get-Content (Join-Path $root 'src\AlienGamerModeLauncher.vbs') -Raw
 $fallbackStopSource = Get-Content (Join-Path $root 'src\Stop-AlienGamerMode.ps1') -Raw
 $layoutEditorSource = Get-Content (Join-Path $root 'src\Show-AlienGamerLayoutEditor.ps1') -Raw
+$multiDisplayBuildSource = Get-Content (Join-Path $root 'src\Build-MultiDisplaySkins.ps1') -Raw
 Assert ($installerSource -notmatch 'New-ScheduledTaskAction[^\r\n]+-WorkingDirectory') 'La tarea elevada no debe depender de WorkingDirectory.'
 Assert ($installerSource -match 'Settings\.Compatibility\s*=\s*2') 'La tarea debe usar compatibilidad Vista y el motor clasico.'
 Assert ($installerSource -notmatch 'UseUnifiedSchedulingEngine\s*=') 'No se debe tocar UseUnifiedSchedulingEngine porque actualiza la tarea a Win7.'
 Assert ($installerSource -match 'Set-Content -LiteralPath \$Path -Encoding ASCII') 'El INI de HWiNFO debe guardarse como ASCII sin BOM.'
-Assert ($installerSource -match 'function Merge-MissingConfiguration' -and $installerSource -match 'Merge-MissingConfiguration \$config \$configDefaults') 'Las actualizaciones no incorporan parámetros nuevos a configuraciones existentes.'
+Assert ($installerSource -notmatch 'Merge-MissingConfiguration \$config \$configDefaults') 'La instalación limpia todavía mezcla opciones heredadas con la configuración oficial.'
 Assert ($installerSource -match '\$config\.language = \$Language' -and $innoSource -match 'Name: "english"' -and $innoSource -match 'Name: "spanish"' -and $innoSource -match 'ShowLanguageDialog=yes' -and $innoSource -match '-Language ""\{language\}""') 'El instalador no permite seleccionar y guardar español o inglés.'
-Assert ($innoSource -match '#define MyAppVersion "1\.5\.2"' -and $innoSource -match 'AlienGamerMode-Setup-1\.5\.2') 'El instalador no está versionado como 1.5.2.'
+Assert ($innoSource -match '#define MyAppVersion "1\.5\.8"' -and $innoSource -match 'AlienGamerMode-Setup-1\.5\.8') 'El instalador no está versionado como 1.5.8.'
+Assert ($installerSource -match "Configuracion-Anterior\.json" -and $installerSource -match 'Copy-Item -LiteralPath \$defaultConfig -Destination \$configPath -Force' -and $installerSource -match "layoutPreset = 'full-horizontal'" -and $installerSource -match 'moduleProperty\.Value\.visible=\$true') 'La instalación no garantiza un diseño completo y limpio o no respalda la configuración anterior.'
+Assert ($installerSource -match 'Join-Path \$dataRoot ''DisplayProfiles''' -and $installerSource -match 'Join-Path \$dataRoot ''GeneratedSkin''' -and $installerSource -match 'Join-Path \$dataRoot ''display-manifest\.json''') 'La instalación limpia conserva artefactos visuales generados por una versión anterior.'
 Assert ($installerSource -match 'AlienGamerEventRecorder\\\.ps1' -and $installerSource -match 'recording-state\.json' -and $installerSource -match 'event-prebuffer-state\.json') 'La actualización no detiene grabadores antiguos ni limpia su estado de control.'
 Assert ($installerSource -match 'installer\.uninstallShortcut' -and $installerSource -match 'installedDocs') 'El paquete no instala documentación o acceso de desinstalación.'
 Assert ($installerSource -match '(?s)\$form\.ShowDialog\(\).*?if \(\$script:launchAfterClose\)' -and $installerSource -notmatch '\$taskbarCheck\.Checked\) \{ \[Windows\.Forms\.MessageBox\]::Show\(''Windows 11') 'El agente o los avisos todavía pueden superponerse al instalador.'
@@ -76,6 +79,9 @@ Assert (-not ($clockSourceBytes.Length -ge 3 -and $clockSourceBytes[0] -eq 0xEF 
 $clockSource = [IO.File]::ReadAllText($clockSourcePath)
 Assert ($clockSource -match 'recordProgress' -and $clockSource -match 'math\.sin' -and $clockSource -match 'buttonWidth') 'El botón de grabación no conserva la expansión y el pulso animado.'
 Assert ($clockSource -match 'alertRings' -and $clockSource -match 'updateAlertPulses' -and $clockSource -match 'Ring_SSD_TEMP' -and $clockSource -match 'mix\(195, 255, pulse\)' -and $clockSource -match 'mix\(12, 28, pulse\)' -and $clockSource -match '"%d,0,%d,255"') 'Los anillos críticos no conservan el destello entre dos rojos sólidos.'
+$skinTemplateSource = Get-Content (Join-Path $root 'src\skin\AlienGamerMode.Template.ini') -Raw
+$styleBlock = [regex]::Match($skinTemplateSource, '(?ms)^\[BG2Style\].*?(?=^\[|\z)').Value
+Assert ($styleBlock -notmatch '(?m)^Meter=' -and @([regex]::Matches($skinTemplateSource, '(?ms)^\[BG2_[^\]]+\]\r?\nMeter=Roundline\r?\nMeterStyle=BG2Style')).Count -eq 7) 'BG2Style vuelve a dibujarse como un círculo residual en la esquina superior izquierda.'
 $ringAnimatorPath = Join-Path $root 'src\skin\RingAnimator.lua'
 $ringAnimatorBytes = [IO.File]::ReadAllBytes($ringAnimatorPath)
 Assert (-not ($ringAnimatorBytes.Length -ge 3 -and $ringAnimatorBytes[0] -eq 0xEF -and $ringAnimatorBytes[1] -eq 0xBB -and $ringAnimatorBytes[2] -eq 0xBF)) 'RingAnimator.lua tiene BOM UTF-8 y Rainmeter no podrá cargarlo.'
@@ -158,23 +164,62 @@ Assert ($recorderSource -match 'function New-VisualReport' -and $recorderSource 
 Assert ($recorderSource.Contains("PSObject.Properties['TimestampLocal']") -and $recorderSource -match 'TryParseExact' -and $recorderSource -match 'if \(-not \$parsed\) \{ continue \}') 'El reporte no protege listas de incidentes vacías o fechas inválidas.'
 Assert ($recorderSource -notmatch '\[datetime\]::Parse\(' -and $recorderSource -match '\$validPreRows' -and $recorderSource -match "PSObject.Properties\['FechaHora'\]") 'El búfer previo todavía puede fallar con fechas vacías o inválidas.'
 Assert ($agentSource -match "tray\.stopMonitor" -and $agentSource -match "tray\.finishRecording" -and $agentSource -match "tray\.finalizingReport") 'La bandeja no refleja los estados dinámicos del monitor y la grabación.'
-Assert ($agentSource -match "tray\.backgroundThermal" -and $agentSource -match "Set-BackgroundMode 'thermal'" -and $agentSource -match "tray\.configureFireflies" -and $agentSource -match 'Show-BackgroundSettings' -and $agentSource -match 'BackgroundEffectMode' -and $agentSource -match 'Windows\.Forms\.TrackBar' -and $agentSource -match 'Windows\.Forms\.ColorDialog') 'La bandeja no permite elegir y conservar los modos apagado, personalizado y térmico.'
-Assert ($agentSource -match 'backgroundConfigItem\.Enabled.*mode -eq ''manual''' -and $agentSource -match 'thermalBaseSpeed' -and $agentSource -match 'thermalSizeScale') 'Los controles manuales siguen disponibles en modo térmico o este no conserva parámetros independientes.'
+Assert ($agentSource -notmatch 'backgroundMenu|Set-BackgroundMode|Show-BackgroundSettings' -and $layoutEditorSource -match 'backgroundMode' -and $layoutEditorSource -match 'particleCount' -and $layoutEditorSource -match 'ColorDialog') 'El fondo debe configurarse por pantalla desde el editor y no mediante un menú global ambiguo.'
 Assert ($agentSource -match 'tray\.hardwareConfiguration' -and $agentSource -match 'function Show-HardwareSettings' -and $agentSource -match 'targetMonitorId' -and $agentSource -match 'preferredStorage') 'La bandeja no permite reconfigurar pantalla, GPU y almacenamiento sin reinstalar.'
-Assert ($agentSource -match "tray\.visibleModules" -and $agentSource -match "tray\.processorsLoad" -and $agentSource -match "tray\.performanceAlerts" -and $agentSource -match "tray\.clock" -and $agentSource -match 'Set-ModuleVisibility') 'La bandeja no permite personalizar y guardar los módulos visibles.'
+Assert ($agentSource -notmatch '\$modulesItem\s*=' -and $agentSource -match 'tray\.displayLayout') 'La bandeja conserva un menú rápido de módulos ambiguo en modo multidisplay.'
 Assert ((Test-Path (Join-Path $root 'src\AlienGamer.MultiDisplay.psm1')) -and (Test-Path (Join-Path $root 'src\Build-MultiDisplaySkins.ps1')) -and (Test-Path (Join-Path $root 'src\Show-AlienGamerLayoutEditor.ps1'))) 'Faltan componentes del editor visual o del motor multidisplay.'
 Assert ($agentSource -match 'function Show-DisplayLayoutEditor' -and $agentSource -match 'Build-MultiDisplaySkins\.ps1' -and $agentSource -match 'Activate-DisplaySkins' -and $agentSource -match 'tray\.displayLayout') 'La bandeja no integra el editor visual y la activación multidisplay.'
-Assert ($installerSource -match '\$config\.schemaVersion\s*=\s*3' -and $installerSource -match 'upgradeToMultiDisplay' -and $installerSource -match 'displayViews' -and $installerSource -match 'ConvertTo-Json -Depth 20') 'La actualización no migra de forma segura la configuración multidisplay.'
+Assert ($installerSource -match '\$config\.schemaVersion\s*=\s*3' -and $installerSource -match 'Copy-Item -LiteralPath \$defaultConfig -Destination \$configPath -Force' -and $installerSource -match 'displayViews' -and $installerSource -match 'ConvertTo-Json -Depth 20') 'La instalación no crea de forma segura la configuración multidisplay limpia.'
 Assert ($agentSource -match 'function Initialize-MultiDisplayConfiguration' -and $agentSource -match 'Configuración visual migrada' -and $agentSource -match 'Set-AgentConfigProperty.*processorPanelVisible.*\$true') 'El agente no repara una configuración 1.4 que haya sobrevivido al instalador.'
 Assert ($agentSource -match 'function Complete-DisplayLayoutEditor' -and $agentSource -match 'RedirectStandardError' -and $agentSource -notmatch 'Show-AlienGamerLayoutEditor\.ps1[^\r\n]+-Wait') 'El editor de pantallas todavía puede bloquear el menú de bandeja.'
 Assert ($layoutEditorSource -match '\[switch\]\$HideConsole' -and $layoutEditorSource -match 'GetConsoleWindow' -and $layoutEditorSource -match 'ShowWindow' -and $agentSource -match 'WindowStyle Minimized' -and $agentSource -match '-HideConsole') 'El editor no separa correctamente la consola oculta de su ventana gráfica.'
-Assert ($agentSource -match 'layoutEditorStartedAt' -and $agentSource -match 'MainWindowHandle -eq 0' -and $agentSource -match 'liberó el menú') 'El menú puede quedar deshabilitado si el editor no publica una ventana.'
+Assert ($layoutEditorSource -match 'ExportScreenshotPath' -and $layoutEditorSource -match 'DrawToBitmap') 'El editor no puede exportar una captura verificable para la documentación.'
+Assert ($layoutEditorSource -match 'Start-Interaction' -and $layoutEditorSource -match "'resize'" -and $layoutEditorSource -match 'Test-Geometry' -and $layoutEditorSource -match 'IntersectsWith' -and $layoutEditorSource -match 'invalidPlacement') 'El editor no permite redimensionar o no impide solapamientos y salidas de pantalla.'
+Assert ($layoutEditorSource -match 'header\.visible=\$true' -and $layoutEditorSource -match 'definitions\[\$name\]\.fixed' -and $layoutEditorSource -notmatch "selectableModuleNames=@\('header'") 'El encabezado no está protegido como módulo obligatorio y fijo.'
+Assert ($layoutEditorSource -match 'preset\.Add_SelectedIndexChanged' -and $layoutEditorSource -match 'Set-AGLayoutPreset.*CanvasWidth' -and $layoutEditorSource -match 'particleCount' -and $layoutEditorSource -match 'ColorDialog') 'Los diseños no se previsualizan al seleccionarse o faltan controles del fondo manual.'
+Assert ($layoutEditorSource -match 'Invoke-EditorAction' -and $layoutEditorSource -match 'Get-GeometryIssue' -and $layoutEditorSource -match '\$box\.Capture=\$true') 'El editor no protege sus eventos, no identifica geometría inválida o puede perder el arrastre de redimensionado.'
+Assert ($layoutEditorSource -match 'Write-EditorError' -and $layoutEditorSource -match 'Update-SaveAvailability' -and $layoutEditorSource -notmatch '\[Console\]::Error\.WriteLine') 'El editor todavía puede ocultar el error real detrás de una consola nula o permitir guardar geometría inválida.'
+Assert ($agentSource -match 'layoutEditorStartedAt' -and $agentSource -match 'MainWindowHandle -eq 0' -and $agentSource -match 'libero el menu' -and $agentSource -match 'Error controlado en el ciclo de bandeja') 'El menú puede quedar deshabilitado o una excepción del temporizador puede escapar si el editor no publica una ventana.'
+Assert ($agentSource -match 'agent-diagnostic\.log' -and $agentSource -match 'stage=build begin' -and $agentSource -match 'stage=activate complete' -and $agentSource -match 'APPLY failed stage=') 'La aplicación en caliente no deja diagnóstico por etapas.'
+Assert ($layoutEditorSource -match '\[char\]0x2198' -and $layoutEditorSource -match 'ThreadException' -and $layoutEditorSource -match 'layout-editor\.trace\.log') 'El editor no protege excepciones de interfaz, no deja traza del guardado o conserva el símbolo Unicode incompatible con Windows PowerShell 5.1.'
 Assert ($agentSource -match '\[switch\]\$OpenLayoutEditor' -and $launcherSource -match 'activate-layout' -and $installerSource -match 'openLayoutAfterClose\s*=\s*\$true') 'La instalación no abre el editor de distribución al finalizar.'
-Assert ($agentSource -match "tray\.compactOverlay" -and $agentSource -match "tray\.markIncident" -and $agentSource -match "Invoke-RecorderCommand '-StartBuffer'" -and $agentSource -match "Invoke-RecorderCommand '-StopBuffer'") 'La bandeja no controla modo compacto, marcas o ciclo del búfer previo.'
-Assert ($agentSource -match "dialog\.waitApply" -and $agentSource -match "'!HideMeterGroup'" -and $agentSource -match 'Refresh-DisplaySkins') 'El cambio de módulos no informa progreso o no actualiza todas las vistas.'
+Assert ($agentSource -match "tray\.markIncident" -and $agentSource -match "Invoke-RecorderCommand '-StartBuffer'" -and $agentSource -match "Invoke-RecorderCommand '-StopBuffer'") 'La bandeja no controla marcas o ciclo del búfer previo.'
+Assert ($agentSource -match "dialog\.waitApply" -and $agentSource -match 'Complete-DisplayLayoutEditor' -and $agentSource -match 'Refresh-DisplaySkins') 'El editor no informa progreso o no actualiza todas las vistas al guardar.'
+Assert ($multiDisplayBuildSource -match 'ReuseValidatedProfile' -and $agentSource -match 'Refresh-DisplaySkins -ReuseValidatedProfile') 'Los cambios visuales todavía fuerzan una resolución completa y lenta de sensores.'
+Assert ($multiDisplayBuildSource -match 'sharedResources=Join-Path \$OutputDirectory ''@Resources''' -and $multiDisplayBuildSource -match 'RingAnimator\.lua' -and $multiDisplayBuildSource -match 'ParticleGlow\.png') 'La compilación multidisplay no publica los recursos visuales en el @Resources raíz de Rainmeter.'
+Assert ($agentSource -match 'function Show-DisplayApplyOverlays' -and $agentSource -match 'dialog\.applyingLayout' -and $agentSource -match 'Show-DisplayApplyOverlays') 'La aplicación de una distribución no muestra progreso sobre la pantalla de destino.'
 Assert ($agentSource -notmatch "Items\.Add\('Salir del modo'\)" -and $agentSource -match "tray\.closeApp") 'La bandeja conserva acciones redundantes o nombres ambiguos.'
 Assert ($agentSource -match 'function Set-AppLanguage' -and $agentSource -match "Set-AppLanguage 'es-MX'" -and $agentSource -match "Set-AppLanguage 'en-US'" -and $agentSource -match 'Refresh-DisplaySkins') 'La bandeja no permite cambiar el idioma en caliente y conservarlo.'
 Assert ($agentSource -match "bridge\.pid" -and $agentSource -match 'function Test-MonitorActive') 'La bandeja no usa el proceso real del puente para detectar el monitor activo.'
+
+# Todo diseño predefinido debe ser válido por sí mismo en las dos resoluciones
+# reales de prueba y en una pantalla vertical compacta.
+Import-Module (Join-Path $root 'src\AlienGamer.MultiDisplay.psm1') -Force
+Add-Type -AssemblyName System.Drawing
+$moduleDefinitions=Get-AGModuleDefinitions
+foreach($size in @(@(2048,1280),@(2560,1440),@(1080,1920))){
+    foreach($presetName in @('full-horizontal','essential-horizontal','essential-vertical','performance-only','temperatures-only')){
+        $presetView=New-AGDisplayView -Preset $presetName
+        Set-AGLayoutPreset -View $presetView -Preset $presetName -CanvasWidth $size[0] -CanvasHeight $size[1]|Out-Null
+        $visibleNames=@($moduleDefinitions.Keys|Where-Object {$presetView.modules.$_.visible})
+        foreach($moduleName in $visibleNames){
+            $module=$presetView.modules.$moduleName
+            Assert ($module.x-ge8 -and $module.y-ge8 -and ($module.x+$module.width)-le($size[0]-8) -and ($module.y+$module.height)-le($size[1]-8)) "El preset $presetName deja $moduleName fuera de $($size[0])x$($size[1])."
+            $candidate=[Drawing.RectangleF]::new([single]($module.x-4),[single]($module.y-4),[single]($module.width+8),[single]($module.height+8))
+            foreach($otherName in $visibleNames){
+                if($otherName-eq$moduleName){continue}
+                $other=$presetView.modules.$otherName
+                $otherRect=[Drawing.RectangleF]::new([single]$other.x,[single]$other.y,[single]$other.width,[single]$other.height)
+                Assert (-not$candidate.IntersectsWith($otherRect)) "El preset $presetName solapa $moduleName con $otherName en $($size[0])x$($size[1])."
+            }
+        }
+        if($presetName-in@('essential-horizontal','essential-vertical')){Assert (-not$presetView.modules.controls.visible) "El preset $presetName no debe mostrar controles."}
+        if($presetName-eq'essential-vertical'){
+            $headerCenter=$presetView.modules.header.x+($presetView.modules.header.width/2.0)
+            Assert ([Math]::Abs($headerCenter-($size[0]/2.0))-le1) 'El encabezado vertical no está centrado.'
+        }
+    }
+}
 Assert ($ini -match '(?m)^\[MeterSubtitle\]$' -and $ini -match 'EQUIPO PRUEBA') 'No generó el modelo dinámico del equipo.'
 Assert ($ini -match '(?ms)^\[MeterSignature\]\r?\nMeter=Image.*?^ImageName=#@#AlienmauSignature\.png$' -and $ini -notmatch '(?ms)^\[MeterSignature\].*?FontFace=Dali') 'La firma todavía depende de instalar o redistribuir Dali.'
 Assert (Test-Path (Join-Path $skinRoot '@Resources\AlienmauSignature.png')) 'La skin generada no contiene la firma gráfica independiente.'
@@ -203,6 +248,8 @@ $customView = New-AGDisplayView -Id 'display-test' -MonitorId 'MONITOR_TEST' -Mo
 $customView.layoutPreset = 'custom'
 $customView.modules.ram.x = 95
 $customView.modules.ram.y = 210
+$customView.modules.ram.width = 820
+$customView.modules.ram.height = 830
 $customView.modules.clock.visible = $false
 $syntheticProfile | Add-Member NoteProperty layout $customView -Force
 $layoutProfilePath = Join-Path $testRoot 'profile-layout.json'
@@ -211,7 +258,9 @@ $syntheticProfile | ConvertTo-Json -Depth 12 | Set-Content $layoutProfilePath -E
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'src\Build-AdaptiveSkin.ps1') -ProfilePath $layoutProfilePath -OutputDirectory $layoutSkinRoot | Out-Null
 $layoutIni = Get-Content (Join-Path $layoutSkinRoot 'AlienGamerMode.ini') -Raw
 $layoutRam = [regex]::Match($layoutIni,'(?ms)^\[Block_RAM\].*?(?=^\[|\z)').Value
-Assert ($layoutRam -match '(?m)^Group=.*Module_ram' -and $layoutRam -match '(?m)^TransformationMatrix=[^\r\n]+;[^\r\n]+;[^\r\n]+;[^\r\n]+;1(?:1[5-9]|[2-9]\d{2})') 'El editor no traslada el módulo RAM a su posición personalizada.'
+$ramMatrixMatch=[regex]::Match($layoutRam,'(?m)^TransformationMatrix=([^;]+);[^;]+;[^;]+;[^;]+;([^;]+);')
+Assert ($layoutRam -match '(?m)^Group=.*Module_ram' -and $ramMatrixMatch.Success -and [double]::Parse($ramMatrixMatch.Groups[2].Value,[Globalization.CultureInfo]::InvariantCulture) -gt 70) 'El editor no traslada el módulo RAM a su posición personalizada.'
+Assert ([double]::Parse($ramMatrixMatch.Groups[1].Value,[Globalization.CultureInfo]::InvariantCulture) -gt 2.0) 'El generador no aplica el tamaño personalizado del módulo.'
 Assert ($layoutIni -match '(?ms)^\[ClockDigit1\].*?^Hidden=1\r?$' -and $layoutIni -match '(?m)^IfTrueAction=.*SetOptionGroup Module_ram TransformationMatrix') 'La visibilidad o el pixel shift no respetan el diseño personalizado.'
 Assert ($layoutIni -match 'record-toggle" "#BridgeUrl#" "#CURRENTCONFIG#"') 'El botón Grabar no informa qué vista multidisplay inició la acción.'
 $syntheticProfile.PSObject.Properties.Remove('layout')
