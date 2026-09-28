@@ -56,9 +56,9 @@ function Set-Property($Object,[string]$Name,$Value){
 }
 
 $definitions=Get-AGModuleDefinitions
-$allModuleNames=@('header','clock','controls','ram','vram','system','temperatures','performance','processors')
-$selectableModuleNames=@('clock','controls','ram','vram','system','temperatures','performance','processors')
-$moduleLabels=@{header=(T 'headerFixed');clock=(T 'clock');controls=(T 'controls');ram=(T 'ram');vram=(T 'vram');system=(T 'system');temperatures=(T 'temperatures');performance=(T 'performance');processors=(T 'processors')}
+$allModuleNames=@('header','clock','controls','ram','vram','system','temperatures','performance','processors','timer')
+$selectableModuleNames=@('clock','timer','controls','ram','vram','system','temperatures','performance','processors')
+$moduleLabels=@{header=(T 'headerFixed');clock=(T 'clock');timer=(T 'timer');controls=(T 'controls');ram=(T 'ram');vram=(T 'vram');system=(T 'system');temperatures=(T 'temperatures');performance=(T 'performance');processors=(T 'processors')}
 $views=New-Object 'System.Collections.Generic.List[object]'
 foreach($view in @(Get-AGDisplayViews -Config $config)){$views.Add($view)}
 

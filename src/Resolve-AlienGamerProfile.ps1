@@ -26,14 +26,20 @@ function Select-Reading {
         $label = "$canonicalLabel $userLabel".Trim()
         $sensor = Normalize ("$($r.Sensor) $($r.SensorUser)")
         $score = 0
+        $labelMatched = $false
         foreach ($candidate in $Labels) {
             $normalizedCandidate = Normalize $candidate
-            if ($canonicalLabel -eq $normalizedCandidate -or $userLabel -eq $normalizedCandidate) { $score += 300 }
-            elseif ($label -like "*$normalizedCandidate*") { $score += 30 }
+            if ($canonicalLabel -eq $normalizedCandidate -or $userLabel -eq $normalizedCandidate) { $score += 300; $labelMatched = $true }
+            elseif ($label -like "*$normalizedCandidate*") { $score += 30; $labelMatched = $true }
         }
+        if (-not $labelMatched) { continue }
         foreach ($candidate in $Sensors) { if ($sensor -like "*$(Normalize $candidate)*") { $score += 10 } }
         if ($Units.Count -and $Units -contains $r.Unit) { $score += 8 } elseif ($Units.Count) { $score -= 20 }
-        if ($Device -and $sensor -like "*$(Normalize $Device)*") { $score += 20 }
+        if ($Device) {
+            $deviceName = (Normalize $Device) -replace '\s+gpu$', ''
+            if ($sensor -like "*$deviceName*") { $score += 500 }
+            elseif ($Device -match '(?i)(GPU|NVIDIA|RADEON|INTEL)') { $score -= 500 }
+        }
         if ($Regex -and $label -match $Regex) { $score += 40 }
         if ($score -gt 0) { [pscustomobject]@{ score=$score; reading=$r } }
     }

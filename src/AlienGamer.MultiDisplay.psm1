@@ -12,6 +12,7 @@ function Get-AGModuleDefinitions {
     [ordered]@{
         header       = [ordered]@{ x=35;   y=20;  width=500;  height=90;  minScale=1.0; maxScale=1.0; fixed=$true }
         clock        = [ordered]@{ x=760;  y=25;  width=470;  height=100; minScale=0.55;maxScale=2.2; fixed=$false }
+        timer        = [ordered]@{ x=730;  y=310; width=260; height=310; minScale=0.65;maxScale=2.0; fixed=$false }
         controls     = [ordered]@{ x=1435; y=25;  width=205;  height=110; minScale=0.75;maxScale=2.0; fixed=$false }
         ram          = [ordered]@{ x=35;   y=150; width=410;  height=415; minScale=0.45;maxScale=2.5; fixed=$false }
         vram         = [ordered]@{ x=455;  y=150; width=410;  height=415; minScale=0.45;maxScale=2.5; fixed=$false }
@@ -66,6 +67,8 @@ function Set-AGLayoutPreset {
     }
     # El encabezado identifica la vista y no puede ocultarse ni arrastrarse.
     $modules.header.visible=$true
+    # Opt-in: la distribución existente conserva exactamente los módulos visibles.
+    $modules.timer.visible=$false
     $modules.header.x=[int][Math]::Round(35*$baseScale)
     $modules.header.y=[int][Math]::Round(20*$baseScale)
     # Calcula el panel inferior a partir del borde real del panel de rendimiento.

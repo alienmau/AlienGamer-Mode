@@ -40,7 +40,7 @@ function Get-MajorMinorVersion([string]$Path) {
     return [version]'0.0'
 }
 
-& powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $sourceRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryTemp -AllowMissingHWiNFO | Out-Null
+& (Join-Path $sourceRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryTemp -AllowMissingHWiNFO | Out-Null
 $discovery = Get-Content $discoveryTemp -Raw | ConvertFrom-Json
 
 function Set-IniSetting([string]$Path, [string]$Key, [string]$Value) {
@@ -142,6 +142,20 @@ function Backup-And-RemovePreviousEditions {
         foreach ($item in $itemsToArchive) {
             if (Test-Path -LiteralPath $item.Path) {
                 Copy-Item -LiteralPath $item.Path -Destination (Join-Path $backupRoot $item.Name) -Recurse -Force
+            }
+        }
+    }
+
+    # Una instalación nueva reinicia los temporizadores de todas las vistas.
+    # Guarda una copia recuperable antes de retirar únicamente estos estados.
+    if (Test-Path -LiteralPath $dataRoot) {
+        $timerStates=@(Get-ChildItem -LiteralPath $dataRoot -Filter 'session-timer-*.txt' -File -ErrorAction SilentlyContinue)
+        if ($timerStates.Count -gt 0) {
+            $timerBackup=Join-Path $backupRoot 'Temporizadores-Anteriores'
+            New-Item -ItemType Directory -Path $timerBackup -Force | Out-Null
+            foreach ($timerState in $timerStates) {
+                Copy-Item -LiteralPath $timerState.FullName -Destination (Join-Path $timerBackup $timerState.Name) -Force
+                Remove-Item -LiteralPath $timerState.FullName -Force
             }
         }
     }
@@ -286,7 +300,9 @@ $installButton.Add_Click({
             $primaryView.name = [string]$selectedMonitor.friendlyName
             $primaryView.enabled = $true
             $primaryView.layoutPreset = 'full-horizontal'
-            foreach($moduleProperty in $primaryView.modules.PSObject.Properties){$moduleProperty.Value.visible=$true}
+            foreach($moduleProperty in $primaryView.modules.PSObject.Properties){
+                $moduleProperty.Value.visible=($moduleProperty.Name -ne 'timer')
+            }
         }
         $config.schemaVersion = 3
         $config.hardware.preferredGpu = $selectedGpu.name
@@ -310,7 +326,11 @@ $installButton.Add_Click({
         $hwinfoLauncher = Join-Path $installRoot 'Start-AlienGamerHWiNFO.ps1'
         # No se define WorkingDirectory: algunos equipos devuelven ERROR_DIRECTORY
         # al iniciar una tarea elevada dentro de AppData aunque la carpeta exista.
-        $taskArguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$hwinfoLauncher`""
+        $taskLauncher = Join-Path $installRoot 'AlienGamerHWiNFOTask.vbs'
+        if(-not(Test-Path -LiteralPath $hwinfoLauncher) -or -not(Test-Path -LiteralPath $taskLauncher)){
+            throw 'Faltan los archivos para iniciar HWiNFO sin consola visible.'
+        }
+        $taskArguments = "//B //NoLogo `"$taskLauncher`""
         $scheduler = New-Object -ComObject 'Schedule.Service'
         $scheduler.Connect()
         $taskFolder = $scheduler.GetFolder('\')
@@ -329,7 +349,7 @@ $installButton.Add_Click({
         $taskDefinition.Settings.StopIfGoingOnBatteries = $false
         $taskDefinition.Settings.ExecutionTimeLimit = 'PT0S'
         $taskExec = $taskDefinition.Actions.Create(0)
-        $taskExec.Path = $powershell
+        $taskExec.Path = "$env:SystemRoot\System32\wscript.exe"
         $taskExec.Arguments = $taskArguments
         [void]$taskFolder.RegisterTaskDefinition('AlienGamerMode-HWiNFO',$taskDefinition,6,$null,$null,3,$null)
 

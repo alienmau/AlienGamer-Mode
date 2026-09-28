@@ -33,7 +33,7 @@ Mientras el agente está abierto, el logotipo aparece en los iconos ocultos de W
 - Abrir registros y reportes;
 - Cerrar AlienGamer Mode.
 
-**Detener monitor** y el botón **OFF** desactivan la skin, detienen el puente, el búfer y los procesos de presentación/sensores asociados, pero conservan el agente en la bandeja para poder activar el monitor nuevamente. **Cerrar AlienGamer Mode** también retira el agente. El agente funciona en segundo plano mediante Windows Script Host: no debe aparecer una consola de PowerShell permanente. Si existe una grabación, se finaliza antes de detener el monitor. Si el agente no responde, OFF aplica automáticamente un cierre de respaldo después de tres segundos.
+**Detener monitor** y el botón **OFF** desactivan la skin, detienen el puente, el búfer y los procesos de presentación/sensores asociados, pero conservan el agente en la bandeja para poder activar el monitor nuevamente. **Cerrar AlienGamer Mode** también retira el agente. El agente funciona en segundo plano mediante Windows Script Host: no debe aparecer una consola de PowerShell permanente. Si existe una grabación, se finaliza antes de detener el monitor. OFF espera hasta doce segundos y ejecuta el cierre de respaldo si sigue activo alguno de los procesos del monitor.
 
 ## Grabar evento
 

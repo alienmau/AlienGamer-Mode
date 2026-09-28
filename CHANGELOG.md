@@ -1,5 +1,47 @@
 # Historial de cambios
 
+## 1.6.5 — en validación local
+
+- Suaviza el avance del aro entre lecturas de segundos con una respuesta amortiguada, sin retrocesos perceptibles durante la cuenta.
+- Transiciona los colores del aro y las ondas durante 0,3 segundos en los umbrales verde/ámbar/rojo.
+- Da al pulso de **INICIAR TIMER** y **GAME OVER** más posiciones intermedias y una leve curva elástica, manteniendo un ciclo de un segundo.
+
+## 1.6.4 — en validación local
+
+- Acerca los números auxiliares al valor central a aproximadamente la mitad de la distancia anterior y reduce su tipografía tres puntos.
+- Reduce los tres controles circulares un 10 %, centra el símbolo de tiempo extra y suaviza su visibilidad: 40 % de transparencia en reposo, opacidad completa al pasar el puntero y tres segundos de permanencia antes de atenuarse.
+- Ajusta los rangos del aro: verde hasta 70 %, ámbar hasta 85 % y rojo intenso del 85 % al final.
+- Una instalación nueva respalda y reinicia los estados del temporizador. El botón Play permanece inactivo hasta definir una duración; en posteriores cargas de la skin se muestra **INICIAR TIMER**, conservando la duración y el incremento elegidos pero no la sesión anterior.
+
+## 1.6.3 — en validación local
+
+- Duplica la densidad del aro a 160 barras finas y mueve la onda con una fase angular continua para evitar pausas perceptibles.
+- Acelera el pulso de **INICIAR / TIMER** y **GAME / OVER** a un ciclo de un segundo: medio segundo de acercamiento y medio de alejamiento.
+- Reduce la separación entre líneas; **INICIAR** y **OVER** llevan mayor peso visual, mientras **TIMER** y **GAME** mantienen peso normal.
+
+## 1.6.2 — en validación local
+
+- Suaviza la transición de horas, minutos y segundos: el valor nuevo rueda desde arriba y crece mientras el anterior desciende; solo el grupo que cambia destella y los demás permanecen más tenues.
+- Aumenta el aro a 80 barras separadas aproximadamente 2 px, con ondas de amplitud variable calculadas en cada cuadro.
+- Muestra **INICIAR / TIMER** en reposo y **GAME / OVER** al terminar, ambos centrados en dos líneas con un pulso de zoom suave y margen respecto del aro.
+
+## 1.6.1 — en validación local
+
+- Corrige la apertura del selector del temporizador y los acentos del formulario.
+- Añade incrementos extra configurables (hasta tres), controles circulares con ondas al pasar el puntero y transición giratoria independiente en horas, minutos y segundos.
+- Densifica las barras luminosas del aro y coloca h, m y s junto a los dígitos.
+- Selecciona la VRAM de la GPU elegida cuando también hay una integrada con sensores homónimos.
+- Evita lanzar consolas PowerShell hijas durante la preparación del monitor.
+
+## 1.6.0 — en validación local
+
+- Añade un temporizador de sesión opcional por pantalla, que se puede mostrar, mover y redimensionar desde **Pantallas y distribución**.
+- El centro abre un selector de horas, minutos y segundos. Dos controles circulares permiten iniciar/pausar/reiniciar y finalizar sin saturar el módulo.
+- El aro se llena según el tiempo consumido. Sus ondas y brillo pasan de verde a naranja y rojo en los tramos 0–33 %, 33–66 % y 66–100 %. Los números muestran horas, minutos y segundos con valores adyacentes tenues y un destello suave al cambiar. Al llegar a cero, **GAME OVER** pulsa en rojo hasta reiniciar o finalizar.
+- La cuenta usa hora real y guarda su estado por pantalla para sobrevivir a recargas de Rainmeter.
+- La tarea elevada de HWiNFO se inicia mediante un lanzador sin consola visible. OFF espera el cierre real y dispone de limpieza de respaldo si quedan Rainmeter, HWiNFO o el puente activos.
+- **Detener monitor** y OFF mantienen el agente de bandeja disponible; **Cerrar AlienGamer Mode** también retira el agente.
+
 ## 1.5.9 — 22 de septiembre de 2026
 
 - Corrige los aros grises duplicados que podían aparecer sobre RAM, uso del sistema y temperaturas después de instalar 1.5.8.

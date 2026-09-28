@@ -4,7 +4,7 @@
 
 **Monitoreo adaptable de sensores y componentes del equipo para Windows.**
 
-![AlienGamer Mode: monitoreo inteligente para gamers](docs/images/AlienGamerMode-social-preview.png)
+![AlienGamer Mode 1.6.5 con temporizador de sesión](docs/images/release-1.6.5/dashboard-timer-idle.png)
 
 [![Última versión](https://img.shields.io/github/v/release/alienmau/AlienGamer-Mode?style=for-the-badge&color=ff7a00)](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
 [![Descargas](https://img.shields.io/github/downloads/alienmau/AlienGamer-Mode/total?style=for-the-badge&color=22d3ee)](https://github.com/alienmau/AlienGamer-Mode/releases)
@@ -15,7 +15,7 @@
 
 AlienGamer Mode es un panel gamer creado con Rainmeter y HWiNFO. Detecta el hardware disponible, adapta el diseño a la pantalla seleccionada y muestra métricas útiles sin inventar valores cuando un sensor no existe.
 
-La versión 1.5.9 conserva el editor visual multidisplay de 1.5.8 y corrige una regresión visual que podía dibujar aros grises duplicados sobre RAM, uso del sistema y temperaturas. También mantiene eliminado el semicírculo residual de la esquina superior izquierda. El editor representa la proporción real de cada pantalla y permite mover, mostrar, ocultar y redimensionar libremente los módulos sin superponerlos; los cambios reutilizan el perfil de sensores ya validado, se aplican en pocos segundos y muestran un aviso mientras finalizan.
+La versión 1.6.5 añade un temporizador de sesión opcional en cada pantalla. Se configura desde el propio módulo, conserva la duración y los incrementos extra, y ofrece un aro con ondas, cuenta regresiva y aviso **GAME OVER**. También corrige la selección de VRAM en equipos con GPU integrada y dedicada, elimina ventanas PowerShell auxiliares y refuerza el cierre coordinado con **OFF**. El editor multidisplay sigue permitiendo mover, ocultar y redimensionar módulos por pantalla.
 
 ## ¿Por qué AlienGamer Mode?
 
@@ -37,6 +37,7 @@ Un contador de FPS dice que algo ocurrió; AlienGamer Mode ayuda a conservar el 
 - FPS y *frame time* con clasificación visual de fluidez.
 - Indicadores de límite térmico y de potencia cuando HWiNFO los proporciona.
 - Reloj digital tipo matriz.
+- Temporizador de sesión opcional por pantalla con duración e incrementos extra configurables, aro animado y aviso visual al llegar a cero.
 - Fondo ambiental opcional con partículas luminosas tipo luciérnaga.
 - Glassmorfismo oscuro que permite percibir el fondo sin perder legibilidad.
 - Animación suavizada de anillos y destello en rangos críticos.
@@ -47,7 +48,7 @@ Un contador de FPS dice que algo ocurrió; AlienGamer Mode ayuda a conservar el 
 - Selección de monitor, GPU y unidad principal durante la instalación.
 - Interfaz en español e inglés, seleccionable durante la instalación o desde el icono de bandeja sin reiniciar los sensores.
 - Varias vistas simultáneas en monitores locales, con distribución independiente y persistente.
-- Editor visual para arrastrar y redimensionar RAM, VRAM, uso, temperaturas, FPS, procesadores, reloj y controles; el encabezado permanece fijo y siempre visible.
+- Editor visual para arrastrar y redimensionar RAM, VRAM, uso, temperaturas, FPS, procesadores, reloj, temporizador y controles; el encabezado permanece fijo y siempre visible.
 
 ## Requisitos
 
@@ -85,7 +86,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.5.9.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.6.5.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -106,14 +107,14 @@ Los diseños predefinidos se reflejan de inmediato en la previsualización; el m
 
 Pulsa **Guardar y aplicar** para reconstruir únicamente las vistas de Rainmeter. HWiNFO, el puente local y la grabación permanecen compartidos. La selección se conserva en `displayViews` dentro de `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` y vuelve a aplicarse al iniciar Windows.
 
-La primera vista mantiene la pantalla elegida en el instalador. El editor se abre automáticamente al terminar cualquier instalación con todos los módulos visibles y el diseño completo; el usuario puede conservarlo o personalizarlo. Durante la estabilización de la rama 1.5, cada instalación reinicia los ajustes visuales y respalda el JSON anterior, pero conserva grabaciones y reportes. Teléfonos y tabletas aún no funcionan como pantallas remotas; esa extensión está prevista para una versión posterior y requerirá controles explícitos de red y privacidad.
+La primera vista mantiene la pantalla elegida en el instalador. El editor se abre automáticamente al terminar la instalación con el diseño completo y los módulos tradicionales visibles; el temporizador de sesión es opcional y empieza oculto. El usuario puede conservar el diseño o personalizarlo. Cada instalación reinicia los ajustes visuales y los temporizadores, respaldando el JSON y los estados anteriores; conserva grabaciones y reportes. Teléfonos y tabletas aún no funcionan como pantallas remotas; esa extensión está prevista para una versión posterior y requerirá controles explícitos de red y privacidad.
 
 ### Varias pantallas y distribución visual
 
 AlienGamer Mode puede activar una vista distinta en cada monitor conectado desde una sola instalación:
 
 - **Pantallas independientes:** cada pantalla puede estar activada o desactivada sin detener las demás.
-- **Módulos por pantalla:** reloj, controles, RAM, VRAM, uso CPU/GPU, temperaturas, FPS/alertas y procesadores pueden mostrarse u ocultarse de forma independiente.
+- **Módulos por pantalla:** reloj, temporizador, controles, RAM, VRAM, uso CPU/GPU, temperaturas, FPS/alertas y procesadores pueden mostrarse u ocultarse de forma independiente.
 - **Posición y tamaño libres:** los módulos visibles se arrastran y redimensionan dentro de una previsualización que conserva la proporción y resolución real del monitor.
 - **Protección del diseño:** el editor impide solapamientos, salidas del lienzo y separaciones inseguras. El encabezado permanece visible y fijo como identidad de la vista.
 - **Diseños predefinidos:** completo horizontal, esencial horizontal, esencial vertical, sólo rendimiento y sólo temperaturas pueden previsualizarse antes de aplicarlos.
@@ -127,6 +128,18 @@ Para que el menú del icono sea más claro, las antiguas opciones globales **Fon
 
 ![Vista personalizada de AlienGamer Mode 1.5.8](docs/images/AlienGamerMode-dashboard-1.5.8.png)
 
+## Temporizador de sesión
+
+Actívalo desde **Pantallas y distribución...**, arrástralo y ajusta su tamaño como cualquier otro módulo. El centro abre el formulario para definir horas, minutos, segundos y el incremento extra por pulsación. **Play** permanece deshabilitado hasta guardar una duración; después permite iniciar o pausar. El botón **+** añade hasta tres incrementos y **X** cancela la sesión.
+
+El aro avanza suavemente y sus 160 barras luminosas se mueven alrededor del círculo. Usa verde hasta el 70 % del tiempo consumido, ámbar hasta el 85 % y rojo intenso al final, con transición de color de aproximadamente 0,3 segundos. Los dígitos que cambian ruedan y destellan. Al llegar a cero, **GAME OVER** pulsa hasta iniciar otra sesión o finalizarla. Al volver a abrir el monitor aparece **INICIAR TIMER**; se conserva la duración elegida, no una sesión terminada.
+
+![Temporizador durante una sesión](docs/images/release-1.6.5/timer-running.png)
+
+![Configuración del temporizador](docs/images/release-1.6.5/timer-configuration.png)
+
+![Temporizador en el editor de pantallas](docs/images/release-1.6.5/layout-editor-timer.png)
+
 ### Próxima entrega: panel móvil local
 
 La siguiente mejora planeada permitirá utilizar un teléfono o una tableta como pantalla adicional en tiempo real:
@@ -138,7 +151,7 @@ La siguiente mejora planeada permitirá utilizar un teléfono o una tableta como
 - La conexión tendrá sesión temporal, controles para permitir o revocar dispositivos y límites de actualización para reducir consumo de batería, CPU y red.
 - El servicio permanecerá desactivado de forma predeterminada y mostrará claramente la dirección local que queda expuesta.
 
-Esta función está en fase de diseño; no forma parte de la versión 1.5.9.
+Esta función está en fase de diseño; no forma parte de la versión 1.6.5.
 
 ## Fondo ambiental configurable
 

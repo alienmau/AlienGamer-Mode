@@ -55,8 +55,9 @@ Assert ($installerSource -notmatch 'UseUnifiedSchedulingEngine\s*=') 'No se debe
 Assert ($installerSource -match 'Set-Content -LiteralPath \$Path -Encoding ASCII') 'El INI de HWiNFO debe guardarse como ASCII sin BOM.'
 Assert ($installerSource -notmatch 'Merge-MissingConfiguration \$config \$configDefaults') 'La instalación limpia todavía mezcla opciones heredadas con la configuración oficial.'
 Assert ($installerSource -match '\$config\.language = \$Language' -and $innoSource -match 'Name: "english"' -and $innoSource -match 'Name: "spanish"' -and $innoSource -match 'ShowLanguageDialog=yes' -and $innoSource -match '-Language ""\{language\}""') 'El instalador no permite seleccionar y guardar español o inglés.'
-Assert ($innoSource -match '#define MyAppVersion "1\.5\.9"' -and $innoSource -match 'AlienGamerMode-Setup-1\.5\.9') 'El instalador no está versionado como 1.5.9.'
-Assert ($installerSource -match "Configuracion-Anterior\.json" -and $installerSource -match 'Copy-Item -LiteralPath \$defaultConfig -Destination \$configPath -Force' -and $installerSource -match "layoutPreset = 'full-horizontal'" -and $installerSource -match 'moduleProperty\.Value\.visible=\$true') 'La instalación no garantiza un diseño completo y limpio o no respalda la configuración anterior.'
+Assert ($innoSource -match '#define MyAppVersion "1\.6\.5"' -and $innoSource -match 'AlienGamerMode-Setup-1\.6\.5') 'El instalador no está versionado como 1.6.5.'
+Assert ($installerSource -match "session-timer-\*\.txt" -and $installerSource -match 'Temporizadores-Anteriores' -and $installerSource -match 'Copy-Item -LiteralPath \$timerState\.FullName' -and $installerSource -match 'Remove-Item -LiteralPath \$timerState\.FullName') 'La instalación no reinicia y respalda los estados del temporizador.'
+Assert ($installerSource -match "Configuracion-Anterior\.json" -and $installerSource -match 'Copy-Item -LiteralPath \$defaultConfig -Destination \$configPath -Force' -and $installerSource -match "layoutPreset = 'full-horizontal'" -and $installerSource -match "moduleProperty.Name -ne 'timer'") 'La instalación no garantiza un diseño completo limpio con temporizador optativo o no respalda la configuración anterior.'
 Assert ($installerSource -match 'Join-Path \$dataRoot ''DisplayProfiles''' -and $installerSource -match 'Join-Path \$dataRoot ''GeneratedSkin''' -and $installerSource -match 'Join-Path \$dataRoot ''display-manifest\.json''') 'La instalación limpia conserva artefactos visuales generados por una versión anterior.'
 Assert ($installerSource -match 'AlienGamerEventRecorder\\\.ps1' -and $installerSource -match 'recording-state\.json' -and $installerSource -match 'event-prebuffer-state\.json') 'La actualización no detiene grabadores antiguos ni limpia su estado de control.'
 Assert ($installerSource -match 'installer\.uninstallShortcut' -and $installerSource -match 'installedDocs') 'El paquete no instala documentación o acceso de desinstalación.'
@@ -99,6 +100,29 @@ Assert ($backgroundAnimatorSource -match 'thermalMinimumParticles' -and $backgro
 
 $testRoot = Join-Path $root 'build\tests'
 New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
+$timerConfigurator=Join-Path $root 'src\Configure-SessionTimer.ps1'
+$timerConfiguratorBytes=[IO.File]::ReadAllBytes($timerConfigurator)
+Assert ($timerConfiguratorBytes.Length -gt 3 -and $timerConfiguratorBytes[0] -eq 239 -and $timerConfiguratorBytes[1] -eq 187 -and $timerConfiguratorBytes[2] -eq 191) 'PowerShell 5.1 mostrará caracteres rotos en el formulario del temporizador.'
+$timerConfiguratorSource=Get-Content $timerConfigurator -Raw
+Assert ($timerConfiguratorSource -match 'extraStep=' -and $timerConfiguratorSource -match 'extraCount=0' -and $timerConfiguratorSource -match 'configured=1' -and $timerConfiguratorSource -match '\(\[int\]\[Math\]::Floor\(\$duration/60\)%60\)') 'El formulario no confirma la configuración inicial, no guarda incrementos o vuelve a fallar al calcular minutos.'
+$vramDiscoveryPath=Join-Path $testRoot 'vram-discovery.json'
+$vramProfilePath=Join-Path $testRoot 'vram-profile.json'
+$vramDiscovery=[ordered]@{
+    monitors=@([ordered]@{deviceName='\\.\DISPLAY_TEST';primary=$true;width=1920;height=1080})
+    gpus=@([ordered]@{name='NVIDIA GeForce RTX 5080 Laptop GPU';discreteScore=100},[ordered]@{name='Intel Graphics';discreteScore=0})
+    storage=@([ordered]@{friendlyName='Prueba';busType='NVMe';mediaType='SSD'})
+    cpu=[ordered]@{logicalProcessors=0;topology=@()}
+    hwinfoInventory=@(
+        [ordered]@{Key='igpu-used';Sensor='iGPU [#0]: Intel Graphics';Label='GPU Memory Allocated';Unit='MB';Value=13},
+        [ordered]@{Key='igpu-free';Sensor='iGPU [#0]: Intel Graphics';Label='GPU Memory Available';Unit='MB';Value=18334},
+        [ordered]@{Key='dgpu-used';Sensor='dGPU [#2]: NVIDIA GeForce RTX 5080 Laptop';Label='GPU Memory Allocated';Unit='MB';Value=1700},
+        [ordered]@{Key='dgpu-free';Sensor='dGPU [#2]: NVIDIA GeForce RTX 5080 Laptop';Label='GPU Memory Available';Unit='MB';Value=14600}
+    )
+}
+$vramDiscovery|ConvertTo-Json -Depth 8|Set-Content -LiteralPath $vramDiscoveryPath -Encoding UTF8
+& (Join-Path $root 'src\Resolve-AlienGamerProfile.ps1') -DiscoveryPath $vramDiscoveryPath -ConfigPath (Join-Path $root 'config\AlienGamerMode.default.json') -OutputPath $vramProfilePath|Out-Null
+$vramProfile=Get-Content $vramProfilePath -Raw|ConvertFrom-Json
+Assert ($vramProfile.mappings.vramUsed.key -eq 'dgpu-used' -and $vramProfile.mappings.vramFree.key -eq 'dgpu-free') 'VRAM mezcla sensores de iGPU y dGPU y queda en -1.'
 $syntheticProfile = [ordered]@{
     schemaVersion=2; language='es-MX'; bridgePort=27843; unavailableValue=-1
     computer=[ordered]@{manufacturer='Equipo';model='Prueba';name='TEST'}
@@ -155,9 +179,12 @@ Assert ($ini -notmatch 'AlienGamerMode-Off' -and $ini -match 'AlienGamerModeLaun
 Assert ($ini -match '(?ms)^\[MeterOffButton\].*?^MouseActionCursor=1' -and $ini -match '(?ms)^\[MeterRecordButton\].*?^MouseActionCursor=1') 'OFF o Grabar no tienen un área clicable explícita.'
 Assert ($commandSource -match '(?s)if \(\$Stop.*?!DeactivateConfig.*?AlienGamerMode') 'El comando OFF no conserva un respaldo visual cuando el agente no responde.'
 Assert ($commandSource -match 'stop-monitor\.request\.json' -and $agentSource -match 'Test-StopRequest') 'OFF no cuenta con un canal alterno fiable entre Rainmeter y el agente.'
-Assert ($launcherSource -match 'shell\.Run command, 0, False' -and $launcherSource -match 'Case "activate"' -and $launcherSource -match 'Case "stop"') 'El iniciador no mantiene el agente y las órdenes completamente ocultos.'
+Assert ($launcherSource -match 'shell\.Run command, windowStyle, False' -and $launcherSource -match 'windowStyle = 0' -and $launcherSource -match 'Case "activate"' -and $launcherSource -match 'Case "stop"' -and $launcherSource -match 'Case "timer-config"') 'El iniciador no distingue órdenes ocultas del formulario del temporizador.'
+Assert ($launcherSource -match '(?s)Case "timer-config".*?-WindowStyle Hidden.*?windowStyle = 0') 'El formulario puede abrir una pestaña persistente de Windows Terminal.'
+Assert ($agentSource -notmatch '& powershell\.exe' -and $multiDisplayBuildSource -notmatch '& powershell\.exe') 'El agente abre consolas hijas visibles durante el arranque o la actualización.'
+Assert ($installerSource -match '\$taskExec.Path = "\$env:SystemRoot\\System32\\wscript.exe"' -and (Test-Path (Join-Path $root 'src\AlienGamerHWiNFOTask.vbs'))) 'La tarea HWiNFO elevada todavía abre una consola de PowerShell.'
 Assert ($installerSource -match '\$wscript' -and $installerSource -match 'AlienGamerModeLauncher\.vbs' -and $installerSource -notmatch 'New-Shortcut \$desktopLink \$powershell \$args') 'Los accesos directos todavía hospedan el agente en una consola de PowerShell.'
-Assert ($commandSource -match 'AddSeconds\(3\)' -and $commandSource -match 'Stop-AlienGamerMode\.ps1' -and $fallbackStopSource -match 'Stop-Process -Name Rainmeter' -and $fallbackStopSource -match 'Stop-Process -Name HWiNFO64') 'OFF no limita la espera o carece de limpieza independiente cuando el agente no responde.'
+Assert ($commandSource -match 'AddSeconds\(12\)' -and $commandSource -match 'Stop-AlienGamerMode\.ps1' -and $commandSource -match 'bridgeAlive' -and $fallbackStopSource -match 'Stop-Process -Name Rainmeter' -and $fallbackStopSource -match 'Stop-Process -Name HWiNFO64') 'OFF no comprueba el cierre real de los procesos o carece de limpieza independiente.'
 Assert ($agentSource -match 'if \(\$stopEvent\.WaitOne\(0\) -or \(Test-StopRequest\)\) \{ Stop-Monitor \}') 'El agente no procesa la solicitud de OFF mediante la misma función que el menú de bandeja.'
 Assert ($recorderSource -match "LOCALAPPDATA 'AlienGamerMode'" -and $recorderSource -match "Status = 'recording'" -and $recorderSource -match "Status = 'finalizing'") 'La grabación no conserva un estado compartido y persistente.'
 Assert ($recorderSource -match 'preEventBufferSeconds' -and $recorderSource -match 'BufferWorker' -and $recorderSource -match 'MarkIncident' -and $recorderSource -match 'Get-StabilityMetrics' -and $recorderSource -match 'Datos_brutos' -and $recorderSource -match 'Protect-SystemMetadata') 'Event Intelligence no incorpora búfer previo, incidentes, estabilidad, datos brutos y privacidad.'
@@ -242,7 +269,7 @@ Assert ($recordHitBlock -match 'MouseActionCursor=1' -and $offHitBlock -match 'M
 Assert ($recordHitBlock -match 'RecordHover' -and $offHitBlock -match 'OffHover') 'Las zonas superiores no activan las transiciones de interacción.'
 Assert ($recordHitBlock -match ('W=' + [regex]::Escape(([string][math]::Ceiling(205 * [math]::Min(1920/1711,1080/1023)))))) 'La zona clicable de Grabar no cubre su ancho expandido.'
 Assert ($recordHitBlock -notmatch 'TransformationMatrix=' -and $offHitBlock -notmatch 'TransformationMatrix=') 'Las zonas clicables no deben volver a escalarse con TransformationMatrix.'
-Assert ($ini.TrimEnd().EndsWith($offHitBlock.TrimEnd())) 'Las zonas clicables no quedaron por encima de todos los medidores.'
+Assert ($ini.IndexOf('[HitArea_TimerEnd]') -gt $ini.IndexOf('[HitArea_Off]') -and $ini -match '(?ms)^\[HitArea_TimerEnd\].*?^Hidden=1') 'Las zonas clicables del temporizador no quedaron al frente u ocultas por defecto.'
 
 Import-Module (Join-Path $root 'src\AlienGamer.MultiDisplay.psm1') -Force
 $customView = New-AGDisplayView -Id 'display-test' -MonitorId 'MONITOR_TEST' -MonitorDeviceName '\\.\DISPLAY_TEST'
@@ -252,6 +279,10 @@ $customView.modules.ram.y = 210
 $customView.modules.ram.width = 820
 $customView.modules.ram.height = 830
 $customView.modules.clock.visible = $false
+$customView.modules.timer.visible = $true
+$customView.modules.timer.x = 1100
+$customView.modules.timer.y = 660
+$customView.modules.processors.visible = $false
 $syntheticProfile | Add-Member NoteProperty layout $customView -Force
 $layoutProfilePath = Join-Path $testRoot 'profile-layout.json'
 $layoutSkinRoot = Join-Path $testRoot 'LayoutSkin\AlienGamerMode'
@@ -264,6 +295,16 @@ Assert ($layoutRam -match '(?m)^Group=.*Module_ram' -and $ramMatrixMatch.Success
 Assert ([double]::Parse($ramMatrixMatch.Groups[1].Value,[Globalization.CultureInfo]::InvariantCulture) -gt 2.0) 'El generador no aplica el tamaño personalizado del módulo.'
 Assert ($layoutIni -match '(?ms)^\[ClockDigit1\].*?^Hidden=1\r?$' -and $layoutIni -match '(?m)^IfTrueAction=.*SetOptionGroup Module_ram TransformationMatrix') 'La visibilidad o el pixel shift no respetan el diseño personalizado.'
 Assert ($layoutIni -match 'record-toggle" "#BridgeUrl#" "#CURRENTCONFIG#"') 'El botón Grabar no informa qué vista multidisplay inició la acción.'
+Assert ($layoutIni -match '(?ms)^\[SessionTimer\].*?^Enabled=1\r?$' -and $layoutIni -match '(?ms)^\[TimerProgress\].*?^Group=.*Module_timer' -and $layoutIni -match 'timer-config" "#CURRENTCONFIG#"') 'El temporizador no se activa por pantalla o no tiene configuración desde la skin.'
+Assert ($layoutIni.IndexOf('[TimerWaves]') -gt $layoutIni.IndexOf('[MeterBackground]') -and (Test-Path (Join-Path $layoutSkinRoot '@Resources\SessionTimer.lua'))) 'El temporizador queda detrás del fondo o falta su lógica Lua.'
+Assert ($layoutIni -match '(?ms)^\[TimerWaves\].*?^Shape160=Line ' -and $layoutIni -notmatch '__TIMER_WAVE_SHAPES__') 'Rainmeter no recibe las 160 barras necesarias para animar las ondas.'
+Assert ($layoutIni -match '(?m)^\[TimerIdlePrompt\]\r?$' -and $layoutIni -match '(?m)^\[TimerIdlePromptLine2\]\r?$' -and $layoutIni -match '(?m)^\[TimerGameOverLine2\]\r?$') 'Faltan los mensajes inicial y final en dos líneas.'
+$timerLua=Get-Content (Join-Path $layoutSkinRoot '@Resources\SessionTimer.lua') -Raw
+Assert ($timerLua -match 'for i=1,160 do' -and $timerLua -notmatch 'frame%3==0' -and $timerLua -match 'local spin=angle-frame\*0\.055' -and $timerLua -match 'local phase=\(frame%10\)/10' -and $timerLua -match 'set\(main,"FontSize"' -and $timerLua -match 'local showDigits=not finished and not idle') 'La animación circular continua, el pulso de un segundo o el giro de los dígitos no quedaron en la skin.'
+Assert ($timerLua -match 'progress<0\.70' -and $timerLua -match 'progress<0\.85' -and $timerLua -match 'hoverHold\[name\]=frame\+30' -and $timerLua -match 'if not state\.configured then return end' -and $timerLua -match 'state\.status,state\.deadline,state\.extraCount="idle",0,0') 'Los rangos cromáticos, la permanencia de los controles o el arranque sin sesión no se conservaron.'
+Assert ($timerLua -match 'progressVelocity=\(progressVelocity\+\(targetProgress-displayProgress\)\*0\.12\)\*0\.65' -and $timerLua -match 'return displayProgress' -and $timerLua -match 'colorStep=colorStep\+1' -and $timerLua -match 'local t=colorStep/3' -and $timerLua -match 'local size=16\+6\*zoom') 'El progreso, el color o el pulso del mensaje vuelven a cambiar por saltos.'
+Assert ($layoutIni -match '(?ms)^\[TimerHoursGhostBefore\].*?^Y=406\r?$' -and $layoutIni -match '(?ms)^\[TimerHoursGhostAfter\].*?^Y=455\r?$' -and $layoutIni -match '(?ms)^\[TimerExtraLabel\].*?^Y=586\r?$') 'Los números auxiliares o el icono extra no están en sus nuevas posiciones.'
+Assert ($layoutIni -match '(?m)^\[HitArea_TimerExtra\]\r?$' -and $layoutIni -match 'AddTime\(\)' -and $layoutIni -match '\[TimerHoursUnit\]' -and $layoutIni -notmatch '\[TimerUnits\]') 'El temporizador no incorpora incremento extra o unidades junto a los dígitos.'
 $syntheticProfile.PSObject.Properties.Remove('layout')
 
 $syntheticProfile.appearance.backgroundEffect.mode = 'thermal'

@@ -12,6 +12,14 @@ $profile = Get-Content -LiteralPath $ProfilePath -Raw | ConvertFrom-Json
 $language = Resolve-AGLanguage $(if ($profile.language) { [string]$profile.language } else { 'es-MX' })
 $ui = Get-AGTranslations -Language $language
 $text = Get-Content -LiteralPath $TemplatePath -Raw -Encoding UTF8
+# Los metros del temporizador van al final del archivo para quedar por encima
+# del fondo y de los bloques de sensores, con su zona de clic al frente.
+$timerSections = [regex]::Match($text,'(?ms)^\[SessionTimer\].*?(?=^\[MeterBackground\])')
+if ($timerSections.Success) {
+    $text = $text.Remove($timerSections.Index,$timerSections.Length).TrimEnd() + "`r`n`r`n" + $timerSections.Value
+}
+$waveShapes=2..160 | ForEach-Object { "Shape$_=Line 130,130,130,130 | StrokeWidth 3 | Stroke Color 0,0,0,0" }
+$text=$text.Replace(';__TIMER_WAVE_SHAPES__',($waveShapes -join "`r`n"))
 $layout = if ($profile.PSObject.Properties['layout']) { $profile.layout } else { $null }
 $referenceWidth = if ($layout -and $layout.canvas -and $layout.canvas.width) { [double]$layout.canvas.width } else { 1711.0 }
 $referenceHeight = if ($layout -and $layout.canvas -and $layout.canvas.height) { [double]$layout.canvas.height } else { 1023.0 }
@@ -29,9 +37,13 @@ function Get-LayoutModule([string]$Name) {
     if($property){return $property.Value}
     return $null
 }
+$timerLayout=Get-LayoutModule 'timer'
+$timerEnabled=if($timerLayout -and [bool]$timerLayout.visible){'1'}else{'0'}
+$text=[regex]::Replace($text,'(?ms)(^\[SessionTimer\].*?^Language=[^\r\n]+)',{param($m)$m.Groups[1].Value+"`r`nEnabled=$timerEnabled"},1)
 function Get-SectionModule([string]$SectionName) {
     if($SectionName -match '^(?:MeterTitle|MeterSignature|MeterSubtitle)$'){return 'header'}
     if($SectionName -match '^(?:ClockDigit[1-6]|ClockColons)$'){return 'clock'}
+    if($SectionName -match '^Timer'){return 'timer'}
     if($SectionName -match '^(?:MeterRecordButton|MeterRecordingDot|MeterRecordLabel|MeterOffButton|MeterOffLabel)$'){return 'controls'}
     if($SectionName -match '^(?:Block_RAM|Tab_RAM|Outline_RAM|BG2_RAM|MeterTempGroup|Ring_MeasureRAM|Value_MeasureRAM|Label_MeasureRAM)$'){return 'ram'}
     if($SectionName -match '^(?:Block_VRAM|Tab_VRAM|Outline_VRAM|MeterVRAMGroup|Ring_VRAM|Value_VRAM|Label_VRAM)$'){return 'vram'}
@@ -95,6 +107,8 @@ $text = [regex]::Replace($text, '(?m)^UpdateDivider=(\d+)$', {
     'UpdateDivider=' + ([int]$match.Groups[1].Value * 10)
 })
 $text = [regex]::Replace($text, '(?ms)(^\[ClockScript\].*?^UpdateDivider=)\d+', '${1}1', 1)
+$text = [regex]::Replace($text, '(?ms)(^\[SessionTimer\].*?^UpdateDivider=)\d+', '${1}1', 1)
+$text = [regex]::Replace($text, '(?ms)(^\[SessionTimer\].*?^Language=)[^\r\n]+', { param($m) $m.Groups[1].Value + $language }, 1)
 $text = [regex]::Replace($text, '(?ms)(^\[BackgroundScript\].*?^UpdateDivider=)\d+', { param($m) $m.Groups[1].Value + $backgroundDivider }, 1)
 $text = [regex]::Replace($text, '(?ms)(^\[SMOOTH_[^\]]+\].*?^UpdateDivider=)\d+', '${1}1')
 
@@ -149,6 +163,7 @@ Set-MeterTooltip 'FrameTimeHelpText' ([string]$ui.skin.frameTimeHelp)
 Set-MeterTooltip 'MeterRecordButton' ([string]$ui.skin.recordTooltip)
 Set-MeterTooltip 'MeterOffButton' ([string]$ui.skin.offTooltip)
 Set-MeterTooltip 'MeterOffLabel' ([string]$ui.skin.offTooltip)
+Set-MeterTooltip 'TimerConfigureHit' ([string]$ui.skin.timerConfigureTooltip)
 $text = $text.Replace('Text "N/D"', ('Text "' + [string]$ui.skin.notAvailable + '"'))
 $text = $text.Replace('Text "¡EXCELENTE!"', ('Text "' + [string]$ui.skin.excellent + '"'))
 $text = $text.Replace('Text "FLUIDO"', ('Text "' + [string]$ui.skin.smooth + '"'))
@@ -343,6 +358,7 @@ $text = [regex]::Replace($text, '(?ms)^\[([^\]]+)\](.*?)(?=^\[|\z)', {
     if($layoutModuleName){
         $layoutModule=Get-LayoutModule $layoutModuleName
         if($layoutModule){$moduleVisible=[bool]$layoutModule.visible}
+        elseif($layoutModuleName -eq 'timer'){$moduleVisible=$false}
         $layoutGroup='Module_'+$layoutModuleName
         if($moduleGroup){$moduleGroup+='|'+$layoutGroup}else{$moduleGroup=$layoutGroup}
     }
@@ -395,7 +411,7 @@ $shift0 = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, $offsetX, $offsetY
 $shift1 = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, ($offsetX + 2), ($offsetY + 1))
 $shift2 = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, $offsetX, ($offsetY + 2))
 $shift3 = ('{0:0.######};0;0;{0:0.######};{1};{2}' -f $scale, ($offsetX - 2), ($offsetY + 1))
-$moduleNames=@('header','clock','controls','ram','vram','system','temperatures','performance','processors')
+$moduleNames=@('header','clock','timer','controls','ram','vram','system','temperatures','performance','processors')
 function Get-PixelShiftAction([string]$BaseMatrix,[double]$ShiftX,[double]$ShiftY) {
     $commands=New-Object 'System.Collections.Generic.List[string]'
     $commands.Add('[!SetOptionGroup OLEDShift TransformationMatrix "'+$BaseMatrix+'"]')
@@ -484,6 +500,30 @@ DynamicVariables=1
 $compactHitHidden
 "@
 
+# Rainmeter calcula la zona de ratón antes de TransformationMatrix. Los cuatro
+# controles del temporizador necesitan por ello zonas físicas como OFF/Grabar.
+$timerDefinition=$moduleDefaults.timer
+$timerScale=if($timerLayout){
+    [Math]::Min([double]$timerLayout.width/[double]$timerDefinition.width,[double]$timerLayout.height/[double]$timerDefinition.height)
+}else{1.0}
+$timerX=if($timerLayout){[double]$timerLayout.x}else{[double]$timerDefinition.x}
+$timerY=if($timerLayout){[double]$timerLayout.y}else{[double]$timerDefinition.y}
+$timerHitHidden=if($timerEnabled-eq'1'-and-not$compactOverlay){''}else{'Hidden=1'}
+foreach($hit in @(
+    [pscustomobject]@{name='Configure';dx=40;dy=30;w=180;h=180;action='["C:\Windows\System32\wscript.exe" //B //NoLogo "#LauncherPath#" "timer-config" "#CURRENTCONFIG#"]';tooltip=[string]$ui.skin.timerConfigureTooltip;hover=''},
+    [pscustomobject]@{name='Play';dx=40;dy=255;w=46;h=46;action='[!CommandMeasure SessionTimer "StartPause()"]';tooltip='';hover='TimerPlayHover'},
+    [pscustomobject]@{name='Extra';dx=107;dy=255;w=46;h=46;action='[!CommandMeasure SessionTimer "AddTime()"]';tooltip='';hover='TimerExtraHover'},
+    [pscustomobject]@{name='End';dx=174;dy=255;w=46;h=46;action='[!CommandMeasure SessionTimer "EndTimer()"]';tooltip='';hover='TimerEndHover'}
+)){
+    $hitX=[int][Math]::Round(($timerX+$hit.dx*$timerScale)*$scale+$offsetX)
+    $hitY=[int][Math]::Round(($timerY+$hit.dy*$timerScale)*$scale+$offsetY)
+    $hitW=[int][Math]::Ceiling($hit.w*$timerScale*$scale)
+    $hitH=[int][Math]::Ceiling($hit.h*$timerScale*$scale)
+    $hoverActions=if($hit.hover){"MouseOverAction=[!SetVariable $($hit.hover) 1]`r`nMouseLeaveAction=[!SetVariable $($hit.hover) 0]`r`n"}else{''}
+    $tooltip=if($hit.tooltip){"ToolTipText=$($hit.tooltip)`r`n"}else{''}
+    $text+="`r`n[HitArea_Timer$($hit.name)]`r`nMeter=Shape`r`nX=$hitX`r`nY=$hitY`r`nW=$hitW`r`nH=$hitH`r`nShape=Rectangle 0,0,$hitW,$hitH | Fill Color 0,0,0,1 | StrokeWidth 0`r`nLeftMouseUpAction=$($hit.action)`r`n$hoverActions$tooltip"+"MouseActionCursor=1`r`nDynamicVariables=1`r`n$timerHitHidden`r`n"
+}
+
 if (-not (Test-Path $OutputDirectory)) { New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null }
 $resources = Join-Path $OutputDirectory '@Resources'
 if (-not (Test-Path $resources)) { New-Item -ItemType Directory -Path $resources -Force | Out-Null }
@@ -494,6 +534,7 @@ $text | Set-Content -LiteralPath $outputIni -Encoding Unicode
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'skin\MatrixClock.lua') -Destination (Join-Path $resources 'MatrixClock.lua') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'skin\RingAnimator.lua') -Destination (Join-Path $resources 'RingAnimator.lua') -Force
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'skin\BackgroundAnimator.lua') -Destination (Join-Path $resources 'BackgroundAnimator.lua') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'skin\SessionTimer.lua') -Destination (Join-Path $resources 'SessionTimer.lua') -Force
 $particleAssetCandidates = @(
     (Join-Path $InstallRoot 'assets\ParticleGlow.png'),
     (Join-Path $PSScriptRoot '..\assets\ParticleGlow.png')

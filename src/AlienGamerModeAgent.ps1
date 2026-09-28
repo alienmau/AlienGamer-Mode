@@ -141,6 +141,9 @@ function Stop-OwnedHWiNFOTask {
     $deadline = [DateTime]::UtcNow.AddSeconds(5)
     while ((Get-Process HWiNFO64 -ErrorAction SilentlyContinue) -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 250 }
     Stop-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -ErrorAction SilentlyContinue
+
+    # La tarea puede morir antes que el HWiNFO elevado que inició.
+    Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $hwinfoStopSignal -Force -ErrorAction SilentlyContinue
 }
 
@@ -174,10 +177,9 @@ function Get-ActiveRainmeterConfigs {
 }
 
 function Invoke-BuildDisplaySkins([switch]$ReuseValidatedProfile) {
-    $arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',(Join-Path $appRoot 'Build-MultiDisplaySkins.ps1'),'-DiscoveryPath',$discoveryPath,'-ConfigPath',$configPath,'-ProfilesDirectory',$profilesDirectory,'-OutputDirectory',$generatedSkin,'-PrimaryProfilePath',$profilePath,'-InstallRoot',$appRoot)
-    if($ReuseValidatedProfile){$arguments+='-ReuseValidatedProfile'}
-    & powershell.exe @arguments | Out-Null
-    if($LASTEXITCODE-ne 0){throw "Build-MultiDisplaySkins termino con codigo $LASTEXITCODE."}
+    $arguments=@{DiscoveryPath=$discoveryPath;ConfigPath=$configPath;ProfilesDirectory=$profilesDirectory;OutputDirectory=$generatedSkin;PrimaryProfilePath=$profilePath;InstallRoot=$appRoot}
+    if($ReuseValidatedProfile){$arguments.ReuseValidatedProfile=$true}
+    & (Join-Path $appRoot 'Build-MultiDisplaySkins.ps1') @arguments | Out-Null
 }
 
 function Install-GeneratedSkins {
@@ -275,7 +277,7 @@ function Show-HardwareSettings {
     $temporaryDiscovery = Join-Path $dataRoot 'hardware-settings.discovery.json'
     $form = $null
     try {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $temporaryDiscovery -AllowMissingHWiNFO | Out-Null
+        & (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $temporaryDiscovery -AllowMissingHWiNFO | Out-Null
         $discovery = Get-Content -LiteralPath $temporaryDiscovery -Raw | ConvertFrom-Json
         $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
         $monitors = @($discovery.monitors)
@@ -346,7 +348,7 @@ function Show-DisplayLayoutEditor {
             $script:tray.ShowBalloonTip(2200,'AlienGamer Mode',$(if($script:language-eq'en-US'){'The display editor is already open.'}else{'El editor de pantallas ya está abierto.'}),[Windows.Forms.ToolTipIcon]::Info)
             return
         }
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath -AllowMissingHWiNFO|Out-Null
+        & (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath -AllowMissingHWiNFO|Out-Null
         $arguments="-NoProfile -STA -ExecutionPolicy Bypass -File `"$(Join-Path $appRoot 'Show-AlienGamerLayoutEditor.ps1')`" -ConfigPath `"$configPath`" -DiscoveryPath `"$discoveryPath`" -HideConsole"
         $script:layoutEditorErrorPath=Join-Path $dataRoot 'layout-editor.error.log'
         ''|Set-Content -LiteralPath $script:layoutEditorErrorPath -Encoding UTF8
@@ -587,7 +589,7 @@ function Start-Monitor {
         }
         if (-not (Wait-SharedMemory 30)) { throw (T 'dialog.sharedMemory') }
 
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath | Out-Null
+        & (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath | Out-Null
         Invoke-BuildDisplaySkins
 
         $profile = Get-Content $profilePath -Raw | ConvertFrom-Json
@@ -653,6 +655,8 @@ function Stop-Monitor {
             Stop-OwnedHWiNFOTask
         }
         elseif ($state.ownedHWiNFO) { Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue }
+        # El indicador de propiedad puede quedar obsoleto tras un cierre inesperado.
+        Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue
         # AlienGamer Mode usa Rainmeter como su proceso de presentación. OFF
         # debe cerrar el conjunto completo aun si una ejecución anterior dejó
         # el indicador de propiedad obsoleto al cerrarse su consola.

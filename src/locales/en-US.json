@@ -21,6 +21,9 @@
     "recordTooltip": "Start or stop recording a diagnostic event",
     "markIncidentTooltip": "While recording, use the tray menu to mark the exact moment of the problem",
     "offTooltip": "Turn off AlienGamer Mode",
+    "timerConfigureTooltip": "Set the session duration",
+    "timerPlayTooltip": "Start, pause or restart the timer",
+    "timerEndTooltip": "End the session timer",
     "storageFallback": "DRIVE"
   },
   "tray": {
@@ -43,6 +46,7 @@
     "processorsLoad": "Processors / load",
     "performanceAlerts": "FPS, frame time and alerts",
     "clock": "Clock",
+    "timer": "Session timer",
     "language": "Language",
     "spanish": "Español",
     "english": "English",
@@ -105,6 +109,7 @@
     "visibleModules": "Visible modules",
     "headerFixed": "Header (fixed)",
     "clock": "Clock",
+    "timer": "Session timer",
     "controls": "OFF / recording controls",
     "ram": "RAM",
     "vram": "VRAM",

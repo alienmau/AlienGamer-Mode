@@ -1,5 +1,27 @@
 # Difusión y lanzamiento
 
+## Actualización 1.6.5 — textos para hilos existentes
+
+Publicar solo después de verificar que la etiqueta `v1.6.5` y el instalador estén disponibles en GitHub. Priorizar el español en comunidades latinas y usar inglés en Rainmeter y HWiNFO, donde se solicitó.
+
+### Español
+
+Hola, soy el autor de AlienGamer Mode. Ya está disponible la versión **1.6.5**. Desde la última versión pública (1.5.9), incorporé un temporizador de sesión opcional por pantalla: se coloca y redimensiona desde **Pantallas y distribución...**, se configura desde el propio módulo y permite iniciar, pausar y añadir hasta tres incrementos de tiempo. El aro de 160 barras avanza suavemente, cambia de verde a ámbar y rojo según el tiempo consumido, y muestra **GAME OVER** al llegar a cero.
+
+También corregí la selección de VRAM en equipos con GPU integrada y dedicada, eliminé consolas PowerShell auxiliares y reforcé el cierre coordinado desde **OFF**. Una nueva instalación respalda y reinicia los temporizadores; la duración elegida se conserva durante el uso posterior. Rainmeter y HWiNFO siguen siendo requisitos separados. Las capturas reales y la descripción completa están en la publicación de GitHub.
+
+Descarga y capturas: https://github.com/alienmau/AlienGamer-Mode/releases/tag/v1.6.5
+
+### English — Rainmeter / HWiNFO
+
+Hi, I’m the AlienGamer Mode author. **Version 1.6.5** is available. Since the last public release (1.5.9), I’ve added an optional per-display session timer. It can be placed and resized in **Displays and layout...**, configured directly from the module, and used to start, pause, or add up to three extra-time increments. Its 160-bar ring advances smoothly, moves from green to amber to red as time elapses, and displays a pulsing **GAME OVER** alert at zero.
+
+This update also fixes VRAM mapping when integrated and discrete GPUs expose identically named sensors, removes stray PowerShell windows, and strengthens coordinated shutdown through **OFF**. Setup backs up and resets old timer sessions; a chosen duration is retained for later use. Rainmeter and HWiNFO remain separate prerequisites. Screenshots and full notes are in the GitHub release.
+
+Download and screenshots: https://github.com/alienmau/AlienGamer-Mode/releases/tag/v1.6.5
+
+Do not claim that gaming-session resource usage was measured for 1.6.5; the README’s existing resource figures predate this timer.
+
 Este archivo contiene textos listos para copiar y adaptar. Antes de publicar, revisa las reglas de cada comunidad, declara que eres el creador y evita repetir el mismo mensaje en varios espacios el mismo día.
 
 Desde la versión 1.2.0 la interfaz permite elegir español o inglés durante la instalación y cambiar el idioma desde el icono de bandeja. La difusión continúa priorizando comunidades hispanohablantes de Latinoamérica, pero Rainmeter, HWiNFO y otras comunidades internacionales ya pueden recibir publicaciones en inglés sin advertir una limitación de idioma.

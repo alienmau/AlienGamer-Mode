@@ -1,12 +1,13 @@
 Option Explicit
 
-Dim shell, fso, appRoot, powershell, mode, command, bridgeUrl, rainmeterConfig
+Dim shell, fso, appRoot, powershell, mode, command, bridgeUrl, rainmeterConfig, windowStyle
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
 appRoot = fso.GetParentFolderName(WScript.ScriptFullName)
 powershell = shell.ExpandEnvironmentStrings("%SystemRoot%") & "\System32\WindowsPowerShell\v1.0\powershell.exe"
 mode = "agent"
+windowStyle = 0
 If WScript.Arguments.Count > 0 Then mode = LCase(WScript.Arguments(0))
 
 Select Case mode
@@ -30,13 +31,18 @@ Select Case mode
         rainmeterConfig = "AlienGamerMode"
         If WScript.Arguments.Count > 2 Then rainmeterConfig = WScript.Arguments(2)
         command = PsCommand(appRoot & "\AlienGamerEventRecorder.ps1", "-MarkIncident -BridgeUrl " & Quote(bridgeUrl) & " -RainmeterConfig " & Quote(rainmeterConfig))
+    Case "timer-config"
+        rainmeterConfig = "AlienGamerMode"
+        If WScript.Arguments.Count > 1 Then rainmeterConfig = WScript.Arguments(1)
+        command = Quote(powershell) & " -NoProfile -STA -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File " & Quote(appRoot & "\Configure-SessionTimer.ps1") & " -RainmeterConfig " & Quote(rainmeterConfig)
+        windowStyle = 0
     Case Else
         command = PsCommand(appRoot & "\AlienGamerModeAgent.ps1", "")
 End Select
 
 ' Window style 0 prevents a console from being allocated visibly. The launcher
 ' returns immediately; the agent and commands keep their own lifecycle.
-shell.Run command, 0, False
+shell.Run command, windowStyle, False
 
 Function PsCommand(scriptPath, arguments)
     PsCommand = Quote(powershell) & " -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File " & Quote(scriptPath)

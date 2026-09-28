@@ -78,11 +78,9 @@ foreach($view in $views){
         $profile.layout=$view
         $profile|ConvertTo-Json -Depth 20|Set-Content -LiteralPath $profilePath -Encoding UTF8
     }else{
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Resolve-AlienGamerProfile.ps1') -DiscoveryPath $DiscoveryPath -ConfigPath $tempConfig -OutputPath $profilePath -MonitorDeviceName ([string]$monitor.deviceName)|Out-Null
-        if($LASTEXITCODE-ne 0){throw "Resolve-AlienGamerProfile terminó con código $LASTEXITCODE."}
+        & (Join-Path $PSScriptRoot 'Resolve-AlienGamerProfile.ps1') -DiscoveryPath $DiscoveryPath -ConfigPath $tempConfig -OutputPath $profilePath -MonitorDeviceName ([string]$monitor.deviceName)|Out-Null
     }
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Build-AdaptiveSkin.ps1') -ProfilePath $profilePath -TemplatePath (Join-Path $PSScriptRoot 'skin\AlienGamerMode.Template.ini') -OutputDirectory $skinOutput -InstallRoot $InstallRoot|Out-Null
-    if($LASTEXITCODE-ne 0){throw "Build-AdaptiveSkin terminó con código $LASTEXITCODE."}
+    & (Join-Path $PSScriptRoot 'Build-AdaptiveSkin.ps1') -ProfilePath $profilePath -TemplatePath (Join-Path $PSScriptRoot 'skin\AlienGamerMode.Template.ini') -OutputDirectory $skinOutput -InstallRoot $InstallRoot|Out-Null
     # #@# siempre apunta al @Resources de la configuración raíz de Rainmeter,
     # no al de Views\<id>. Sin esta copia común fallan juntos Lua, reloj,
     # anillos suavizados y partículas, aunque los valores numéricos sí lleguen.
@@ -95,6 +93,7 @@ foreach($view in $views){
     if(-not(Test-Path -LiteralPath (Join-Path $sharedResources 'RingAnimator.lua')) -or
        -not(Test-Path -LiteralPath (Join-Path $sharedResources 'MatrixClock.lua')) -or
        -not(Test-Path -LiteralPath (Join-Path $sharedResources 'BackgroundAnimator.lua')) -or
+       -not(Test-Path -LiteralPath (Join-Path $sharedResources 'SessionTimer.lua')) -or
        -not(Test-Path -LiteralPath (Join-Path $sharedResources 'ParticleGlow.png'))){
         throw 'La vista generada no contiene los recursos visuales compartidos requeridos.'
     }

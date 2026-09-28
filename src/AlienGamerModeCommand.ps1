@@ -38,14 +38,20 @@ try {
 if ($Stop) {
     # El agente confirma el cierre eliminando la solicitud después de detener
     # grabación, puente, HWiNFO y Rainmeter en el orden habitual.
-    $deadline = [DateTime]::UtcNow.AddSeconds(3)
+    $deadline = [DateTime]::UtcNow.AddSeconds(12)
     while ((Test-Path -LiteralPath $stopRequestPath) -and [DateTime]::UtcNow -lt $deadline) {
         Start-Sleep -Milliseconds 100
     }
 
     # Si el agente se cerró junto con su antigua consola, ejecuta la misma
     # limpieza de forma determinista en vez de dejar procesos o consolas vivos.
-    if (Test-Path -LiteralPath $stopRequestPath) {
+    $bridgePidPath = Join-Path $dataRoot 'bridge.pid'
+    $bridgeAlive = $false
+    if (Test-Path -LiteralPath $bridgePidPath) {
+        try { $bridgeAlive = $null -ne (Get-Process -Id ([int](Get-Content -LiteralPath $bridgePidPath -Raw)) -ErrorAction SilentlyContinue) } catch { }
+    }
+    if ((Test-Path -LiteralPath $stopRequestPath) -or $bridgeAlive -or
+        (Get-Process -Name Rainmeter,HWiNFO64 -ErrorAction SilentlyContinue)) {
         $fallback = Join-Path $PSScriptRoot 'Stop-AlienGamerMode.ps1'
         if (Test-Path -LiteralPath $fallback) {
             & $fallback -Quiet

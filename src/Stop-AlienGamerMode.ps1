@@ -32,6 +32,10 @@ if (-not (Test-Path -LiteralPath $dataRoot)) {
 if (-not $SkipExternalProcesses) {
     'stop' | Set-Content -LiteralPath $hwinfoStopSignal -Encoding ASCII
     $sensorTask = Get-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -ErrorAction SilentlyContinue
+    $hwinfoDeadline=[DateTime]::UtcNow.AddSeconds(5)
+    while((Get-Process -Name HWiNFO64 -ErrorAction SilentlyContinue) -and [DateTime]::UtcNow -lt $hwinfoDeadline){
+        Start-Sleep -Milliseconds 200
+    }
     if ($sensorTask) { Stop-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -ErrorAction SilentlyContinue }
     Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue
     Stop-Process -Name Rainmeter -Force -ErrorAction SilentlyContinue

@@ -4,7 +4,7 @@
 
 **Adaptive Windows hardware and sensor monitoring for gamers.**
 
-![AlienGamer Mode dashboard](docs/images/AlienGamerMode-social-preview.png)
+![AlienGamer Mode 1.6.5 with session timer](docs/images/release-1.6.5/dashboard-timer-idle.png)
 
 [![Latest release](https://img.shields.io/github/v/release/alienmau/AlienGamer-Mode?style=for-the-badge&color=ff7a00)](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/alienmau/AlienGamer-Mode/total?style=for-the-badge&color=22d3ee)](https://github.com/alienmau/AlienGamer-Mode/releases)
@@ -15,7 +15,7 @@
 
 AlienGamer Mode is a Rainmeter and HWiNFO dashboard that detects the available hardware, adapts its layout to the selected display and avoids presenting missing sensors as real zero values.
 
-Version 1.5.9 keeps the visual multi-display editor introduced in 1.5.8 and fixes a visual regression that could draw duplicate gray rings over RAM, system usage, and temperature gauges. It also keeps the stray upper-left corner semicircle removed. Layout-only changes reuse the already validated sensor profile, apply in a few seconds, and display an on-screen progress notice while finishing.
+Version 1.6.5 adds an optional per-display session timer. Configure it from the module itself, keep your chosen duration and extra-time step, and follow an animated countdown ring through to a **GAME OVER** alert. This update also fixes VRAM selection on systems with both integrated and discrete GPUs, removes auxiliary PowerShell windows, and strengthens coordinated shutdown through **OFF**. The multi-display editor continues to support independent module visibility, placement, and size per screen.
 
 ## Highlights
 
@@ -24,13 +24,14 @@ Version 1.5.9 keeps the visual multi-display editor introduced in 1.5.8 and fixe
 - FPS and frame time with clear visual classifications.
 - Thermal and power-limit indicators when HWiNFO provides them.
 - Matrix-style clock, custom or thermal-dynamic ambient fireflies, and dark glass panels.
+- Optional per-display session timer with configurable duration and extra-time increments, animated progress ring, and an end-of-time alert.
 - OLED protection through subtle periodic pixel shifting.
 - Manual event recording with a technical Excel report.
 - Persistent per-display visibility, position and size for optional modules.
 - Display, GPU and primary-drive selection during installation.
 - Spanish and English UI, selectable during installation or from the tray icon.
 - Multiple simultaneous local-display views with independent persistent layouts.
-- Drag-and-resize editing for RAM, VRAM, usage, temperatures, FPS, processors, clock and controls; the header remains fixed and mandatory.
+- Drag-and-resize editing for RAM, VRAM, usage, temperatures, FPS, processors, clock, timer and controls; the header remains fixed and mandatory.
 
 ![AlienGamer Mode running](docs/images/AlienGamerMode-dashboard.png)
 
@@ -54,7 +55,7 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.5.9.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.6.5.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 
@@ -85,6 +86,18 @@ To keep the tray menu concise, the former global **Background** and **Visible mo
 
 ![Customized AlienGamer Mode 1.5.8 view](docs/images/AlienGamerMode-dashboard-1.5.8.png)
 
+## Session timer
+
+Enable the timer in **Displays and layout...**, then drag and resize it for that display. Click its center to set hours, minutes, seconds and the extra-time step. Play stays disabled until a duration is saved; afterwards it starts or pauses the countdown. **+** provides up to three extra-time increments, and **X** ends the session.
+
+The progress ring advances smoothly, with 160 moving light bars. It stays green through 70% of elapsed time, turns amber through 85%, then bright red, with an approximately 0.3-second color transition. Changing digits roll and flash. At zero, **GAME OVER** pulses until another session starts or the timer is ended. Reopening the monitor shows **START TIMER** while preserving the chosen duration, not a previous session's state.
+
+![Session timer running](docs/images/release-1.6.5/timer-running.png)
+
+![Timer settings](docs/images/release-1.6.5/timer-configuration.png)
+
+![Timer in the layout editor](docs/images/release-1.6.5/layout-editor-timer.png)
+
 ### Next release: local mobile dashboard
 
 The next planned improvement will let a phone or tablet work as an additional real-time display:
@@ -96,7 +109,7 @@ The next planned improvement will let a phone or tablet work as an additional re
 - Temporary sessions, device revocation, and adjustable refresh limits will protect privacy, battery life, CPU, and network usage.
 - The service will be disabled by default and will clearly show which local address is exposed.
 
-This feature is still in design and is not included in version 1.5.9.
+This feature is still in design and is not included in version 1.6.5.
 
 ## Changing the language
 
