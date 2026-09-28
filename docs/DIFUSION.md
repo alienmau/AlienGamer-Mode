@@ -2,6 +2,14 @@
 
 ## Actualización 1.6.5 — textos para hilos existentes
 
+### Estado de publicación (28 de septiembre de 2026)
+
+- Rainmeter Forum: respuesta en inglés publicada y verificada: https://forum.rainmeter.net/viewtopic.php?p=245698#p245698
+- HWiNFO Forum: respuesta en inglés enviada: https://www.hwinfo.com/forum/threads/aliengamer-mode-1-1-0-%E2%80%94-monitor-en-espa%C3%B1ol-with-validated-hwinfo-event-reports.11325/post-53388 — **pendiente de aprobación del moderador; no es visible para visitantes**. No duplicar la respuesta mientras esté pendiente.
+- Reddit r/PC_Gamer: comentario en español publicado y verificado: https://www.reddit.com/r/PC_Gamer/comments/1we2ksb/comment/pcj04eo/
+
+Las tres respuestas remiten a la versión publicada en GitHub, con instalador, notas y capturas: https://github.com/alienmau/AlienGamer-Mode/releases/tag/v1.6.5
+
 Publicar solo después de verificar que la etiqueta `v1.6.5` y el instalador estén disponibles en GitHub. Priorizar el español en comunidades latinas y usar inglés en Rainmeter y HWiNFO, donde se solicitó.
 
 ### Español
