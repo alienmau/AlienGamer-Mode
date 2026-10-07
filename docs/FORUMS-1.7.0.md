@@ -1,6 +1,15 @@
 # Respuestas para los hilos existentes — 1.7.0
 
-Estado inicial: textos preparados; no confundir preparación con envío. Rainmeter y HWiNFO deben publicarse en inglés; Reddit r/PC_Gamer, en español. Registrar los enlaces permanentes sólo después de verificar el envío.
+## Publicación verificada — 7 de octubre de 2026
+
+Las tres respuestas se enviaron desde las sesiones del usuario en el navegador integrado, después de que la conexión con Edge fallara. Se verificaron el autor, el contenido y los enlaces permanentes; las dos imágenes de cada foro cargaron correctamente. No se crearon hilos nuevos ni se duplicaron respuestas.
+
+- **Rainmeter — inglés:** https://forum.rainmeter.net/viewtopic.php?p=245938#p245938
+- **HWiNFO — inglés:** https://www.hwinfo.com/forum/threads/aliengamer-mode-1-1-0-%E2%80%94-monitor-en-espa%C3%B1ol-with-validated-hwinfo-event-reports.11325/post-53397
+- **Reddit r/PC_Gamer — español:** https://www.reddit.com/r/PC_Gamer/comments/1we2ksb/comment/pee0u9x/
+- **GitHub — notas bilingües e instalador:** https://github.com/alienmau/AlienGamer-Mode/releases/tag/v1.7.0
+
+Rainmeter y HWiNFO incluyen imágenes del editor de Windows y de la vista móvil horizontal. Reddit incluye enlaces a las cuatro capturas. Los anuncios conservan las limitaciones de HTTP/HTTPS, pantalla encendida y la confirmación pendiente del arranque instalado; se añadió una breve descripción de los lenguajes usados y del módulo de ventiladores planeado. Los textos siguientes son los borradores de referencia, adaptados al enviarlos.
 
 ## Rainmeter — English / BBCode
 
