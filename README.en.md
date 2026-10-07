@@ -6,7 +6,20 @@
 
 Version **1.7.0** adds a [QR-based local mobile dashboard](docs/MOBILE-LAN.md) and refreshed [Display layout](docs/DESKTOP-STUDIO.md): rounded display cards above a centered preview, vertical options below, and a unified dark theme with an orange accent. [Detailed bilingual notes and screenshots](docs/RELEASE-1.7.0.md). GUI process launchers prevent console allocation while retaining dialogs and diagnostics; final installed-startup confirmation remains open. [Roadmap](docs/ROADMAP.md) includes a fan module, pending real RPM sensor availability.
 
-![AlienGamer Mode 1.6.5 with session timer](docs/images/release-1.6.5/dashboard-timer-idle.png)
+![AlienGamer Mode 1.7.0 redesigned display editor](docs/images/release-1.7.0/display-editor.png)
+
+Implemented Windows Forms editor captured with test display data. Dark theme, orange accents, display cards and sidebar navigation.
+
+### Mobile dashboard 1.7.0
+
+Real Chrome screenshots shared from a phone: landscape, portrait and module editing.
+
+![Mobile dashboard in landscape](docs/images/release-1.7.0/mobile-landscape.jpg)
+
+<p align="center">
+  <img src="docs/images/release-1.7.0/mobile-portrait.jpg" alt="Mobile dashboard in portrait" width="320">
+  <img src="docs/images/release-1.7.0/mobile-editor.jpg" alt="Editing modules, sizes and background on a phone" width="320">
+</p>
 
 [![Latest release](https://img.shields.io/github/v/release/alienmau/AlienGamer-Mode?style=for-the-badge&color=ff7a00)](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/alienmau/AlienGamer-Mode/total?style=for-the-badge&color=22d3ee)](https://github.com/alienmau/AlienGamer-Mode/releases)
@@ -84,7 +97,7 @@ One AlienGamer Mode installation can activate a different view on every connecte
 
 To keep the tray menu concise, the former global **Background** and **Visible modules** menus now live under **Displays and layout...**, where they can be configured correctly for each display. The main menu keeps global actions such as starting/stopping the monitor, recording or marking incidents, language selection, hardware/display selection, logs, and closing the app.
 
-![Displays and layout editor](docs/images/AlienGamerMode-layout-editor.png)
+![Display layout editor 1.7.0](docs/images/release-1.7.0/display-editor.png)
 
 ![Customized AlienGamer Mode 1.5.8 view](docs/images/AlienGamerMode-dashboard-1.5.8.png)
 
@@ -98,7 +111,7 @@ The progress ring advances smoothly, with 160 moving light bars. It stays green 
 
 ![Timer settings](docs/images/release-1.6.5/timer-configuration.png)
 
-![Timer in the layout editor](docs/images/release-1.6.5/layout-editor-timer.png)
+Timer visibility is configured under **Modules** in the new editor shown above.
 
 ### Local mobile dashboard — 1.7.0
 

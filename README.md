@@ -6,7 +6,20 @@
 
 La versión **1.7.0** incorpora un [panel móvil local](docs/MOBILE-LAN.md) por QR y el nuevo [Enfoque de pantallas](docs/DESKTOP-STUDIO.md): tarjetas arriba, vista previa centrada y opciones en un panel lateral inferior, con tema oscuro y acento naranja. [Notas completas en español e inglés y capturas](docs/RELEASE-1.7.0.md). [Próximas mejoras](docs/ROADMAP.md), incluido el módulo de ventiladores pendiente de validar sensores.
 
-![AlienGamer Mode 1.6.5 con temporizador de sesión](docs/images/release-1.6.5/dashboard-timer-idle.png)
+![Nueva interfaz de Pantallas y distribución de AlienGamer Mode 1.7.0](docs/images/release-1.7.0/display-editor.png)
+
+Editor Windows Forms implementado, capturado con datos de pantallas de prueba. Tema oscuro, acento naranja, tarjetas de pantallas y navegación lateral.
+
+### Vista móvil 1.7.0
+
+Capturas reales compartidas desde Chrome en un celular: distribución horizontal, vertical y edición de módulos.
+
+![Monitor móvil en horizontal](docs/images/release-1.7.0/mobile-landscape.jpg)
+
+<p align="center">
+  <img src="docs/images/release-1.7.0/mobile-portrait.jpg" alt="Monitor móvil en vertical" width="320">
+  <img src="docs/images/release-1.7.0/mobile-editor.jpg" alt="Edición de módulos, tamaños y fondo desde el celular" width="320">
+</p>
 
 [![Última versión](https://img.shields.io/github/v/release/alienmau/AlienGamer-Mode?style=for-the-badge&color=ff7a00)](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
 [![Descargas](https://img.shields.io/github/downloads/alienmau/AlienGamer-Mode/total?style=for-the-badge&color=22d3ee)](https://github.com/alienmau/AlienGamer-Mode/releases)
@@ -126,7 +139,7 @@ AlienGamer Mode puede activar una vista distinta en cada monitor conectado desde
 
 Para que el menú del icono sea más claro, las antiguas opciones globales **Fondo** y **Módulos visibles** se trasladaron a **Pantallas y distribución...**. Allí pueden configurarse correctamente por monitor. El menú principal conserva las acciones generales: activar o detener el monitor, grabar o marcar un incidente, seleccionar idioma, reconfigurar monitor/GPU/SSD, abrir el editor, consultar registros y cerrar la aplicación.
 
-![Editor de pantallas y distribución](docs/images/AlienGamerMode-layout-editor.png)
+![Editor de pantallas y distribución 1.7.0](docs/images/release-1.7.0/display-editor.png)
 
 ![Vista personalizada de AlienGamer Mode 1.5.8](docs/images/AlienGamerMode-dashboard-1.5.8.png)
 
@@ -140,7 +153,7 @@ El aro avanza suavemente y sus 160 barras luminosas se mueven alrededor del cír
 
 ![Configuración del temporizador](docs/images/release-1.6.5/timer-configuration.png)
 
-![Temporizador en el editor de pantallas](docs/images/release-1.6.5/layout-editor-timer.png)
+La visibilidad del temporizador se configura desde **Módulos** en el nuevo editor mostrado arriba.
 
 ### Panel móvil local — 1.7.0
 
