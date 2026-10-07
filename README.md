@@ -200,6 +200,20 @@ El reporte permite relacionar el instante del problema con temperaturas elevadas
 
 En **Pantallas y distribución...**, selecciona el diseño **Sólo rendimiento** para centrar el bloque de FPS, *frame time* y alertas. Antes de guardar puedes moverlo, redimensionarlo o combinarlo con otros módulos. La selección se conserva al reiniciar y no detiene la captura de sensores.
 
+## Lenguajes y tecnologías
+
+- **PowerShell:** agente de bandeja, detección y configuración de hardware, puente de sensores, servicio web local y automatización del instalador.
+- **C# y .NET Framework / Windows Forms:** hosts gráficos sin consola y componentes personalizados de la interfaz de configuración. El editor de escritorio es una aplicación Windows Forms, no una página web ni una interfaz WPF.
+- **HTML5, CSS y JavaScript nativo:** panel web para celular/tablet en `src/mobile/index.html`, con estilos y scripts integrados. Usa diseño responsivo, organización masonry propia, SVG para los anillos y Canvas para el reloj y las luciérnagas. No requiere React, Vue, Bootstrap ni un servidor Node.js para funcionar.
+- **Lua y configuración INI de Rainmeter:** animaciones, reloj, temporizador y definición de la skin de escritorio.
+- **VBScript:** lanzadores de Windows. **Inno Setup / Pascal Script:** empaquetado y lógica del instalador.
+
+**Integraciones y bibliotecas:** Rainmeter renderiza el monitor de escritorio; HWiNFO proporciona los sensores; QRCoder genera los códigos QR. Rainmeter y HWiNFO son requisitos externos, no frameworks web del proyecto. El servicio móvil se implementa en PowerShell con sockets TCP de .NET y entrega la página y los datos mediante HTTP local.
+
+**Sólo para desarrollo y pruebas:** Node.js y Playwright validan la vista móvil en distintos tamaños y escenarios; no son necesarios para que el usuario ejecute AlienGamer Mode.
+
+La sección **Languages** de GitHub se calcula automáticamente a partir de los archivos del repositorio. Como HTML, CSS y JavaScript están integrados en un único `.html`, esa estadística puede contabilizarlos como HTML; esta lista describe las tecnologías realmente utilizadas, no porcentajes de código.
+
 ## Estructura del proyecto
 
 - `assets/`: logotipo, icono y firma convertida a imagen.

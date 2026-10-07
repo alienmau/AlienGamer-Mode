@@ -142,6 +142,20 @@ In **Displays and layout...**, choose the **Performance only** preset to center 
 
 AlienGamer Mode runs locally and sends no telemetry. Reports are created only when the user starts an event recording and may contain process names and hardware details; review them before sharing.
 
+## Languages and technologies
+
+- **PowerShell:** tray agent, hardware discovery and configuration, sensor bridge, local web service and installer automation.
+- **C# and .NET Framework / Windows Forms:** console-free GUI hosts and custom configuration UI components. The desktop editor is a Windows Forms application, not a web page or a WPF interface.
+- **HTML5, CSS and vanilla JavaScript:** phone/tablet dashboard in `src/mobile/index.html`, with embedded styles and scripts. It uses responsive layouts, a custom masonry arrangement, SVG sensor rings and Canvas for the clock and fireflies. No React, Vue, Bootstrap or Node.js server is required at runtime.
+- **Lua and Rainmeter INI configuration:** desktop animations, clock, timer and skin definitions.
+- **VBScript:** Windows launchers. **Inno Setup / Pascal Script:** installer packaging and logic.
+
+**Integrations and libraries:** Rainmeter renders the desktop dashboard, HWiNFO supplies sensors, and QRCoder generates QR codes. Rainmeter and HWiNFO are external requirements, not project web frameworks. The mobile service is implemented in PowerShell with .NET TCP sockets and serves the page and data over local HTTP.
+
+**Development and testing only:** Node.js and Playwright validate the mobile interface across viewport sizes and scenarios; end users do not need them to run AlienGamer Mode.
+
+GitHub calculates its **Languages** breakdown automatically from repository files. Since HTML, CSS and JavaScript share one `.html` file, those statistics may count them as HTML. This list describes the actual technologies used, not code percentages.
+
 ## Build and test
 
 Install Inno Setup 6, then run:
