@@ -4,6 +4,8 @@
 
 **Adaptive Windows hardware and sensor monitoring for gamers.**
 
+Version **1.7.0** adds a [QR-based local mobile dashboard](docs/MOBILE-LAN.md) and refreshed [Display layout](docs/DESKTOP-STUDIO.md): rounded display cards above a centered preview, vertical options below, and a unified dark theme with an orange accent. [Detailed bilingual notes and screenshots](docs/RELEASE-1.7.0.md). GUI process launchers prevent console allocation while retaining dialogs and diagnostics; final installed-startup confirmation remains open. [Roadmap](docs/ROADMAP.md) includes a fan module, pending real RPM sensor availability.
+
 ![AlienGamer Mode 1.6.5 with session timer](docs/images/release-1.6.5/dashboard-timer-idle.png)
 
 [![Latest release](https://img.shields.io/github/v/release/alienmau/AlienGamer-Mode?style=for-the-badge&color=ff7a00)](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
@@ -55,7 +57,7 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.6.5.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.7.0.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 
@@ -65,7 +67,7 @@ Open the tray menu and choose **Displays and layout...**. The editor represents 
 
 Presets update the preview immediately, while the live dashboard changes only after **Save and apply**. Modules remain inside screen bounds, keep a minimum separation and cannot overlap. The mandatory header cannot be dragged and stays at the upper-left safety margin, except in **Essential portrait**, where it is centered at the top. Saving rebuilds only the Rainmeter views; HWiNFO, the local bridge and event recording remain shared.
 
-Layouts are stored under `displayViews` in `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` and survive restarts. The editor opens automatically after every setup run with every module visible. While the 1.5 branch is being stabilized, each installation resets visual settings and backs up the previous JSON, while recordings and reports remain untouched. Phones and tablets are not remote companions yet; that network-facing capability is intentionally reserved for a later release with explicit privacy and access controls.
+Layouts are stored under `displayViews` in `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` and survive restarts. The editor opens after setup with the full traditional layout; the optional timer starts hidden. Each installation resets visual settings with recoverable backups, preserving recordings/reports. Version 1.7.0 adds a read-only mobile companion tested on an actual Chrome phone.
 
 ### Multiple displays and visual layout
 
@@ -90,7 +92,7 @@ To keep the tray menu concise, the former global **Background** and **Visible mo
 
 Enable the timer in **Displays and layout...**, then drag and resize it for that display. Click its center to set hours, minutes, seconds and the extra-time step. Play stays disabled until a duration is saved; afterwards it starts or pauses the countdown. **+** provides up to three extra-time increments, and **X** ends the session.
 
-The progress ring advances smoothly, with 160 moving light bars. It stays green through 70% of elapsed time, turns amber through 85%, then bright red, with an approximately 0.3-second color transition. Changing digits roll and flash. At zero, **GAME OVER** pulses until another session starts or the timer is ended. Reopening the monitor shows **START TIMER** while preserving the chosen duration, not a previous session's state.
+The progress ring advances smoothly, with 160 moving light bars. It stays green through 70% of elapsed time, turns amber through 85%, then bright red, with an approximately 0.3-second color transition. Changing digits roll and flash. At zero, **GAME OVER** stays fixed. An unconfigured timer shows zeroes; reopening restores the saved duration ready to start, not a completed session.
 
 ![Session timer running](docs/images/release-1.6.5/timer-running.png)
 
@@ -98,18 +100,17 @@ The progress ring advances smoothly, with 160 moving light bars. It stays green 
 
 ![Timer in the layout editor](docs/images/release-1.6.5/layout-editor-timer.png)
 
-### Next release: local mobile dashboard
+### Local mobile dashboard — 1.7.0
 
-The next planned improvement will let a phone or tablet work as an additional real-time display:
+Open **Displays and layout → Mobile display (phone / tablet)** and enable **Enable web monitor on my local network**: the service starts and its QR appears automatically. Choose modules and click **Apply modules** to save selection changes. Scan the QR on a device connected to the same router; the laptop may use Ethernet while the phone uses Wi-Fi. Cards adapt to portrait and landscape. **Fullscreen** and **Exit fullscreen** affect only the phone browser, never the laptop monitor or its background services.
 
-- AlienGamer Mode will expose a lightweight web microservice only on the local network.
-- A temporary QR code will open the dashboard directly on the portable device.
-- Users will be able to select and arrange modules independently for each phone or tablet.
-- Sensor data will remain local and will not require a cloud service.
-- Temporary sessions, device revocation, and adjustable refresh limits will protect privacy, battery life, CPU, and network usage.
-- The service will be disabled by default and will clearly show which local address is exposed.
+The LAN service is off by default. It binds to a private address on port 27844, does not use cloud services, and requires the QR's secret link. **New QR** automatically revokes the previous link; disabling access stops the LAN listener. The installer creates a firewall rule scoped to this port and the local subnet. Anyone on that subnet with the QR can see the sensor metrics. Fullscreen requires a tap and depends on browser support; some mobile browsers may keep their navigation bar.
 
-This feature is still in design and is not included in version 1.6.5.
+The mobile view includes a matrix clock, individual RAM/VRAM/CPU/GPU rings, grouped temperatures, and decorative fireflies. **Edit (Editar)** supports ordering, visibility, and three sizes: **Minimum (Mínimo)** uses one column unit, **Normal** uses the module's base width, and **Extended (Extendido)** fills the entire row. A responsive masonry layout packs natural-height cards without row-height gaps or fixed heights, preserves column units across rotation, and treats Extended cards as full-width separators. FPS and frame time form one module; both that module and alerts use 2 units at Normal size. Cards have a translucent glass effect and centered titles. Edit also lets you choose the firefly color. Preferences are stored on each device. **Expand (Expandir)** and **Exit (Salir)** control fullscreen; Chrome's entry notification cannot be modified by the page.
+
+**Edit → Keep screen awake (Mantener pantalla encendida)** requests native screen wake lock only in a supported secure context. The current HTTP LAN link disables the option with an explanation; no manual certificates or security changes are required. “Active” appears only after an actual grant, and denial/release is reflected in the control. Manual locking remains possible. The video workaround was removed; local HTTPS is not implemented and universal device support is not promised. See [Mobile dashboard documentation](docs/MOBILE-LAN.md).
+
+The user confirmed LAN access from Chrome over Wi-Fi and supplied portrait, landscape and mobile-editor screenshots of the revised design. Automated tests cover the server, QR, eight resolutions, saved editing, dragging, and rotation. Physical tablet/iOS coverage and final installed-console confirmation remain open; no universal device or wake-lock support is claimed.
 
 ## Changing the language
 

@@ -16,6 +16,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 $packageRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $packageRoot 'src'
 Import-Module (Join-Path $sourceRoot 'AlienGamer.Localization.psm1') -Force
+Import-Module (Join-Path $sourceRoot 'AlienGamer.UI.psm1') -Force
 $Language = Resolve-AGLanguage $Language
 $ui = Get-AGTranslations -Language $Language -LocalesRoot (Join-Path $sourceRoot 'locales')
 function T([string]$Path) { return Get-AGText -Translations $ui -Path $Path }
@@ -188,6 +189,7 @@ function Backup-And-RemovePreviousEditions {
 }
 
 $form = New-Object Windows.Forms.Form
+$form.Font=New-Object Drawing.Font('Segoe UI',10)
 $form.Text = T 'installer.windowTitle'
 $form.Size = New-Object Drawing.Size(690,650)
 $form.StartPosition = 'CenterScreen'
@@ -251,12 +253,15 @@ $note = New-Object Windows.Forms.Label
 $note.Text = (T 'installer.note').Replace('\r\n',"`r`n")
 $note.ForeColor = [Drawing.Color]::DimGray; $note.SetBounds(30,445,625,48); $form.Controls.Add($note)
 
-$installButton = New-Object Windows.Forms.Button
+$installButton = New-Object AlienGamer.Desktop.RoundedButton
 $installButton.Text = T 'installer.install'; $installButton.SetBounds(350,525,205,42); $installButton.Enabled=($rainOk -and $hwOk); $form.Controls.Add($installButton)
-$cancelButton = New-Object Windows.Forms.Button
+$cancelButton = New-Object AlienGamer.Desktop.RoundedButton
 $cancelButton.Text = T 'installer.cancel'; $cancelButton.SetBounds(565,525,90,42); $cancelButton.Add_Click({$form.Close()}); $form.Controls.Add($cancelButton)
 $status = New-Object Windows.Forms.Label; $status.Text=''; $status.SetBounds(30,505,300,65); $form.Controls.Add($status)
 
+Set-AGWindowTheme $form;Set-AGPrimaryButton $installButton
+$title.Font=New-Object Drawing.Font('Segoe UI Semibold',18)
+if(-not[Windows.Forms.SystemInformation]::HighContrast){$note.ForeColor=[AlienGamer.Desktop.Theme]::Secondary}
 $installButton.Add_Click({
     try {
         $installButton.Enabled=$false; $status.Text=T 'installer.copying'; $form.Refresh()
@@ -314,7 +319,7 @@ $installButton.Add_Click({
 
         $hwinfoIni = Join-Path (Split-Path $hwinfoPath -Parent) 'HWiNFO64.INI'
         if (Get-Process HWiNFO64 -ErrorAction SilentlyContinue) {
-            $answer = [Windows.Forms.MessageBox]::Show($form,(T 'installer.hwinfoOpen'),(T 'installer.prepareHWiNFO'),[Windows.Forms.MessageBoxButtons]::YesNo,[Windows.Forms.MessageBoxIcon]::Question)
+            $answer = (Show-AGMessage -Owner $form -Text (T 'installer.hwinfoOpen') -Title (T 'installer.prepareHWiNFO') -Buttons YesNo -Icon Question)
             if ($answer -ne [Windows.Forms.DialogResult]::Yes) { throw (T 'installer.installCancelled') }
             Stop-Process -Name HWiNFO64 -Force
             Start-Sleep -Milliseconds 600
@@ -323,14 +328,10 @@ $installButton.Add_Click({
         foreach ($pair in @(@('SensorsOnly','1'),@('SensorsSM','1'),@('OpenSystemSummary','0'),@('OpenSensors','1'),@('MinimalizeMainWnd','1'),@('MinimalizeSensors','1'),@('ShowWelcomeAndProgress','0'),@('MinimalizeSensorsClose','1'))) { Set-IniSetting $hwinfoIni $pair[0] $pair[1] }
 
         $powershell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-        $hwinfoLauncher = Join-Path $installRoot 'Start-AlienGamerHWiNFO.ps1'
-        # No se define WorkingDirectory: algunos equipos devuelven ERROR_DIRECTORY
-        # al iniciar una tarea elevada dentro de AppData aunque la carpeta exista.
-        $taskLauncher = Join-Path $installRoot 'AlienGamerHWiNFOTask.vbs'
-        if(-not(Test-Path -LiteralPath $hwinfoLauncher) -or -not(Test-Path -LiteralPath $taskLauncher)){
-            throw 'Faltan los archivos para iniciar HWiNFO sin consola visible.'
-        }
-        $taskArguments = "//B //NoLogo `"$taskLauncher`""
+        # El host GUI conserva la elevacion y el cierre de sensores sin consola.
+        if(-not(Test-Path -LiteralPath $hwinfoPath)){throw 'No se encontró HWiNFO64.'}
+        $sensorHostPath = Join-Path $installRoot 'assets\AlienGamerSensorHost.exe'
+        if(-not(Test-Path -LiteralPath $sensorHostPath)){throw 'Falta el lanzador nativo de sensores.'}
         $scheduler = New-Object -ComObject 'Schedule.Service'
         $scheduler.Connect()
         $taskFolder = $scheduler.GetFolder('\')
@@ -349,9 +350,15 @@ $installButton.Add_Click({
         $taskDefinition.Settings.StopIfGoingOnBatteries = $false
         $taskDefinition.Settings.ExecutionTimeLimit = 'PT0S'
         $taskExec = $taskDefinition.Actions.Create(0)
-        $taskExec.Path = "$env:SystemRoot\System32\wscript.exe"
-        $taskExec.Arguments = $taskArguments
+        $taskExec.Path = $sensorHostPath
+        $taskExec.Arguments = ''
         [void]$taskFolder.RegisterTaskDefinition('AlienGamerMode-HWiNFO',$taskDefinition,6,$null,$null,3,$null)
+
+        # El servicio móvil está apagado por defecto. Al activarlo, Windows
+        # permite sólo el puerto dedicado desde la subred local, incluso si la
+        # conexión Ethernet del usuario figura como perfil Público.
+        Get-NetFirewallRule -DisplayName 'AlienGamer Mode Mobile LAN' -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue
+        New-NetFirewallRule -DisplayName 'AlienGamer Mode Mobile LAN' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 27844 -RemoteAddress LocalSubnet -Program $powershell -Profile Any | Out-Null
 
         # Verifica la tarea durante la instalacion para no reportar exito si
         # Windows no puede iniciar HWiNFO con elevacion.
@@ -388,7 +395,7 @@ $installButton.Add_Click({
         if (-not $NoLaunch) { $completion += "`r`n`r`n$(T 'installer.launchNotice')" }
         if ($taskbarCheck.Checked) { $completion += "`r`n`r`n$(T 'installer.pinNotice')" }
         if ($legacyBackup) { $completion += "`r`n`r`n$(T 'installer.backup')`r`n$legacyBackup" }
-        [Windows.Forms.MessageBox]::Show($form,$completion,(T 'installer.completeTitle'),[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+        (Show-AGMessage -Owner $form -Text $completion -Title (T 'installer.completeTitle') -Buttons OK -Icon Information) | Out-Null
         # Toda instalacion termina en el editor visual con el diseno completo y
         # limpio; el usuario puede conservarlo o personalizarlo antes de aplicar.
         $script:openLayoutAfterClose = $true
@@ -398,7 +405,7 @@ $installButton.Add_Click({
         $form.Close()
     } catch {
         $installButton.Enabled=$true; $status.Text=T 'installer.notCompleted'
-        [Windows.Forms.MessageBox]::Show($form,$_.Exception.ToString(),(T 'installer.errorTitle'),[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Error) | Out-Null
+        (Show-AGMessage -Owner $form -Text $_.Exception.ToString() -Title (T 'installer.errorTitle') -Buttons OK -Icon Error) | Out-Null
     }
 })
 

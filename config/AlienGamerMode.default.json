@@ -37,6 +37,12 @@
       "canvas": { "width": 1711, "height": 1023 }
     }
   ],
+  "mobileView": {
+    "enabled": false,
+    "port": 27844,
+    "token": "",
+    "modules": ["ram", "vram", "system", "temperatures", "performance", "clock"]
+  },
   "hardware": {
     "preferredGpu": "auto",
     "preferredStorage": "system"

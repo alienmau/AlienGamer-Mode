@@ -4,6 +4,8 @@
 
 **Monitoreo adaptable de sensores y componentes del equipo para Windows.**
 
+La versión **1.7.0** incorpora un [panel móvil local](docs/MOBILE-LAN.md) por QR y el nuevo [Enfoque de pantallas](docs/DESKTOP-STUDIO.md): tarjetas arriba, vista previa centrada y opciones en un panel lateral inferior, con tema oscuro y acento naranja. [Notas completas en español e inglés y capturas](docs/RELEASE-1.7.0.md). [Próximas mejoras](docs/ROADMAP.md), incluido el módulo de ventiladores pendiente de validar sensores.
+
 ![AlienGamer Mode 1.6.5 con temporizador de sesión](docs/images/release-1.6.5/dashboard-timer-idle.png)
 
 [![Última versión](https://img.shields.io/github/v/release/alienmau/AlienGamer-Mode?style=for-the-badge&color=ff7a00)](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
@@ -86,7 +88,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.6.5.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.7.0.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -107,7 +109,7 @@ Los diseños predefinidos se reflejan de inmediato en la previsualización; el m
 
 Pulsa **Guardar y aplicar** para reconstruir únicamente las vistas de Rainmeter. HWiNFO, el puente local y la grabación permanecen compartidos. La selección se conserva en `displayViews` dentro de `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` y vuelve a aplicarse al iniciar Windows.
 
-La primera vista mantiene la pantalla elegida en el instalador. El editor se abre automáticamente al terminar la instalación con el diseño completo y los módulos tradicionales visibles; el temporizador de sesión es opcional y empieza oculto. El usuario puede conservar el diseño o personalizarlo. Cada instalación reinicia los ajustes visuales y los temporizadores, respaldando el JSON y los estados anteriores; conserva grabaciones y reportes. Teléfonos y tabletas aún no funcionan como pantallas remotas; esa extensión está prevista para una versión posterior y requerirá controles explícitos de red y privacidad.
+La primera vista mantiene la pantalla elegida en el instalador. El editor se abre automáticamente al terminar la instalación con el diseño completo y los módulos tradicionales visibles; el temporizador de sesión es opcional y empieza oculto. El usuario puede conservar el diseño o personalizarlo. Cada instalación reinicia los ajustes visuales y los temporizadores, respaldando el JSON y los estados anteriores; conserva grabaciones y reportes. La versión 1.7.0 añade un panel móvil de sólo lectura probado desde Chrome en un teléfono real.
 
 ### Varias pantallas y distribución visual
 
@@ -132,7 +134,7 @@ Para que el menú del icono sea más claro, las antiguas opciones globales **Fon
 
 Actívalo desde **Pantallas y distribución...**, arrástralo y ajusta su tamaño como cualquier otro módulo. El centro abre el formulario para definir horas, minutos, segundos y el incremento extra por pulsación. **Play** permanece deshabilitado hasta guardar una duración; después permite iniciar o pausar. El botón **+** añade hasta tres incrementos y **X** cancela la sesión.
 
-El aro avanza suavemente y sus 160 barras luminosas se mueven alrededor del círculo. Usa verde hasta el 70 % del tiempo consumido, ámbar hasta el 85 % y rojo intenso al final, con transición de color de aproximadamente 0,3 segundos. Los dígitos que cambian ruedan y destellan. Al llegar a cero, **GAME OVER** pulsa hasta iniciar otra sesión o finalizarla. Al volver a abrir el monitor aparece **INICIAR TIMER**; se conserva la duración elegida, no una sesión terminada.
+El aro avanza suavemente y sus 160 barras luminosas se mueven alrededor del círculo. Usa verde hasta el 70 % del tiempo consumido, ámbar hasta el 85 % y rojo intenso al final, con transición de color de aproximadamente 0,3 segundos. Los dígitos que cambian ruedan y destellan. Al llegar a cero, **GAME OVER** queda fijo. Sin configuración muestra ceros; al volver a abrir el monitor recupera la duración elegida lista para iniciar, no una sesión terminada.
 
 ![Temporizador durante una sesión](docs/images/release-1.6.5/timer-running.png)
 
@@ -140,18 +142,17 @@ El aro avanza suavemente y sus 160 barras luminosas se mueven alrededor del cír
 
 ![Temporizador en el editor de pantallas](docs/images/release-1.6.5/layout-editor-timer.png)
 
-### Próxima entrega: panel móvil local
+### Panel móvil local — 1.7.0
 
-La siguiente mejora planeada permitirá utilizar un teléfono o una tableta como pantalla adicional en tiempo real:
+En **Pantallas y distribución → Pantalla móvil (celular / tablet)** marca **Activar monitor web en mi red local**: el servicio arranca y aparece el QR automáticamente. Elige los módulos y pulsa **Aplicar módulos** si cambias la selección. Escanea el QR desde un dispositivo conectado al mismo router y abre la página. La laptop puede estar conectada por Ethernet y el móvil por Wi-Fi. La vista adapta las tarjetas a vertical u horizontal; **Pantalla completa** y **Salir de pantalla completa** sólo afectan al navegador del móvil, nunca apagan Rainmeter, HWiNFO ni el monitor de la laptop.
 
-- AlienGamer Mode levantará un microservicio web ligero únicamente en la red local.
-- Desde el menú se mostrará un código QR temporal para abrir directamente el panel en el dispositivo portátil.
-- El usuario podrá elegir qué módulos mostrar en cada teléfono o tableta y conservar su distribución.
-- Los datos de sensores se sincronizarán en vivo sin depender de servicios en la nube.
-- La conexión tendrá sesión temporal, controles para permitir o revocar dispositivos y límites de actualización para reducir consumo de batería, CPU y red.
-- El servicio permanecerá desactivado de forma predeterminada y mostrará claramente la dirección local que queda expuesta.
+El servicio está desactivado por defecto. Usa una IP privada y el puerto 27844, no utiliza la nube, sólo entrega datos de sensores y exige el enlace secreto del QR. **Nuevo QR** invalida el enlace anterior automáticamente; desactivar el acceso cierra el servicio. El instalador prepara una regla de firewall limitada al puerto de la app y a la subred local. Quien tenga el QR y esté en esa red podrá ver las métricas. El modo pantalla completa requiere tocar el botón y depende del navegador; algunos navegadores móviles mantienen su barra visible.
 
-Esta función está en fase de diseño; no forma parte de la versión 1.6.5.
+La vista móvil incorpora reloj matricial, anillos individuales para RAM/VRAM/CPU/GPU, temperaturas agrupadas y luciérnagas decorativas. **Editar** permite ordenar, ocultar y elegir **Mínimo** (1 columna), **Normal** (ancho base por módulo) o **Extendido** (fila completa). La distribución masonry aprovecha el alto natural de cada tarjeta sin huecos de fila ni alturas fijas, conserva los tamaños al girar y deja Extendido como separador de fila completa. FPS y tiempo de cuadro están unidos; ese bloque y alertas ocupan 2 columnas en tamaño normal. Las tarjetas son translúcidas, con efecto vidrio, y los títulos están centrados. Puedes elegir el color de las luciérnagas desde Editar. Las preferencias se guardan en el dispositivo. **Expandir** y **Salir** controlan la pantalla completa; el aviso propio de Chrome no se puede modificar desde la página.
+
+**Editar → Mantener pantalla encendida** solicita el permiso nativo únicamente cuando el navegador lo admite en un contexto seguro. Con el enlace HTTP local actual queda deshabilitado y explica la limitación; no exige certificados manuales ni cambios de seguridad. Sólo indica «Activa» tras recibir el permiso real, respeta su rechazo/liberación y permite bloquear manualmente. La alternativa de vídeo fue retirada. HTTPS local aún no está implementado y esta capacidad no se garantiza en todos los dispositivos. Detalles en [Panel móvil local](docs/MOBILE-LAN.md).
+
+El usuario confirmó acceso desde Chrome móvil por Wi-Fi y aportó capturas del nuevo diseño vertical, horizontal y de su editor. Las pruebas automáticas cubren servidor, QR, ocho resoluciones, edición persistente, arrastre y rotación. Quedan pendientes tablet/iOS reales y la confirmación final del arranque instalado sin consola; no se promete compatibilidad universal ni mantener pantalla encendida por HTTP.
 
 ## Fondo ambiental configurable
 

@@ -129,6 +129,31 @@ function ConvertTo-AGSafeViewId([string]$Value) {
     $safe.ToLowerInvariant()
 }
 
+function Resolve-AGViewMonitor {
+    param([Parameter(Mandatory)]$View,[Parameter(Mandatory)][object[]]$Monitors)
+    $device=[string](Get-AGPropertyValue $View 'monitorDeviceName' '')
+    $pnp=[string](Get-AGPropertyValue $View 'monitorId' '')
+    # PnP survives a topology change (for example, an external display losing
+    # power) whereas DISPLAY1/DISPLAY2 can be reassigned by Windows.
+    if($pnp -and $pnp -ne 'auto'){
+        $match=@($Monitors|Where-Object { [string]$_.pnpDeviceId -eq $pnp })
+        if($match.Count -eq 1){return $match[0]}
+        if($match.Count -gt 1){
+            $byDevice=@($match|Where-Object { [string]$_.deviceName -eq $device })
+            if($byDevice.Count -eq 1){return $byDevice[0]}
+            throw "Identidad física de pantalla ambigua: $pnp"
+        }
+        # An explicit PnP target that is absent may not be reassigned to a
+        # different physical display just because its DISPLAY number matches.
+        return $null
+    }
+    if($device -and $device -ne 'auto'){
+        $match=@($Monitors|Where-Object { [string]$_.deviceName -eq $device })
+        if($match.Count -eq 1){return $match[0]}
+    }
+    return $null
+}
+
 function Get-AGDisplayViews {
     param([Parameter(Mandatory)]$Config)
     $views = @()
@@ -185,4 +210,4 @@ function Get-AGDisplayViews {
     @($normalized)
 }
 
-Export-ModuleMember -Function Get-AGModuleDefinitions,New-AGDisplayView,Set-AGLayoutPreset,ConvertTo-AGSafeViewId,Get-AGDisplayViews
+Export-ModuleMember -Function Get-AGModuleDefinitions,New-AGDisplayView,Set-AGLayoutPreset,ConvertTo-AGSafeViewId,Get-AGDisplayViews,Resolve-AGViewMonitor

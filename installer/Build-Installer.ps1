@@ -1,5 +1,7 @@
 ﻿$ErrorActionPreference = 'Stop'
 $iss = Join-Path $PSScriptRoot 'AlienGamerMode.iss'
+& (Join-Path $PSScriptRoot 'Build-SensorHost.ps1')
+& (Join-Path $PSScriptRoot 'Build-ProcessHost.ps1')
 $candidates = @(
     "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"

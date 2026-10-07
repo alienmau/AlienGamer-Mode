@@ -1,5 +1,5 @@
 -- Per-display timer: wall-clock state survives Rainmeter refreshes.
-local state={baseDuration=1800,extraStep=5,extraCount=0,duration=1800,remaining=1800,deadline=0,status="idle",configured=false}
+local state={baseDuration=0,extraStep=5,extraCount=0,duration=0,remaining=0,deadline=0,status="idle",configured=false}
 local statePath,enabled,language
 local frame,noticeUntil,lastZone=0,0,-1
 local digits={Hours=nil,Minutes=nil,Seconds=nil}
@@ -29,13 +29,14 @@ local function readState()
     local duration=tonumber(loaded.duration)
     local step=tonumber(loaded.extraStep) or 5
     local count=tonumber(loaded.extraCount) or 0
-    if not base or not duration or base<60 or duration<base or duration>359999 or
+    local configured=loaded.configured=="1" or (loaded.configured==nil and loaded.status~=nil)
+    if not base or not duration or (configured and base<60) or duration<base or duration>359999 or
        step<1 or step>30 or count<0 or count>3 then return nil end
     return {baseDuration=math.floor(base),extraStep=math.floor(step),extraCount=math.floor(count),
         duration=math.floor(duration),remaining=clamp(math.floor(tonumber(loaded.remaining) or duration),0,duration),
         deadline=math.floor(tonumber(loaded.deadline) or 0),
         status=({idle=true,running=true,paused=true,finished=true})[loaded.status] and loaded.status or "idle",
-        configured=loaded.configured=="1" or (loaded.configured==nil and loaded.status~=nil)}
+        configured=configured}
 end
 local function saveState()
     local file=io.open(statePath,"w")
@@ -248,8 +249,7 @@ local function render()
             x1,y1,x2,y2,rgb,math.floor(38+wave*165)))
     end
     updateDigits(rgb,zone)
-    local idle=state.status=="idle"
-    local showDigits=not finished and not idle
+    local showDigits=not finished
     for _,name in ipairs({"Hours","Minutes","Seconds"}) do
         set("Timer"..name,"Hidden",showDigits and "0" or "1")
         set("Timer"..name.."GhostBefore","Hidden",showDigits and "0" or "1")
@@ -258,23 +258,15 @@ local function render()
     end
     set("TimerGameOver","Hidden",finished and "0" or "1")
     set("TimerGameOverLine2","Hidden",finished and "0" or "1")
-    set("TimerIdlePrompt","Hidden",idle and "0" or "1")
-    set("TimerIdlePromptLine2","Hidden",idle and "0" or "1")
-    if finished or idle then
-        local phase=(frame%10)/10
-        local half=phase<0.5 and phase*2 or (1-phase)*2
-        local zoom=half*half*(3-2*half)+0.07*math.sin(math.pi*half)*math.sin(2*math.pi*half)
-        local size=16+6*zoom
-        local color=finished and string.format("255,45,65,%d",math.floor(160+95*zoom))
-            or string.format("65,225,170,%d",math.floor(130+105*zoom))
-        local top=finished and "TimerGameOver" or "TimerIdlePrompt"
-        local bottom=finished and "TimerGameOverLine2" or "TimerIdlePromptLine2"
-        set(top,"FontSize",string.format("%.1f",size))
-        set(bottom,"FontSize",string.format("%.1f",size))
-        set(top,"Y",string.format("%.1f",418-2*zoom))
-        set(bottom,"Y",string.format("%.1f",442+2*zoom))
-        set(top,"FontColor",color)
-        set(bottom,"FontColor",color)
+    set("TimerIdlePrompt","Hidden","1")
+    set("TimerIdlePromptLine2","Hidden","1")
+    if finished then
+        set("TimerGameOver","FontSize","19")
+        set("TimerGameOverLine2","FontSize","19")
+        set("TimerGameOver","Y","418")
+        set("TimerGameOverLine2","Y","442")
+        set("TimerGameOver","FontColor","255,45,65,255")
+        set("TimerGameOverLine2","FontColor","255,45,65,255")
     end
     set("TimerPlayIcon","Hidden",state.status=="running" and "1" or "0")
     set("TimerPauseIcon","Hidden",state.status=="running" and "0" or "1")
@@ -305,9 +297,6 @@ local function render()
 end
 function Update()
     frame=frame+1
-    if frame==1 and language~="es-MX" then
-        set("TimerIdlePrompt","Text","START")
-    end
     if frame%5==0 then
         local latest=readState()
         if latest and (latest.baseDuration~=state.baseDuration or latest.extraStep~=state.extraStep or
@@ -325,7 +314,7 @@ function Update()
             saveState()
         end
     end
-    local targetProgress=clamp((state.duration-state.remaining)*100/state.duration,0,100)
+    local targetProgress=state.duration>0 and clamp((state.duration-state.remaining)*100/state.duration,0,100) or 0
     if state.status=="idle" then
         displayProgress,progressVelocity=0,0
     else

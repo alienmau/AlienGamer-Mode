@@ -5,6 +5,8 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Localization.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.MultiDisplay.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.UI.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Process.psm1') -Force
 
 $appRoot = $PSScriptRoot
 $dataRoot = Join-Path $env:LOCALAPPDATA 'AlienGamerMode'
@@ -207,7 +209,6 @@ function Refresh-DisplaySkins([switch]$ReuseValidatedProfile) {
     $wasActive=Test-MonitorActive
     $oldConfigs=@(Get-ActiveRainmeterConfigs)
     Write-AgentDiagnostic 'APPLY stage=build begin'
-    Remove-Item -LiteralPath $displayManifestPath -Force -ErrorAction SilentlyContinue
     Invoke-BuildDisplaySkins -ReuseValidatedProfile:$ReuseValidatedProfile
     if(-not(Test-Path -LiteralPath $displayManifestPath)){throw 'La reconstruccion no genero el manifiesto de pantallas.'}
     Write-AgentDiagnostic 'APPLY stage=build complete'
@@ -244,14 +245,14 @@ function Invoke-RecordingToggle {
     try { if (Test-Path $profilePath) { $port = [int](Get-Content $profilePath -Raw | ConvertFrom-Json).bridgePort } } catch { }
     $recorder = Join-Path $appRoot 'AlienGamerEventRecorder.ps1'
     $rainmeterConfig = @(Get-ActiveRainmeterConfigs)[0]
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$recorder`" -Toggle -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"$rainmeterConfig`""
+    Start-AGHiddenProcess powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$recorder`" -Toggle -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"$rainmeterConfig`""
 }
 
 function Invoke-RecorderCommand([string]$Command) {
     $port=27843;try{if(Test-Path $profilePath){$port=[int](Get-Content $profilePath -Raw|ConvertFrom-Json).bridgePort}}catch{}
     $recorder=Join-Path $appRoot 'AlienGamerEventRecorder.ps1'
     $rainmeterConfig = @(Get-ActiveRainmeterConfigs)[0]
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$recorder`" $Command -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"$rainmeterConfig`"" | Out-Null
+    Start-AGHiddenProcess powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$recorder`" $Command -BridgeUrl `"http://127.0.0.1:$port/v2/status`" -RainmeterConfig `"$rainmeterConfig`"" | Out-Null
 }
 
 function Mark-Incident { if((Get-RecordingStatus)-eq 'recording'){Invoke-RecorderCommand '-MarkIncident'} }
@@ -286,6 +287,7 @@ function Show-HardwareSettings {
         if (-not $monitors.Count) { throw (T 'dialog.noMonitors') }
 
         $form = New-Object Windows.Forms.Form
+        $form.Font=New-Object Drawing.Font('Segoe UI',10)
         $form.Text = T 'dialog.hardwareTitle'
         $form.FormBorderStyle = 'FixedDialog'; $form.StartPosition = 'CenterScreen'
         $form.ClientSize = New-Object Drawing.Size(650,345); $form.MaximizeBox=$false; $form.MinimizeBox=$false; $form.TopMost=$true
@@ -293,10 +295,11 @@ function Show-HardwareSettings {
         $monitorLabel=New-Object Windows.Forms.Label; $monitorLabel.Text=T 'installer.monitor'; $monitorLabel.SetBounds(24,22,600,22); $form.Controls.Add($monitorLabel)
         $monitorBox=New-Object Windows.Forms.ComboBox; $monitorBox.DropDownStyle='DropDownList'; $monitorBox.SetBounds(24,47,602,29)
         foreach($monitor in $monitors){[void]$monitorBox.Items.Add("$($monitor.friendlyName) · $($monitor.deviceName) · $($monitor.width)x$($monitor.height) · $(if($monitor.primary){T 'installer.primary'}else{T 'installer.secondary'})")}
-        $monitorIndex=0
+        $monitorIndex=-1
         for($i=0;$i -lt $monitors.Count;$i++){
-            if (($config.display.targetMonitorId -and $config.display.targetMonitorId -ne 'auto' -and $monitors[$i].pnpDeviceId -eq $config.display.targetMonitorId) -or
-                ($config.display.targetMonitor -and $monitors[$i].deviceName -eq $config.display.targetMonitor)) { $monitorIndex=$i; break }
+            $hasPhysicalId=([string]$config.display.targetMonitorId -notin @('','auto'))
+            if (($hasPhysicalId -and [string]$monitors[$i].pnpDeviceId -eq [string]$config.display.targetMonitorId) -or
+                (-not $hasPhysicalId -and [string]$monitors[$i].deviceName -eq [string]$config.display.targetMonitor)) { $monitorIndex=$i; break }
         }
         $monitorBox.SelectedIndex=$monitorIndex; $form.Controls.Add($monitorBox)
 
@@ -311,11 +314,14 @@ function Show-HardwareSettings {
         if($storageBox.Items.Count){$storageBox.SelectedIndex=0;for($i=0;$i -lt $storage.Count;$i++){if($storage[$i].friendlyName -eq $config.hardware.preferredStorage){$storageBox.SelectedIndex=$i;break}}}; $form.Controls.Add($storageBox)
 
         $note=New-Object Windows.Forms.Label; $note.Text=T 'dialog.hardwareNote'; $note.ForeColor=[Drawing.Color]::DimGray; $note.SetBounds(24,235,602,42); $form.Controls.Add($note)
-        $apply=New-Object Windows.Forms.Button; $apply.Text=T 'dialog.apply'; $apply.DialogResult='OK'; $apply.SetBounds(440,292,88,32); $form.Controls.Add($apply)
-        $cancel=New-Object Windows.Forms.Button; $cancel.Text=T 'dialog.cancel'; $cancel.DialogResult='Cancel'; $cancel.SetBounds(538,292,88,32); $form.Controls.Add($cancel)
+        $apply=New-Object AlienGamer.Desktop.RoundedButton; $apply.Text=T 'dialog.apply'; $apply.DialogResult='OK'; $apply.SetBounds(440,292,88,32); $form.Controls.Add($apply)
+        $cancel=New-Object AlienGamer.Desktop.RoundedButton; $cancel.Text=T 'dialog.cancel'; $cancel.DialogResult='Cancel'; $cancel.SetBounds(538,292,88,32); $form.Controls.Add($cancel)
         $form.AcceptButton=$apply; $form.CancelButton=$cancel
+        Set-AGWindowTheme $form;Set-AGPrimaryButton $apply
+        if(-not[Windows.Forms.SystemInformation]::HighContrast){$note.ForeColor=[AlienGamer.Desktop.Theme]::Secondary}
         if($form.ShowDialog() -ne 'OK'){return}
 
+        if($monitorBox.SelectedIndex -lt 0){throw 'Elige la pantalla física que deseas utilizar; la anterior ya no está conectada.'}
         $selectedMonitor=$monitors[$monitorBox.SelectedIndex]
         $config.display.targetMonitor=[string]$selectedMonitor.deviceName
         if($config.display.PSObject.Properties['targetMonitorId']){$config.display.targetMonitorId=[string]$selectedMonitor.pnpDeviceId}else{$config.display|Add-Member NoteProperty targetMonitorId ([string]$selectedMonitor.pnpDeviceId)}
@@ -335,7 +341,7 @@ function Show-HardwareSettings {
         $script:tray.ShowBalloonTip(2500,'AlienGamer Mode',(T 'dialog.hardwareApplied'),[Windows.Forms.ToolTipIcon]::Info)
     } catch {
         Write-AgentLog "No se pudo cambiar la configuración del equipo: $($_.Exception.Message)"
-        [Windows.Forms.MessageBox]::Show($_.Exception.Message,'AlienGamer Mode','OK','Error') | Out-Null
+        (Show-AGMessage -Text $_.Exception.Message -Icon Error -English:($script:language -eq 'en-US')) | Out-Null
     } finally {
         if($form){$form.Dispose()}
         Remove-Item -LiteralPath $temporaryDiscovery -Force -ErrorAction SilentlyContinue
@@ -352,13 +358,13 @@ function Show-DisplayLayoutEditor {
         $arguments="-NoProfile -STA -ExecutionPolicy Bypass -File `"$(Join-Path $appRoot 'Show-AlienGamerLayoutEditor.ps1')`" -ConfigPath `"$configPath`" -DiscoveryPath `"$discoveryPath`" -HideConsole"
         $script:layoutEditorErrorPath=Join-Path $dataRoot 'layout-editor.error.log'
         ''|Set-Content -LiteralPath $script:layoutEditorErrorPath -Encoding UTF8
-        $script:layoutEditorProcess=Start-Process powershell.exe -WindowStyle Minimized -ArgumentList $arguments -RedirectStandardError $script:layoutEditorErrorPath -PassThru
+        $script:layoutEditorProcess=Start-AGHiddenProcess powershell.exe -ArgumentList $arguments -RedirectStandardError $script:layoutEditorErrorPath -PassThru
         $script:layoutEditorStartedAt=Get-Date
         $script:displayLayoutItem.Enabled=$false
         Write-AgentLog 'Editor multidisplay abierto sin bloquear la bandeja.'
     }catch{
         Write-AgentLog "No se pudo abrir el editor multidisplay: $($_.Exception.Message)"
-        [Windows.Forms.MessageBox]::Show($_.Exception.Message,'AlienGamer Mode','OK','Error')|Out-Null
+        (Show-AGMessage -Text $_.Exception.Message -Icon Error -English:($script:language -eq 'en-US'))|Out-Null
     }
 }
 
@@ -378,6 +384,7 @@ function Complete-DisplayLayoutEditor {
             }else{return}
         }
         $stage='read-exit-code'
+        $process.WaitForExit() # Flush asynchronous stderr after the child has exited.
         $exitCode=[int]$process.ExitCode
         $script:layoutEditorProcess=$null
         $script:layoutEditorStartedAt=$null
@@ -391,6 +398,9 @@ function Complete-DisplayLayoutEditor {
                 if(Test-MonitorActive){
                     $applyOverlays=@(Show-DisplayApplyOverlays)
                     [Windows.Forms.Application]::DoEvents()
+                    # The display can be unplugged or renumbered while the
+                    # editor is open. Never build from its previous snapshot.
+                    & (Join-Path $appRoot 'Discover-AlienGamerHardware.ps1') -OutputPath $discoveryPath -AllowMissingHWiNFO | Out-Null
                     Refresh-DisplaySkins -ReuseValidatedProfile
                 }
             }finally{
@@ -407,7 +417,7 @@ function Complete-DisplayLayoutEditor {
             $details=if($script:layoutEditorErrorPath-and(Test-Path -LiteralPath $script:layoutEditorErrorPath)){(Get-Content -LiteralPath $script:layoutEditorErrorPath -Raw).Trim()}else{''}
             if(-not $details){$details=if($script:language-eq'en-US'){'The display editor could not be opened.'}else{'No se pudo abrir el editor de pantallas.'}}
             Write-AgentLog "El editor multidisplay termino con codigo ${exitCode}: $details"
-            [Windows.Forms.MessageBox]::Show($details,'AlienGamer Mode','OK','Error')|Out-Null
+            (Show-AGMessage -Text $details -Icon Error -English:($script:language -eq 'en-US'))|Out-Null
         }
     }catch{
         $detail=$_.Exception.ToString()
@@ -417,7 +427,7 @@ function Complete-DisplayLayoutEditor {
         $script:layoutEditorProcess=$null
         $script:layoutEditorStartedAt=$null
         try{$process.Dispose()}catch{}
-        [Windows.Forms.MessageBox]::Show("$($_.Exception.Message)`r`n`r`nEtapa: $stage",'AlienGamer Mode','OK','Error')|Out-Null
+        (Show-AGMessage -Text "$($_.Exception.Message)`r`n`r`nEtapa: $stage" -Icon Error -English:($script:language -eq 'en-US'))|Out-Null
     }
 }
 
@@ -459,7 +469,7 @@ function Set-AppLanguage([string]$Language) {
         Write-AgentLog "Idioma actualizado: $resolved."
     } catch {
         Write-AgentLog "No se pudo cambiar el idioma: $($_.Exception.Message)"
-        [Windows.Forms.MessageBox]::Show($_.Exception.Message, 'AlienGamer Mode', 'OK', 'Error') | Out-Null
+        (Show-AGMessage -Text $_.Exception.Message -Icon Error -English:($script:language -eq 'en-US')) | Out-Null
     } finally {
         if ($loading) { $loading.Close(); $loading.Dispose() }
     }
@@ -527,6 +537,7 @@ function Ensure-MonitorPosition {
 
 function Show-Loading([string]$Text) {
     $form = New-Object Windows.Forms.Form
+    $form.Font=New-Object Drawing.Font('Segoe UI',10)
     $form.Text = 'AlienGamer Mode'
     $form.FormBorderStyle = 'FixedDialog'
     $form.StartPosition = 'CenterScreen'
@@ -540,6 +551,7 @@ function Show-Loading([string]$Text) {
     $label.Dock = 'Fill'
     $label.Font = New-Object Drawing.Font('Segoe UI',11)
     $form.Controls.Add($label)
+    Set-AGWindowTheme $form
     $form.Show()
     $form.Refresh()
     return $form
@@ -560,6 +572,8 @@ function Show-DisplayApplyOverlays {
         $panel=New-Object Windows.Forms.Panel;$panel.Dock='Fill';$panel.Padding=New-Object Windows.Forms.Padding(2);$panel.BackColor=[Drawing.Color]::FromArgb(80,36,120);$form.Controls.Add($panel)
         $inner=New-Object Windows.Forms.Panel;$inner.Dock='Fill';$inner.BackColor=[Drawing.Color]::FromArgb(18,22,31);$panel.Controls.Add($inner)
         $label=New-Object Windows.Forms.Label;$label.Dock='Fill';$label.TextAlign='MiddleCenter';$label.ForeColor=[Drawing.Color]::White;$label.Font=New-Object Drawing.Font('Segoe UI Semibold',13);$label.Text=(T 'dialog.applyingLayout');$inner.Controls.Add($label)
+        Set-AGWindowTheme $form
+        if(-not[Windows.Forms.SystemInformation]::HighContrast){$panel.BackColor=[AlienGamer.Desktop.Theme]::Accent}
         $form.Show();$form.Refresh();$forms.Add($form)
     }
     $forms.ToArray()
@@ -599,7 +613,7 @@ function Start-Monitor {
 
         Stop-Bridge
         $bridgeArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$(Join-Path $appRoot 'AlienGamerBridge.ps1')`" -ProfilePath `"$profilePath`" -StateDirectory `"$dataRoot`""
-        Start-Process -FilePath powershell.exe -WindowStyle Hidden -ArgumentList $bridgeArgs | Out-Null
+        Start-AGHiddenProcess -FilePath powershell.exe -ArgumentList $bridgeArgs | Out-Null
         $deadline = [DateTime]::UtcNow.AddSeconds(8)
         do {
             try { $health = Invoke-RestMethod -Uri "http://127.0.0.1:$($profile.bridgePort)/health" -TimeoutSec 1 } catch { $health = $null }
@@ -634,7 +648,7 @@ function Start-Monitor {
             Stop-OwnedHWiNFOTask
         }
         elseif ($ownedHWiNFO) { Stop-Process -Name HWiNFO64 -Force -ErrorAction SilentlyContinue }
-        [Windows.Forms.MessageBox]::Show($_.Exception.Message, 'AlienGamer Mode', 'OK', 'Error') | Out-Null
+        (Show-AGMessage -Text $_.Exception.Message -Icon Error -English:($script:language -eq 'en-US')) | Out-Null
     } finally { $loading.Close(); $loading.Dispose(); $script:starting = $false }
 }
 
@@ -687,6 +701,7 @@ $configItem = $menu.Items.Add((T 'tray.advancedConfiguration'))
 $logsItem = $menu.Items.Add((T 'tray.openLogs'))
 [void]$menu.Items.Add('-')
 $exitItem = $menu.Items.Add((T 'tray.closeApp'))
+Set-AGMenuTheme $menu
 
 $tray = New-Object Windows.Forms.NotifyIcon
 $script:tray = $tray
@@ -720,6 +735,18 @@ $configItem.Add_Click({ Start-Process notepad.exe -ArgumentList "`"$configPath`"
 $logsItem.Add_Click({ Start-Process explorer.exe -ArgumentList "`"$dataRoot`"" })
 $exitItem.Add_Click({ Stop-Monitor; $tray.Visible=$false; [Windows.Forms.Application]::Exit() })
 
+$script:lastPowerLineStatus=[Windows.Forms.SystemInformation]::PowerStatus.PowerLineStatus
+function Watch-PowerLine {
+    $current=[Windows.Forms.SystemInformation]::PowerStatus.PowerLineStatus
+    if($current -eq $script:lastPowerLineStatus){return}
+    $script:lastPowerLineStatus=$current
+    Write-AgentLog "Fuente de alimentación cambiada: $current"
+    if($current -eq [Windows.Forms.PowerLineStatus]::Offline){
+        $message=if($script:language -eq 'en-US'){'AC power was lost. The external display or Internet may disconnect; check your game and layout.'}else{'Se perdió la corriente. La pantalla externa o Internet pueden desconectarse; revisa el juego y la distribución.'}
+        try{$script:tray.ShowBalloonTip(5000,'AlienGamer Mode',$message,[Windows.Forms.ToolTipIcon]::Warning)}catch{}
+    }
+}
+
 $eventTimer = New-Object Windows.Forms.Timer
 $eventTimer.Interval = 500
 $eventTimer.Add_Tick({
@@ -727,6 +754,7 @@ $eventTimer.Add_Tick({
         Complete-DisplayLayoutEditor
         if ($activateEvent.WaitOne(0)) { Start-Monitor }
         if ($stopEvent.WaitOne(0) -or (Test-StopRequest)) { Stop-Monitor }
+        Watch-PowerLine
         Update-TrayMenuState
         Ensure-MonitorPosition
     }catch{

@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Process.psm1') -Force
 $dataRoot = if ($StateDirectory) { $StateDirectory } else { Join-Path $env:LOCALAPPDATA 'AlienGamerMode' }
 $statePath = Join-Path $dataRoot 'agent-state.json'
 $stopRequestPath = Join-Path $dataRoot 'stop-monitor.request.json'
@@ -17,7 +18,8 @@ if (-not $SkipExternalProcesses -and (Test-Path -LiteralPath $rainmeter)) {
 
 $recorder = Join-Path $PSScriptRoot 'AlienGamerEventRecorder.ps1'
 if (-not $SkipExternalProcesses -and (Test-Path -LiteralPath $recorder)) {
-    & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File $recorder -StopBuffer -RainmeterConfig 'AlienGamerMode' | Out-Null
+    $stopWorker=Start-AGHiddenProcess powershell.exe -ArgumentList "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$recorder`" -StopBuffer -RainmeterConfig AlienGamerMode" -PassThru
+    if($stopWorker){[void]$stopWorker.WaitForExit(10000);$stopWorker.Dispose()}
 }
 
 $bridgePidPath = Join-Path $dataRoot 'bridge.pid'

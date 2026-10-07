@@ -1,5 +1,31 @@
 # Historial de cambios
 
+## 1.7.0 — 2026-10-07
+
+- Incorpora **Enfoque de pantallas**, tema oscuro neutro con acento naranja: tarjetas redondeadas de pantallas físicas y acceso móvil arriba, vista previa centrada, opciones Módulos/Fondo/Diseño debajo y acciones persistentes al pie. Mantiene la asignación física y las preferencias existentes.
+- Organiza Módulos/Fondo/Diseño en un panel lateral vertical, con estado activo gris elevado, texto fuerte y márgenes internos/de contenido. Valida la distribución de tarjetas con dos y cinco monitores simulados; las pantallas adicionales se presentan en filas dentro de la misma sección.
+- Sustituye los arranques residentes de PowerShell por un lanzador gráfico y procesos con `CreateNoWindow`, incluyendo agente, bridge, editor y grabadores. Pruebas aisladas confirman ausencia de consola y conservación de errores/códigos de salida; pendiente comprobar el arranque instalado en el equipo del usuario.
+- Homologa menú de clic derecho y submenús, temporizador, configuración de hardware, QR, selector RGB, progreso y avisos de error/grabación. Usa un tema compartido sin nuevas dependencias; mantiene accesos de teclado y colores del sistema en contraste alto. Documentación y pruebas: [Estudio](docs/DESKTOP-STUDIO.md).
+- Anota para una siguiente etapa el módulo de ventiladores con giro proporcional a RPM reales y flujo de aire decorativo; requiere validar disponibilidad de sensores antes de implementar: [próximas mejoras](docs/ROADMAP.md).
+
+- Corrige el bloqueo de instalación por `LiteralPath` nulo: la comprobación y la acción de la tarea HWiNFO usan la ruta `hwinfoPath` definida por el instalador.
+
+- Corrige la selección de pantallas tras un corte de energía o cambio de topología: la vista sigue el identificador físico del monitor, no el número `DISPLAY1/DISPLAY2`. Si el monitor asignado desaparece, no se mueve al otro; el editor permite reasignarlo de forma explícita.
+- Vuelve a detectar pantallas al aplicar y conserva el manifiesto anterior si falla la reconstrucción.
+- Corrige el inicio de sensores rechazado con `0x800702E4`: la tarea elevada usa un host nativo GUI que inicia HWiNFO y atiende la señal de cierre, sin PowerShell residente ni ventana vacía de Windows Terminal.
+- Documenta el host y añade pruebas de la definición de tarea, del subsistema GUI y del ciclo real de sensores: [arranque de sensores](docs/SENSOR-HOST.md).
+- Simplifica el acceso móvil: activación y renovación de QR automáticas, estado visible del servidor, copia con confirmación y aplicación de módulos independiente. Corrige la codificación del formulario para Windows PowerShell 5.1.
+- Agrupa el acceso **Celular o tablet** como tarjeta en la sección superior de pantallas del nuevo editor; deja el panel inferior exclusivamente para opciones del diseño seleccionado.
+- Rediseña la vista móvil siguiendo la referencia del usuario: encabezado compacto, **Expandir/Salir**, reloj matricial, anillos SVG separados para RAM/VRAM/CPU/GPU, alertas, temperaturas agrupadas con color real y luciérnagas decorativas visibles.
+- Añade edición móvil: ordenamiento por arrastre/flechas, visibilidad por tarjeta y tres tamaños: **Mínimo**, **Normal** y **Extendido**. Distribución masonry de alturas naturales, columnas responsivas y Extendido como separador de fila completa; recalcula al rotar/cambiar contenido, sin alturas fijas ni dependencia de CSS experimental. Agrupa FPS y tiempo de cuadro en un módulo de 2 columnas normales y conserva alertas independiente, también de 2 columnas. Migra preferencias al formato compartido v4. Pruebas en ocho resoluciones verifican tamaños, apilado sin huecos de fila y sin solapamientos.
+- Aplica tarjetas glassmorphism translúcidas con desenfoque y títulos centrados. Añade color de luciérnagas configurable desde el móvil y persistente por navegador; no modifica colores de sensores ni el skin de escritorio.
+- Añade **Mantener pantalla encendida** exclusivamente con permiso nativo concedido: deshabilita y explica HTTP local o navegador sin API, refleja rechazo/liberación y recupera la solicitud al volver a primer plano. Retira el vídeo tras el reporte del Samsung S26 Ultra. HTTPS local aún no está implementado; no exige certificados manuales ni promete compatibilidad universal. Pruebas verifican el control y permisos, no el bloqueo físico.
+- El temporizador muestra `00 h 00 m 00 s` sin configuración, recupera la duración elegida al iniciar otra sesión y deja **GAME OVER** fijo cuando termina.
+- Añade acceso móvil optativo desde **Pantallas y distribución → Celular / tablet (QR)**. La página responsiva muestra sensores cada segundo, selecciona módulos, acepta orientación vertical u horizontal y ofrece entrar/salir de pantalla completa sin apagar la laptop.
+- El servicio móvil se enlaza únicamente a una IP privada de la red local, exige un código QR secreto, ofrece sólo lecturas, permite renovar el QR y limita la regla de firewall al puerto 27844 y a la subred local. No usa la nube.
+- El modo pantalla completa depende del navegador y requiere un toque; la barra del navegador puede persistir si el dispositivo no admite esta API.
+- Muestra una advertencia en la bandeja al detectar el paso de corriente a batería y registra el cambio; no pretende predecir un apagón ni evitar la pérdida de Internet.
+
 ## 1.6.5 — en validación local
 
 - Suaviza el avance del aro entre lecturas de segundos con una respuesta amortiguada, sin retrocesos perceptibles durante la cuenta.

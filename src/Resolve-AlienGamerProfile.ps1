@@ -52,11 +52,20 @@ function To-Mapping($Reading) {
 }
 
 $monitorIdentity = if ($config.display.PSObject.Properties['targetMonitorId']) { [string]$config.display.targetMonitorId } else { '' }
-$monitor = if ($monitorIdentity -and $monitorIdentity -ne 'auto') { $discovery.monitors | Where-Object pnpDeviceId -eq $monitorIdentity | Select-Object -First 1 } else { $null }
-if (-not $monitor -and $MonitorDeviceName) { $monitor = $discovery.monitors | Where-Object deviceName -eq $MonitorDeviceName | Select-Object -First 1 }
-if (-not $monitor -and $config.display.targetMonitor -ne 'auto') { $monitor = $discovery.monitors | Where-Object deviceName -eq $config.display.targetMonitor | Select-Object -First 1 }
-if (-not $monitor -and $config.display.preference -eq 'secondary') { $monitor = $discovery.monitors | Where-Object { -not $_.primary } | Select-Object -First 1 }
-if (-not $monitor) { $monitor = $discovery.monitors | Where-Object primary | Select-Object -First 1 }
+$monitor = $null
+if ($monitorIdentity -and $monitorIdentity -ne 'auto') {
+    $monitor = $discovery.monitors | Where-Object pnpDeviceId -eq $monitorIdentity | Select-Object -First 1
+    if (-not $monitor) { throw "La pantalla física configurada no está conectada: $monitorIdentity" }
+} elseif ($MonitorDeviceName) {
+    $monitor = $discovery.monitors | Where-Object deviceName -eq $MonitorDeviceName | Select-Object -First 1
+    if (-not $monitor) { throw "La pantalla configurada no está conectada: $MonitorDeviceName" }
+} elseif ($config.display.targetMonitor -and $config.display.targetMonitor -ne 'auto') {
+    $monitor = $discovery.monitors | Where-Object deviceName -eq $config.display.targetMonitor | Select-Object -First 1
+    if (-not $monitor) { throw "La pantalla configurada no está conectada: $($config.display.targetMonitor)" }
+} else {
+    if ($config.display.preference -eq 'secondary') { $monitor = $discovery.monitors | Where-Object { -not $_.primary } | Select-Object -First 1 }
+    if (-not $monitor) { $monitor = $discovery.monitors | Where-Object primary | Select-Object -First 1 }
+}
 
 $gpu = if ($PreferredGpu) { $discovery.gpus | Where-Object name -like "*$PreferredGpu*" | Select-Object -First 1 } else { $discovery.gpus | Sort-Object discreteScore -Descending | Select-Object -First 1 }
 $storage = if ($PreferredStorage) { $discovery.storage | Where-Object friendlyName -like "*$PreferredStorage*" | Select-Object -First 1 } else { $discovery.storage | Sort-Object @{Expression={if ($_.busType -eq 'NVMe') {0} elseif ($_.mediaType -eq 'SSD') {1} else {2}}} | Select-Object -First 1 }

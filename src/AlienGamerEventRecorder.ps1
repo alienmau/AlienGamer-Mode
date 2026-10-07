@@ -25,6 +25,8 @@ $Rainmeter = 'C:\Program Files\Rainmeter\Rainmeter.exe'
 $PendingRoot = Join-Path $env:LOCALAPPDATA 'AlienGamerMode\GrabacionesPendientes'
 Add-Type -AssemblyName Microsoft.VisualBasic
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Localization.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.UI.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.Process.psm1') -Force
 $language = 'es-MX'
 try {
     $language = Resolve-AGLanguage ([string](Get-Content (Join-Path $RuntimeRoot 'AlienGamerMode.json') -Raw | ConvertFrom-Json).language)
@@ -81,7 +83,7 @@ function Start-PreEventBuffer {
     Remove-Item $BufferStopPath -Force -ErrorAction SilentlyContinue
     $powershell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
     $args = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" -BufferWorker -SampleIntervalMs $SampleIntervalMs -BridgeUrl `"$BridgeUrl`""
-    $process = Start-Process -FilePath $powershell -ArgumentList $args -WindowStyle Hidden -PassThru
+    $process = Start-AGHiddenProcess -FilePath $powershell -ArgumentList $args -PassThru
     [pscustomobject]@{ WorkerPid=$process.Id; StartedUtc=[DateTime]::UtcNow.ToString('o') } | ConvertTo-Json | Set-Content $BufferStatePath -Encoding UTF8
 }
 
@@ -147,7 +149,7 @@ function Start-RecordingWorker {
 
     $powershell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
     $args = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" -Worker -SessionId `"$id`" -SampleIntervalMs $SampleIntervalMs -BridgeUrl `"$BridgeUrl`" -RainmeterConfig `"$RainmeterConfig`""
-    $process = Start-Process -FilePath $powershell -ArgumentList $args -WindowStyle Hidden -PassThru
+    $process = Start-AGHiddenProcess -FilePath $powershell -ArgumentList $args -PassThru
     $state.WorkerPid = $process.Id
     $state | ConvertTo-Json | Set-Content -LiteralPath $StatePath -Encoding UTF8
     Set-RainmeterRecordingState $true
@@ -674,8 +676,8 @@ function Finish-Recording([string]$CsvPath, [string]$MetadataPath, [string]$Mark
     $settings = Get-EventIntelligenceSettings
     $privacyProtected = $true
     if([bool]$settings.privacyAssistant){
-        $privacyChoice=[System.Windows.Forms.MessageBox]::Show((T 'recorder.privacyQuestion'),(T 'recorder.privacyTitle'),'YesNoCancel','Question')
-        if($privacyChoice -eq [System.Windows.Forms.DialogResult]::Cancel){[System.Windows.Forms.MessageBox]::Show("$(T 'recorder.pending')`n$CsvPath",'AlienGamer Mode','OK','Information')|Out-Null;return}
+        $privacyChoice=(Show-AGMessage -Text (T 'recorder.privacyQuestion') -Title (T 'recorder.privacyTitle') -Buttons YesNoCancel -Icon Question -English:($language-eq'en-US'))
+        if($privacyChoice -eq [System.Windows.Forms.DialogResult]::Cancel){(Show-AGMessage -Text "$(T 'recorder.pending')`n$CsvPath" -Title 'AlienGamer Mode' -Buttons OK -Icon Information -English:($language-eq'en-US'))|Out-Null;return}
         $privacyProtected = $privacyChoice -eq [System.Windows.Forms.DialogResult]::Yes
     }
     $dialog = New-Object System.Windows.Forms.SaveFileDialog
@@ -695,21 +697,21 @@ function Finish-Recording([string]$CsvPath, [string]$MetadataPath, [string]$Mark
         if([bool]$settings.saveRawCsvBesideReport){Copy-Item $CsvPath $rawDestination -Force}
         if(-not$visualError-and-not$excelError){
             $savedPaths="$($dialog.FileName)`n$visualDestination`n$rawDestination"
-            [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.saved')`n$savedPaths", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
+            (Show-AGMessage -Text "$(T 'recorder.saved')`n$savedPaths" -Title 'AlienGamer Mode' -Buttons OK -Icon Information -English:($language-eq'en-US')) | Out-Null
             Remove-Item -LiteralPath $CsvPath,$MetadataPath,$MarkerPath -Force -ErrorAction SilentlyContinue
         }else{
             $partial=@();if(Test-Path$visualDestination){$partial+=$visualDestination};if(Test-Path$dialog.FileName){$partial+=$dialog.FileName};if(Test-Path$rawDestination){$partial+=$rawDestination}
             $errors=@($visualError,$excelError|Where-Object{$_})-join"`r`n"
-            [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.failed')`n$errors`n`n$(T 'recorder.csvPreserved')`n$CsvPath`n`n$($partial-join"`r`n")",'AlienGamer Mode','OK','Warning')|Out-Null
+            (Show-AGMessage -Text "$(T 'recorder.failed')`n$errors`n`n$(T 'recorder.csvPreserved')`n$CsvPath`n`n$($partial-join"`r`n")" -Title 'AlienGamer Mode' -Buttons OK -Icon Warning -English:($language-eq'en-US'))|Out-Null
         }
     } else {
-        [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.pending')`n$CsvPath", 'AlienGamer Mode', 'OK', 'Information') | Out-Null
+        (Show-AGMessage -Text "$(T 'recorder.pending')`n$CsvPath" -Title 'AlienGamer Mode' -Buttons OK -Icon Information -English:($language-eq'en-US')) | Out-Null
     }
 }
 
 if($StartBuffer){Start-PreEventBuffer;exit}
 if($StopBuffer){Stop-PreEventBuffer;exit}
-if($MarkIncident){if(Add-IncidentMarker){Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue;[System.Windows.Forms.MessageBox]::Show((T 'dialog.incidentMarked'),'AlienGamer Mode','OK','Information')|Out-Null};exit}
+if($MarkIncident){if(Add-IncidentMarker){Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue;(Show-AGMessage -Text (T 'dialog.incidentMarked') -Title 'AlienGamer Mode' -Buttons OK -Icon Information -English:($language-eq'en-US'))|Out-Null};exit}
 
 if ($Toggle) {
     $state = Read-State
@@ -749,7 +751,7 @@ if ($Worker) {
         Finish-Recording $state.CsvPath $state.MetadataPath $state.MarkerPath $startedAt $startProcesses
     } catch {
         Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
-        [System.Windows.Forms.MessageBox]::Show("$(T 'recorder.failed')`n$($_.Exception.Message)`n`n$(T 'recorder.csvPreserved')`n$($state.CsvPath)", 'AlienGamer Mode', 'OK', 'Error') | Out-Null
+        (Show-AGMessage -Text "$(T 'recorder.failed')`n$($_.Exception.Message)`n`n$(T 'recorder.csvPreserved')`n$($state.CsvPath)" -Title 'AlienGamer Mode' -Buttons OK -Icon Error -English:($language-eq'en-US')) | Out-Null
     } finally {
         Remove-Item -LiteralPath $StatePath,$StopPath -Force -ErrorAction SilentlyContinue
         Set-RainmeterRecordingState $false

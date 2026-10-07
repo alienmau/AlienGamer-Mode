@@ -30,11 +30,12 @@ New-Item -ItemType Directory -Path $viewsOutput -Force|Out-Null
 $manifest=New-Object 'System.Collections.Generic.List[object]'
 $index=0
 foreach($view in $views){
-    $monitor=$null
-    if($view.monitorId -and $view.monitorId -ne 'auto'){$monitor=@($discovery.monitors|Where-Object pnpDeviceId -eq $view.monitorId)[0]}
-    if(-not $monitor -and $view.monitorDeviceName -and $view.monitorDeviceName -ne 'auto'){$monitor=@($discovery.monitors|Where-Object deviceName -eq $view.monitorDeviceName)[0]}
-    if(-not $monitor){$monitor=if($index-eq 0){@($discovery.monitors|Where-Object primary)[0]}else{@($discovery.monitors|Select-Object -Skip $index -First 1)[0]}}
-    if(-not $monitor){continue}
+    $monitor=Resolve-AGViewMonitor -View $view -Monitors @($discovery.monitors)
+    $explicit=([string]$view.monitorId -notin @('','auto')) -or ([string]$view.monitorDeviceName -notin @('','auto'))
+    if(-not $monitor -and $explicit){throw "La pantalla configurada '$($view.name)' no está conectada. No se moverá a otra pantalla."}
+    if(-not $monitor){$monitor=if($config.display.preference -eq 'secondary'){@($discovery.monitors|Where-Object {-not $_.primary}|Select-Object -First 1)[0]}else{$null}}
+    if(-not $monitor){$monitor=@($discovery.monitors|Where-Object primary|Select-Object -First 1)[0]}
+    if(-not $monitor){throw "No se encontró ninguna pantalla conectada para '$($view.name)'."}
 
     $viewConfig=($config|ConvertTo-Json -Depth 20|ConvertFrom-Json)
     $viewConfig.display.targetMonitor=[string]$monitor.deviceName

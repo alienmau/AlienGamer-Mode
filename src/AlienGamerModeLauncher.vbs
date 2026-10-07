@@ -40,9 +40,15 @@ Select Case mode
         command = PsCommand(appRoot & "\AlienGamerModeAgent.ps1", "")
 End Select
 
-' Window style 0 prevents a console from being allocated visibly. The launcher
-' returns immediately; the agent and commands keep their own lifecycle.
-shell.Run command, windowStyle, False
+' The GUI-subsystem bootstrap launches PowerShell with CREATE_NO_WINDOW.
+' Do not fall back to a visible console if an installation is incomplete.
+Dim processHost
+processHost = appRoot & "\assets\AlienGamerProcessHost.exe"
+If Not fso.FileExists(processHost) Then
+    MsgBox "AlienGamer Mode: missing process launcher. Please reinstall.", vbExclamation, "AlienGamer Mode"
+    WScript.Quit 1
+End If
+shell.Run Quote(processHost) & " " & command, windowStyle, False
 
 Function PsCommand(scriptPath, arguments)
     PsCommand = Quote(powershell) & " -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File " & Quote(scriptPath)

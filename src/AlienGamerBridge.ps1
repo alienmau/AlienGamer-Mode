@@ -13,6 +13,8 @@ if ($Port -le 0) { $Port = [int]$profile.bridgePort }
 if (-not (Test-Path $StateDirectory)) { New-Item -ItemType Directory -Path $StateDirectory -Force | Out-Null }
 $pidFile = Join-Path $StateDirectory 'bridge.pid'
 $logFile = Join-Path $StateDirectory 'bridge.log'
+$configFile = Join-Path $StateDirectory 'AlienGamerMode.json'
+$mobileEndpointFile = Join-Path $StateDirectory 'mobile-endpoint.json'
 $PID | Set-Content -LiteralPath $pidFile -Encoding ASCII
 
 function Get-ReadingValue([hashtable]$ByKey, $Mapping, [double]$Unavailable) {
@@ -33,7 +35,7 @@ function Limit-Reading([double]$Value, [double]$Minimum, [double]$Maximum, [doub
 }
 
 function Get-AlienGamerStatus {
-    $inventory = @(Get-HWiNFOInventory)
+    $inventory = try { @(Get-HWiNFOInventory) } catch { @() }
     $byKey = @{}
     foreach ($reading in $inventory) { $byKey[[string]$reading.Key] = $reading }
     $missing = [double]$profile.unavailableValue
@@ -64,7 +66,7 @@ function Get-AlienGamerStatus {
     $gpuPower = Limit-Reading (Get-ReadingValue $byKey $m.gpuPower $missing) 0 1 $missing
     return [ordered]@{
         timestamp = (Get-Date).ToString('o')
-        source = 'HWiNFO Shared Memory'
+        source = if($inventory.Count){'HWiNFO Shared Memory'}else{'Unavailable'}
         gpuTemperature = $gpuTemperature
         gpuUsage = $gpuUsage
         cpuTemperature = $cpuTemperature
@@ -96,11 +98,85 @@ function ConvertTo-Pipe($Status) {
 function Send-Response($Stream, [int]$Code, [string]$ContentType, [string]$Body) {
     $payload = [Text.Encoding]::UTF8.GetBytes($Body)
     $reason = if ($Code -eq 200) { 'OK' } elseif ($Code -eq 503) { 'Service Unavailable' } else { 'Not Found' }
-    $headers = "HTTP/1.1 $Code $reason`r`nContent-Type: $ContentType; charset=utf-8`r`nCache-Control: no-store, no-cache`r`nContent-Length: $($payload.Length)`r`nConnection: close`r`n`r`n"
+    $headers = "HTTP/1.1 $Code $reason`r`nContent-Type: $ContentType; charset=utf-8`r`nCache-Control: no-store, no-cache`r`nReferrer-Policy: no-referrer`r`nX-Content-Type-Options: nosniff`r`nContent-Security-Policy: default-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'`r`nContent-Length: $($payload.Length)`r`nConnection: close`r`n`r`n"
     $headerBytes = [Text.Encoding]::ASCII.GetBytes($headers)
     $Stream.Write($headerBytes, 0, $headerBytes.Length)
     $Stream.Write($payload, 0, $payload.Length)
     $Stream.Flush()
+}
+
+function Test-PrivateIpv4([string]$Address) {
+    $ip=$null
+    if(-not [Net.IPAddress]::TryParse($Address,[ref]$ip) -or $ip.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork){return $false}
+    $b=$ip.GetAddressBytes()
+    return ($b[0] -eq 10 -or ($b[0] -eq 172 -and $b[1] -ge 16 -and $b[1] -le 31) -or ($b[0] -eq 192 -and $b[1] -eq 168))
+}
+
+function Test-SameSubnet([Net.IPAddress]$Client,[Net.IPAddress]$ServerIp,[int]$PrefixLength) {
+    if($Client.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork){return $false}
+    $a=$Client.GetAddressBytes();$b=$ServerIp.GetAddressBytes()
+    for($i=0;$i -lt 4;$i++){
+        $bits=[Math]::Max(0,[Math]::Min(8,$PrefixLength-$i*8))
+        if($bits -eq 0){break}
+        $mask=(256-(1 -shl (8-$bits))) -band 255
+        if(($a[$i] -band $mask) -ne ($b[$i] -band $mask)){return $false}
+    }
+    return $true
+}
+
+function Get-MobileEndpoint {
+    $interfaces=@([Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
+        Where-Object { $_.OperationalStatus -eq [Net.NetworkInformation.OperationalStatus]::Up } |
+        Sort-Object @{Expression={if($_.NetworkInterfaceType -eq [Net.NetworkInformation.NetworkInterfaceType]::Ethernet){0}else{1}}})
+    foreach($interface in $interfaces){
+        $properties=$interface.GetIPProperties()
+        if(-not @($properties.GatewayAddresses|Where-Object {$_.Address.AddressFamily -eq [Net.Sockets.AddressFamily]::InterNetwork}).Count){continue}
+        foreach($address in @($properties.UnicastAddresses)){
+            if($address.Address.AddressFamily -eq [Net.Sockets.AddressFamily]::InterNetwork -and (Test-PrivateIpv4 ([string]$address.Address))){
+                return [pscustomobject]@{ip=[string]$address.Address;prefix=[int]$address.PrefixLength}
+            }
+        }
+    }
+    return $null
+}
+
+$mobileListener=$null
+$mobileBinding=$null
+$mobileToken=''
+$mobilePort=0
+$mobileModules=@()
+$mobileTimerView='principal'
+$mobileCheck=[DateTime]::MinValue
+function Update-MobileListener {
+    if(((Get-Date)-$script:mobileCheck).TotalSeconds -lt 3){return}
+    $script:mobileCheck=Get-Date
+    $settings=$null
+    try{$settings=(Get-Content -LiteralPath $configFile -Raw -Encoding UTF8|ConvertFrom-Json).mobileView}catch{}
+    $enabled=$settings -and [bool]$settings.enabled -and [string]$settings.token -match '^[a-fA-F0-9]{32,64}$'
+    $port=if($settings){[int]$settings.port}else{0}
+    if($port -lt 1024 -or $port -gt 65535){$enabled=$false}
+    $endpoint=if($enabled){Get-MobileEndpoint}else{$null}
+    $changed=($script:mobileListener -and (-not $endpoint -or $script:mobileBinding.ip -ne $endpoint.ip -or $script:mobilePort -ne $port -or $script:mobileToken -ne [string]$settings.token))
+    if($changed){$script:mobileListener.Stop();$script:mobileListener=$null;Remove-Item -LiteralPath $mobileEndpointFile -Force -ErrorAction SilentlyContinue}
+    if(-not $endpoint){Remove-Item -LiteralPath $mobileEndpointFile -Force -ErrorAction SilentlyContinue;return}
+    $script:mobileToken=[string]$settings.token
+    $script:mobileModules=@($settings.modules)
+    try{
+        $active=@((Get-Content -LiteralPath $configFile -Raw -Encoding UTF8|ConvertFrom-Json).displayViews|Where-Object enabled|Select-Object -First 1)
+        if($active.Count){$script:mobileTimerView=[string]$active[0].id}
+    }catch{}
+    if(-not $script:mobileListener){
+        try{
+            $script:mobileListener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Parse($endpoint.ip),$port)
+            $script:mobileListener.Start()
+            $script:mobileBinding=$endpoint;$script:mobilePort=$port
+            ([ordered]@{url="http://$($endpoint.ip):$port/m/$($script:mobileToken)/";ip=$endpoint.ip;port=$port;updatedAt=(Get-Date).ToString('o')}|ConvertTo-Json -Compress)|Set-Content -LiteralPath $mobileEndpointFile -Encoding UTF8
+            "$(Get-Date -Format o) Mobile LAN listening on $($endpoint.ip):$port"|Add-Content -LiteralPath $logFile -Encoding UTF8
+        }catch{
+            $script:mobileListener=$null
+            "$(Get-Date -Format o) Mobile LAN unavailable: $($_.Exception.Message)"|Add-Content -LiteralPath $logFile -Encoding UTF8
+        }
+    }
 }
 
 $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $Port)
@@ -111,12 +187,49 @@ try {
         $client = $null
         $reader = $null
         try {
-            $client = $listener.AcceptTcpClient()
+            Update-MobileListener
+            $isMobile=$false
+            if($mobileListener -and $mobileListener.Pending()){$client=$mobileListener.AcceptTcpClient();$isMobile=$true}
+            elseif($listener.Pending()){$client=$listener.AcceptTcpClient()}
+            else{Start-Sleep -Milliseconds 40;continue}
+            $client.ReceiveTimeout=3000
             $stream = $client.GetStream()
             $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::ASCII, $false, 2048, $true)
             $requestLine = $reader.ReadLine()
-            while (($line = $reader.ReadLine()) -ne $null -and $line.Length -gt 0) { }
+            $headerLength=0
+            while (($line = $reader.ReadLine()) -ne $null -and $line.Length -gt 0) { $headerLength+=$line.Length;if($headerLength -gt 8192){throw 'Cabeceras HTTP demasiado grandes.'} }
             $path = if ($requestLine -match '^GET\s+([^\s]+)') { $Matches[1].Split('?')[0] } else { '/' }
+            if($isMobile){
+                $remote=[Net.IPAddress]$client.Client.RemoteEndPoint.Address
+                if(-not(Test-SameSubnet $remote ([Net.IPAddress]::Parse($mobileBinding.ip)) $mobileBinding.prefix)){
+                    Send-Response $stream 404 'text/plain' 'Not found';continue
+                }
+                $base="/m/$mobileToken/"
+                if($path -eq $base){
+                    $html=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'mobile\index.html') -Raw -Encoding UTF8
+                    Send-Response $stream 200 'text/html' $html
+                }elseif($path -eq ($base+'status')){
+                    $status=Get-AlienGamerStatus
+                    try{
+                        Add-Type -AssemblyName Microsoft.VisualBasic -ErrorAction Stop
+                        $memory=[Microsoft.VisualBasic.Devices.ComputerInfo]::new()
+                        $status.ramUsedMB=[Math]::Round(($memory.TotalPhysicalMemory-$memory.AvailablePhysicalMemory)/1MB,1)
+                        $status.ramTotalMB=[Math]::Round($memory.TotalPhysicalMemory/1MB,1)
+                    }catch{$status.ramUsedMB=-1;$status.ramTotalMB=-1}
+                    $status.modules=@($mobileModules)
+                    $timerPath=Join-Path $StateDirectory ('session-timer-'+($mobileTimerView -replace '[^A-Za-z0-9_-]','-')+'.txt')
+                    $timer=@{}
+                    if(Test-Path -LiteralPath $timerPath){
+                        foreach($line in @(Get-Content -LiteralPath $timerPath -ErrorAction SilentlyContinue)){
+                            if($line -match '^([A-Za-z]+)=(.*)$'){$timer[$Matches[1]]=$Matches[2]}
+                        }
+                    }
+                    $remaining=if($timer.status -eq 'running' -and [long]$timer.deadline -gt 0){[Math]::Max(0,[long]$timer.deadline-[DateTimeOffset]::UtcNow.ToUnixTimeSeconds())}elseif($timer.remaining){[long]$timer.remaining}else{0}
+                    $status.timer=[ordered]@{remaining=$remaining;configured=($timer.configured -eq '1');status=if($timer.status){[string]$timer.status}else{'idle'}}
+                    Send-Response $stream 200 'application/json' ($status|ConvertTo-Json -Depth 6 -Compress)
+                }else{Send-Response $stream 404 'text/plain' 'Not found'}
+                continue
+            }
             try {
                 $status = Get-AlienGamerStatus
                 switch ($path) {
@@ -140,5 +253,7 @@ try {
     }
 } finally {
     $listener.Stop()
+    if($mobileListener){$mobileListener.Stop()}
+    Remove-Item -LiteralPath $mobileEndpointFile -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $pidFile -Force -ErrorAction SilentlyContinue
 }

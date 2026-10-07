@@ -20,6 +20,7 @@ Start-Sleep -Milliseconds 700
 Stop-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO'
 Stop-Process -Name HWiNFO64 -Force
 Unregister-ScheduledTask -TaskName 'AlienGamerMode-HWiNFO' -Confirm:$false
+Get-NetFirewallRule -DisplayName 'AlienGamer Mode Mobile LAN' | Remove-NetFirewallRule
 $pidFile = Join-Path $dataRoot 'bridge.pid'
 if (Test-Path $pidFile) { Stop-Process -Id ([int](Get-Content $pidFile -Raw)) -Force }
 Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'powershell' -and $_.CommandLine -like '*AlienGamerModeAgent.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }

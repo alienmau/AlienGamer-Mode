@@ -42,7 +42,10 @@ try {
         Set-IniSetting $hwinfoIni $pair[0] $pair[1]
     }
 
-    $taskArguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$installedLauncher`""
+    $hwinfoPath = Join-Path $env:ProgramFiles 'HWiNFO64\HWiNFO64.exe'
+    if (-not (Test-Path -LiteralPath $hwinfoPath)) { throw "No se encontró HWiNFO64: $hwinfoPath" }
+    $sensorHostPath = Join-Path $installRoot 'assets\AlienGamerSensorHost.exe'
+    if (-not (Test-Path -LiteralPath $sensorHostPath)) { throw 'Falta el lanzador nativo de sensores.' }
     $scheduler = New-Object -ComObject 'Schedule.Service'
     $scheduler.Connect()
     $taskFolder = $scheduler.GetFolder('\')
@@ -59,8 +62,8 @@ try {
     $taskDefinition.Settings.StopIfGoingOnBatteries = $false
     $taskDefinition.Settings.ExecutionTimeLimit = 'PT0S'
     $taskExec = $taskDefinition.Actions.Create(0)
-    $taskExec.Path = $powershell
-    $taskExec.Arguments = $taskArguments
+    $taskExec.Path = $sensorHostPath
+    $taskExec.Arguments = ''
     [void]$taskFolder.RegisterTaskDefinition($taskName,$taskDefinition,6,$null,$null,3,$null)
 
     Start-ScheduledTask -TaskName $taskName
