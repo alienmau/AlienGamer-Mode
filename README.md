@@ -4,6 +4,8 @@
 
 **Monitoreo adaptable de sensores y componentes del equipo para Windows.**
 
+**Actualización del 10 de octubre:** [mejoras verificadas, fixes y nuevas capturas](docs/UPDATE-2026-10-10.md) · [Guía de HTTPS móvil y temporizador](docs/MOBILE-HTTPS-GUIDE.md). Implementadas en desarrollo; pendientes de incluir en el siguiente instalador público.
+
 La versión **1.7.0** incorpora un [panel móvil local](docs/MOBILE-LAN.md) por QR y el nuevo [Enfoque de pantallas](docs/DESKTOP-STUDIO.md): tarjetas arriba, vista previa centrada y opciones en un panel lateral inferior, con tema oscuro y acento naranja. [Notas completas en español e inglés y capturas](docs/RELEASE-1.7.0.md). [Próximas mejoras](docs/ROADMAP.md), incluido el módulo de ventiladores pendiente de validar sensores.
 
 ![Nueva interfaz de Pantallas y distribución de AlienGamer Mode 1.7.0](docs/images/release-1.7.0/display-editor.png)

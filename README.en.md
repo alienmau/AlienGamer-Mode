@@ -4,6 +4,8 @@
 
 **Adaptive Windows hardware and sensor monitoring for gamers.**
 
+**October 10 update:** [verified improvements, fixes and new screenshots](docs/UPDATE-2026-10-10.md) · [Mobile HTTPS and timer guide](docs/MOBILE-HTTPS-GUIDE.md). Implemented in development; awaiting the next public installer.
+
 Version **1.7.0** adds a [QR-based local mobile dashboard](docs/MOBILE-LAN.md) and refreshed [Display layout](docs/DESKTOP-STUDIO.md): rounded display cards above a centered preview, vertical options below, and a unified dark theme with an orange accent. [Detailed bilingual notes and screenshots](docs/RELEASE-1.7.0.md). GUI process launchers prevent console allocation while retaining dialogs and diagnostics; final installed-startup confirmation remains open. [Roadmap](docs/ROADMAP.md) includes a fan module, pending real RPM sensor availability.
 
 ![AlienGamer Mode 1.7.0 redesigned display editor](docs/images/release-1.7.0/display-editor.png)
