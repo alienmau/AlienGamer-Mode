@@ -8,6 +8,7 @@ $checksum=Join-Path $root "build\installer\AlienGamerMode-Setup-$version.sha256.
 foreach($file in @($notes,$installer,$checksum)){if(-not(Test-Path -LiteralPath $file)){throw 'Missing release input.'}}
 $hash=(Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
 if((Get-Content -LiteralPath $checksum -Raw)-notmatch[regex]::Escape($hash)){throw 'Installer checksum mismatch.'}
+Write-Host 'Release inputs and checksum verified. Checking GitHub session...'
 $api='https://api.github.com/repos/alienmau/AlienGamer-Mode'
 # Reuse the existing Git credential helper for this same GitHub destination.
 # Credentials stay in memory, never in a file, log, command argument or output.
@@ -18,11 +19,12 @@ foreach($line in $credentialLines){$split=$line.IndexOf('=');if($split-gt0){$cre
 if(-not$credential.password){throw 'No GitHub credential returned.'}
 $headers=@{Authorization=('Bearer '+$credential.password);Accept='application/vnd.github+json';'X-GitHub-Api-Version'='2022-11-28';'User-Agent'='AlienGamerMode-Release'}
 function Request-GitHub([string]$Method,[string]$Uri,$Body){
-    $options=@{Method=$Method;Uri=$Uri;Headers=$headers}
+    $options=@{Method=$Method;Uri=$Uri;Headers=$headers;TimeoutSec=60}
     if($null-ne$Body){$options.Body=[Text.Encoding]::UTF8.GetBytes(($Body|ConvertTo-Json -Depth 8));$options.ContentType='application/json; charset=utf-8'}
     Invoke-RestMethod @options
 }
 try{
+    Write-Host 'Checking authenticated account and release state...'
     $account=Request-GitHub GET 'https://api.github.com/user' $null
     if($account.login-ne'alienmau'){throw 'Authenticated account does not match the requested repository owner.'}
     $repo=Request-GitHub GET $api $null
@@ -43,7 +45,8 @@ try{
             continue
         }
         $uri=$uploadBase+'?name='+[Uri]::EscapeDataString($name)+'&label='+[Uri]::EscapeDataString($label)
-        $asset=Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -ContentType 'application/octet-stream' -InFile $file
+        Write-Host ('Uploading '+$name+'...')
+        $asset=Invoke-RestMethod -Method POST -Uri $uri -Headers $headers -ContentType 'application/octet-stream' -InFile $file -TimeoutSec 120
         if($asset.state-ne'uploaded'-or$asset.size-ne(Get-Item -LiteralPath $file).Length){throw 'Release upload verification failed.'}
     }
     $release=Request-GitHub PATCH "$api/releases/$($release.id)" @{draft=$false;prerelease=$false;make_latest='true'}
