@@ -265,6 +265,14 @@ if(-not[Windows.Forms.SystemInformation]::HighContrast){$note.ForeColor=[AlienGa
 $installButton.Add_Click({
     try {
         $installButton.Enabled=$false; $status.Text=T 'installer.copying'; $form.Refresh()
+        # Preserve LAN consent, token, modules and TLS preferences on upgrades.
+        # A fresh installation still starts with mobile access disabled.
+        $previousMobile=$null
+        $previousConfigPath=Join-Path $dataRoot 'AlienGamerMode.json'
+        if(Test-Path -LiteralPath $previousConfigPath){
+            $previousConfig=Get-Content -LiteralPath $previousConfigPath -Raw -Encoding UTF8|ConvertFrom-Json
+            if($previousConfig.PSObject.Properties['mobileView']){$previousMobile=$previousConfig.mobileView}
+        }
         $legacyBackup = Backup-And-RemovePreviousEditions
         New-Item -ItemType Directory -Path $installRoot,$dataRoot -Force | Out-Null
         Copy-Item -Path (Join-Path $sourceRoot '*') -Destination $installRoot -Recurse -Force
@@ -291,6 +299,7 @@ $installButton.Add_Click({
             (Join-Path $dataRoot 'layout-editor.trace.log')
         )){Remove-Item -LiteralPath $generatedPath -Recurse -Force -ErrorAction SilentlyContinue}
         $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        if($previousMobile){$config|Add-Member NoteProperty mobileView $previousMobile -Force}
         $config.language = $Language
         $selectedMonitor = @($discovery.monitors)[$monitorBox.SelectedIndex]
         $selectedGpu = @($discovery.gpus)[$gpuBox.SelectedIndex]
@@ -389,6 +398,9 @@ $installButton.Add_Click({
         }
         $startupLink = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\AlienGamer Mode.lnk'
         if ($startupCheck.Checked) { New-Shortcut $startupLink $wscript "//B //NoLogo `"$launcher`" agent" (Join-Path $installRoot 'assets\AlienGamerMode.ico') } elseif (Test-Path $startupLink) { Remove-Item $startupLink -Force }
+
+        # Existing taskbar pins survive reinstalling the normal shortcuts.
+        & (Join-Path $sourceRoot 'Repair-AlienGamerShortcuts.ps1') -InstallRoot $installRoot | Out-Null
 
         $status.Text=T 'installer.finished'; $form.Refresh()
         $completion = T 'installer.complete'

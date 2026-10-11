@@ -1,5 +1,13 @@
 # Historial de cambios
 
+## 1.8.0 — 2026-10-10
+
+- HTTPS local opcional con asistente guiado, identidad conservada al actualizar y resumen «HTTPS activo · Ver conexión».
+- Screen Wake Lock nativo con HTTPS confiable cuando el navegador lo admite; guía CA/no Wi-Fi y ejemplos de confianza correcta/incorrecta.
+- Temporizador único PC/móvil con control autorizado explícitamente en PC y protegido por HTTPS, origen y revisión. Iconos SVG accesibles de 44 px; colores ámbar/rojo y GAME OVER fijo.
+- Corrige consola PowerShell de accesos antiguos, errores del asistente, preferencias móviles sobrescritas, contexto/rutas del puente y pantalla móvil atascada en «Conectando…».
+- [Notas detalladas ES/EN, límites y capturas](docs/RELEASE-1.8.0.md) · [Guía HTTPS](docs/MOBILE-HTTPS-GUIDE.md).
+
 ## 1.7.0 — 2026-10-07
 
 - Incorpora **Enfoque de pantallas**, tema oscuro neutro con acento naranja: tarjetas redondeadas de pantallas físicas y acceso móvil arriba, vista previa centrada, opciones Módulos/Fondo/Diseño debajo y acciones persistentes al pie. Mantiene la asignación física y las preferencias existentes.

@@ -1,4 +1,4 @@
-param([ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Tag='v1.7.0')
+param([ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Tag='v1.8.0')
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 $version=$Tag.Substring(1)
@@ -30,7 +30,7 @@ try{
     $release=$null
     try{$release=Request-GitHub GET "$api/releases/tags/$Tag" $null}catch{if([int]$_.Exception.Response.StatusCode-ne404){throw}}
     $body=Get-Content -LiteralPath $notes -Raw -Encoding UTF8
-    if(-not$release){$release=Request-GitHub POST "$api/releases" @{tag_name=$Tag;name="AlienGamer Mode $version - Mobile dashboard / Panel movil + nueva interfaz";body=$body;draft=$true;prerelease=$false}}
+    if(-not$release){$release=Request-GitHub POST "$api/releases" @{tag_name=$Tag;name="AlienGamer Mode $version - Local HTTPS and shared timer / HTTPS local y temporizador";body=$body;draft=$true;prerelease=$false}}
     else{$release=Request-GitHub PATCH "$api/releases/$($release.id)" @{body=$body}}
     $uploadBase=($release.upload_url-split'\{')[0]
     if(-not$uploadBase.StartsWith('https://uploads.github.com/repos/alienmau/AlienGamer-Mode/releases/')){throw 'Unexpected upload destination.'}

@@ -36,6 +36,9 @@ if (-not $createdNew) {
     exit 0
 }
 if (-not (Test-Path $dataRoot)) { New-Item -ItemType Directory -Path $dataRoot -Force | Out-Null }
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.SharedTimer.psm1') -Force
+# A real app launch prepares the saved duration; screen refreshes never reset it.
+[void](Invoke-AGSharedTimer -Directory $dataRoot -Action reset)
 
 function Write-AgentLog([string]$Message) {
     "$(Get-Date -Format o) $Message" | Add-Content -LiteralPath $logPath -Encoding UTF8

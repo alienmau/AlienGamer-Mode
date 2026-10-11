@@ -1,6 +1,6 @@
 # HTTPS móvil: guía / Mobile HTTPS guide
 
-Corresponde a las mejoras del siguiente paquete, aún no incluidas en el instalador público 1.7.0. / Applies to upcoming changes, not yet included in the public 1.7.0 installer.
+Disponible desde **1.8.0**; 1.7.0 no incluye estas funciones. / Available in **1.8.0**; 1.7.0 does not include these features.
 
 ## Español — paso a paso
 

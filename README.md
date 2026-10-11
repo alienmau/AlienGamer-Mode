@@ -4,7 +4,7 @@
 
 **Monitoreo adaptable de sensores y componentes del equipo para Windows.**
 
-**Actualización del 10 de octubre:** [mejoras verificadas, fixes y nuevas capturas](docs/UPDATE-2026-10-10.md) · [Guía de HTTPS móvil y temporizador](docs/MOBILE-HTTPS-GUIDE.md). Implementadas en desarrollo; pendientes de incluir en el siguiente instalador público.
+**Versión 1.8.0:** [Descargar instalador](https://github.com/alienmau/AlienGamer-Mode/releases/tag/v1.8.0) · [mejoras, fixes y capturas](docs/RELEASE-1.8.0.md) · [Guía de HTTPS móvil y temporizador](docs/MOBILE-HTTPS-GUIDE.md). Incluye HTTPS local opcional, pantalla encendida cuando el navegador lo permite y temporizador único con control móvil autorizado.
 
 La versión **1.7.0** incorpora un [panel móvil local](docs/MOBILE-LAN.md) por QR y el nuevo [Enfoque de pantallas](docs/DESKTOP-STUDIO.md): tarjetas arriba, vista previa centrada y opciones en un panel lateral inferior, con tema oscuro y acento naranja. [Notas completas en español e inglés y capturas](docs/RELEASE-1.7.0.md). [Próximas mejoras](docs/ROADMAP.md), incluido el módulo de ventiladores pendiente de validar sensores.
 
@@ -103,7 +103,7 @@ La validación comunitaria en combinaciones NVIDIA, AMD e Intel continúa. Si lo
 
 1. Instala y configura los requisitos indicados arriba.
 2. Descarga el instalador más reciente desde [Releases](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta `AlienGamerMode-Setup-1.7.0.exe` y elige **Español** o **English**.
+3. Ejecuta `AlienGamerMode-Setup-1.8.0.exe` y elige **Español** o **English**.
 4. Selecciona la pantalla, GPU y unidad de almacenamiento que deseas supervisar.
 5. Finaliza la instalación; el panel se activa automáticamente y queda disponible desde el icono de la bandeja.
 
@@ -165,9 +165,9 @@ El servicio está desactivado por defecto. Usa una IP privada y el puerto 27844,
 
 La vista móvil incorpora reloj matricial, anillos individuales para RAM/VRAM/CPU/GPU, temperaturas agrupadas y luciérnagas decorativas. **Editar** permite ordenar, ocultar y elegir **Mínimo** (1 columna), **Normal** (ancho base por módulo) o **Extendido** (fila completa). La distribución masonry aprovecha el alto natural de cada tarjeta sin huecos de fila ni alturas fijas, conserva los tamaños al girar y deja Extendido como separador de fila completa. FPS y tiempo de cuadro están unidos; ese bloque y alertas ocupan 2 columnas en tamaño normal. Las tarjetas son translúcidas, con efecto vidrio, y los títulos están centrados. Puedes elegir el color de las luciérnagas desde Editar. Las preferencias se guardan en el dispositivo. **Expandir** y **Salir** controlan la pantalla completa; el aviso propio de Chrome no se puede modificar desde la página.
 
-**Editar → Mantener pantalla encendida** solicita el permiso nativo únicamente cuando el navegador lo admite en un contexto seguro. Con el enlace HTTP local actual queda deshabilitado y explica la limitación; no exige certificados manuales ni cambios de seguridad. Sólo indica «Activa» tras recibir el permiso real, respeta su rechazo/liberación y permite bloquear manualmente. La alternativa de vídeo fue retirada. HTTPS local aún no está implementado y esta capacidad no se garantiza en todos los dispositivos. Detalles en [Panel móvil local](docs/MOBILE-LAN.md).
+Desde **1.8.0**, **Configurar HTTPS** prepara una conexión cifrada con certificado local propio. Instala el certificado público como **CA**, no como Wi-Fi, comprueba la huella y exige que el navegador indique «La conexión es segura». No ignores advertencias de certificado. **Editar → Mantener pantalla encendida** solicita el permiso nativo en HTTPS confiable cuando el navegador lo admite; HTTP mantiene la opción deshabilitada. Sólo indica «Activa» tras obtener el permiso real y permite bloquear manualmente. [Guía paso a paso](docs/MOBILE-HTTPS-GUIDE.md).
 
-El usuario confirmó acceso desde Chrome móvil por Wi-Fi y aportó capturas del nuevo diseño vertical, horizontal y de su editor. Las pruebas automáticas cubren servidor, QR, ocho resoluciones, edición persistente, arrastre y rotación. Quedan pendientes tablet/iOS reales y la confirmación final del arranque instalado sin consola; no se promete compatibilidad universal ni mantener pantalla encendida por HTTP.
+El temporizador es único para todas las pantallas. El control móvil requiere **HTTPS y permiso explícito en la PC**; sin permiso permanece de sólo lectura. Configuración, iniciar/pausar, minutos extra y restablecer se sincronizan. Ámbar desde 70% consumido, rojo desde 85% y GAME OVER rojo fijo al terminar. El usuario confirmó HTTPS confiable, pantalla encendida y temporizador en Samsung S26 Ultra / One UI 9 / Chrome, y el arranque sin consola. Quedan pendientes tablet/iOS físicos; no se promete compatibilidad universal.
 
 ## Fondo ambiental configurable
 

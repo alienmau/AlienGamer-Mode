@@ -6,6 +6,9 @@
 
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.HWiNFO.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.MobileTls.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.SharedTimer.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.TimerHttp.psm1') -Force
 $culture = [Globalization.CultureInfo]::InvariantCulture
 if (-not (Test-Path $ProfilePath)) { throw "No existe el perfil resuelto: $ProfilePath" }
 $profile = Get-Content -LiteralPath $ProfilePath -Raw | ConvertFrom-Json
@@ -14,6 +17,7 @@ if (-not (Test-Path $StateDirectory)) { New-Item -ItemType Directory -Path $Stat
 $pidFile = Join-Path $StateDirectory 'bridge.pid'
 $logFile = Join-Path $StateDirectory 'bridge.log'
 $configFile = Join-Path $StateDirectory 'AlienGamerMode.json'
+[void](Invoke-AGSharedTimer -Directory $StateDirectory)
 $mobileEndpointFile = Join-Path $StateDirectory 'mobile-endpoint.json'
 $PID | Set-Content -LiteralPath $pidFile -Encoding ASCII
 
@@ -97,7 +101,7 @@ function ConvertTo-Pipe($Status) {
 
 function Send-Response($Stream, [int]$Code, [string]$ContentType, [string]$Body) {
     $payload = [Text.Encoding]::UTF8.GetBytes($Body)
-    $reason = if ($Code -eq 200) { 'OK' } elseif ($Code -eq 503) { 'Service Unavailable' } else { 'Not Found' }
+    $reason = switch($Code){200{'OK'};400{'Bad Request'};403{'Forbidden'};409{'Conflict'};503{'Service Unavailable'};default{'Not Found'}}
     $headers = "HTTP/1.1 $Code $reason`r`nContent-Type: $ContentType; charset=utf-8`r`nCache-Control: no-store, no-cache`r`nReferrer-Policy: no-referrer`r`nX-Content-Type-Options: nosniff`r`nContent-Security-Policy: default-src 'self'; connect-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; frame-ancestors 'none'`r`nContent-Length: $($payload.Length)`r`nConnection: close`r`n`r`n"
     $headerBytes = [Text.Encoding]::ASCII.GetBytes($headers)
     $Stream.Write($headerBytes, 0, $headerBytes.Length)
@@ -145,8 +149,43 @@ $mobileBinding=$null
 $mobileToken=''
 $mobilePort=0
 $mobileModules=@()
-$mobileTimerView='principal'
+function Get-MobileSessionTimer {
+    param([string]$Directory,$Views,[long]$Now=[DateTimeOffset]::UtcNow.ToUnixTimeSeconds())
+    $candidates=@(foreach($view in @($Views|Where-Object enabled)){
+        $id=([string]$view.id -replace '[^A-Za-z0-9_-]','-').Trim('-').ToLowerInvariant()
+        if(-not$id){$id='display'}
+        # Rainmeter passes CURRENTCONFIG, not the bare display id, to Lua.
+        $paths=@((Join-Path $Directory ("session-timer-AlienGamerMode-Views-$id.txt")),(Join-Path $Directory ("session-timer-$id.txt")))
+        foreach($path in $paths){
+            if(-not(Test-Path -LiteralPath $path)){continue}
+            try{
+                $values=@{}
+                foreach($line in @(Get-Content -LiteralPath $path -ErrorAction Stop)){if($line-match'^([A-Za-z]+)=(.*)$'){$values[$Matches[1]]=$Matches[2]}}
+                $remaining=0L;$deadline=0L
+                if($values.configured-ne'1'-or$values.status-notin@('idle','running','paused','finished')-or-not[long]::TryParse([string]$values.remaining,[ref]$remaining)-or-not[long]::TryParse([string]$values.deadline,[ref]$deadline)){continue}
+                $duration=0L
+                if(-not [long]::TryParse([string]$values.duration,[ref]$duration)-or$duration-lt0){$duration=0L}
+                $state=[string]$values.status
+                if($state-eq'running'){
+                    if($deadline-le0){continue}
+                    $remaining=[Math]::Max(0,$deadline-$Now)
+                    if($remaining-eq0){$state='finished'}
+                }
+                $rank=switch($state){'running'{0};'paused'{1};'finished'{2};default{3}}
+                [pscustomobject]@{rank=$rank;modified=(Get-Item -LiteralPath $path).LastWriteTimeUtc;viewId=[string]$view.id;remaining=[Math]::Max(0,$remaining);duration=$duration;status=$state}
+                break
+            }catch{continue} # A transient partial write must not break sensor delivery.
+        }
+    })
+    $chosen=$candidates|Sort-Object rank,@{Expression='modified';Descending=$true},viewId|Select-Object -First 1
+    if($chosen){return [ordered]@{remaining=$chosen.remaining;duration=$chosen.duration;configured=$true;status=$chosen.status;viewId=$chosen.viewId}}
+    return [ordered]@{remaining=0;duration=0;configured=$false;status='idle';viewId=''}
+}
+$mobileTimerViews=@()
 $mobileCheck=[DateTime]::MinValue
+$mobileTls=$false
+$mobileIdentity=$null
+$mobilePrepared=$false
 function Update-MobileListener {
     if(((Get-Date)-$script:mobileCheck).TotalSeconds -lt 3){return}
     $script:mobileCheck=Get-Date
@@ -156,24 +195,32 @@ function Update-MobileListener {
     $port=if($settings){[int]$settings.port}else{0}
     if($port -lt 1024 -or $port -gt 65535){$enabled=$false}
     $endpoint=if($enabled){Get-MobileEndpoint}else{$null}
-    $changed=($script:mobileListener -and (-not $endpoint -or $script:mobileBinding.ip -ne $endpoint.ip -or $script:mobilePort -ne $port -or $script:mobileToken -ne [string]$settings.token))
+    $tlsRequested=$settings -and $settings.PSObject.Properties['tls'] -and [bool]$settings.tls.enabled
+    $prepared=$settings -and $settings.PSObject.Properties['tls'] -and ([bool]$settings.tls.prepared -or $tlsRequested)
+    $renewCertificate=$script:mobileIdentity -and $script:mobileIdentity.Certificate.NotAfter -lt (Get-Date).AddDays(7)
+    $changed=($script:mobileListener -and (-not $endpoint -or $script:mobileBinding.ip -ne $endpoint.ip -or $script:mobilePort -ne $port -or $script:mobileToken -ne [string]$settings.token -or $script:mobileTls -ne [bool]$tlsRequested -or $script:mobilePrepared -ne [bool]$prepared -or $renewCertificate))
     if($changed){$script:mobileListener.Stop();$script:mobileListener=$null;Remove-Item -LiteralPath $mobileEndpointFile -Force -ErrorAction SilentlyContinue}
     if(-not $endpoint){Remove-Item -LiteralPath $mobileEndpointFile -Force -ErrorAction SilentlyContinue;return}
     $script:mobileToken=[string]$settings.token
     $script:mobileModules=@($settings.modules)
     try{
-        $active=@((Get-Content -LiteralPath $configFile -Raw -Encoding UTF8|ConvertFrom-Json).displayViews|Where-Object enabled|Select-Object -First 1)
-        if($active.Count){$script:mobileTimerView=[string]$active[0].id}
+        $script:mobileTimerViews=@((Get-Content -LiteralPath $configFile -Raw -Encoding UTF8|ConvertFrom-Json).displayViews|Where-Object enabled)
     }catch{}
     if(-not $script:mobileListener){
         try{
+            $script:mobileIdentity=if($prepared){Get-AGMobileTlsIdentity -Directory (Join-Path $StateDirectory 'MobileTls') -IPAddress $endpoint.ip -AllowAuthorityCreation (-not [bool]$tlsRequested)}else{$null}
+            $script:mobileTls=[bool]$tlsRequested;$script:mobilePrepared=[bool]$prepared
             $script:mobileListener=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Parse($endpoint.ip),$port)
             $script:mobileListener.Start()
             $script:mobileBinding=$endpoint;$script:mobilePort=$port
-            ([ordered]@{url="http://$($endpoint.ip):$port/m/$($script:mobileToken)/";ip=$endpoint.ip;port=$port;updatedAt=(Get-Date).ToString('o')}|ConvertTo-Json -Compress)|Set-Content -LiteralPath $mobileEndpointFile -Encoding UTF8
+            $scheme=if($script:mobileTls){'https'}else{'http'}
+            ([ordered]@{url="${scheme}://$($endpoint.ip):$port/m/$($script:mobileToken)/";ip=$endpoint.ip;port=$port;https=$script:mobileTls;certificateReady=[bool]$script:mobileIdentity;fingerprint=if($script:mobileIdentity){$script:mobileIdentity.Fingerprint}else{''};certificateName=if($script:mobileIdentity){$script:mobileIdentity.Name}else{''};updatedAt=(Get-Date).ToString('o')}|ConvertTo-Json -Compress)|Set-Content -LiteralPath $mobileEndpointFile -Encoding UTF8
+            Remove-Item -LiteralPath (Join-Path $StateDirectory 'mobile-error.json') -ErrorAction SilentlyContinue
             "$(Get-Date -Format o) Mobile LAN listening on $($endpoint.ip):$port"|Add-Content -LiteralPath $logFile -Encoding UTF8
         }catch{
+            if($script:mobileListener){$script:mobileListener.Stop()}
             $script:mobileListener=$null
+            @{message=$_.Exception.Message;httpsRequested=[bool]$tlsRequested}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $StateDirectory 'mobile-error.json') -Encoding UTF8
             "$(Get-Date -Format o) Mobile LAN unavailable: $($_.Exception.Message)"|Add-Content -LiteralPath $logFile -Encoding UTF8
         }
     }
@@ -193,19 +240,43 @@ try {
             elseif($listener.Pending()){$client=$listener.AcceptTcpClient()}
             else{Start-Sleep -Milliseconds 40;continue}
             $client.ReceiveTimeout=3000
+            $client.SendTimeout=3000
             $stream = $client.GetStream()
-            $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::ASCII, $false, 2048, $true)
-            $requestLine = $reader.ReadLine()
-            $headerLength=0
-            while (($line = $reader.ReadLine()) -ne $null -and $line.Length -gt 0) { $headerLength+=$line.Length;if($headerLength -gt 8192){throw 'Cabeceras HTTP demasiado grandes.'} }
-            $path = if ($requestLine -match '^GET\s+([^\s]+)') { $Matches[1].Split('?')[0] } else { '/' }
+            # Reject out-of-subnet clients before the TLS handshake.
+            if($isMobile -and -not(Test-SameSubnet ([Net.IPAddress]$client.Client.RemoteEndPoint.Address) ([Net.IPAddress]::Parse($mobileBinding.ip)) $mobileBinding.prefix)){continue}
+            if($isMobile -and $mobileTls){
+                $tlsStream=[Net.Security.SslStream]::new($stream,$false)
+                $tlsStream.ReadTimeout=3000;$tlsStream.WriteTimeout=3000
+                try{$tlsStream.AuthenticateAsServer($mobileIdentity.Certificate,$false,[Security.Authentication.SslProtocols]::Tls12,$false)}catch{$tlsStream.Dispose();throw}
+                $stream=$tlsStream
+            }
+            $request=Read-AGHttpRequest $stream
+            $path=$request.Path
             if($isMobile){
                 $remote=[Net.IPAddress]$client.Client.RemoteEndPoint.Address
                 if(-not(Test-SameSubnet $remote ([Net.IPAddress]::Parse($mobileBinding.ip)) $mobileBinding.prefix)){
                     Send-Response $stream 404 'text/plain' 'Not found';continue
                 }
                 $base="/m/$mobileToken/"
-                if($path -eq $base){
+                if($path-eq($base+'timer')){
+                    $settings=(Get-Content -LiteralPath $configFile -Raw -Encoding UTF8|ConvertFrom-Json).mobileView
+                    $result=Invoke-AGTimerRequest $request $mobileTls ("https://$($mobileBinding.ip):$mobilePort") $settings $StateDirectory
+                    Send-Response $stream $result.Code 'application/json' ($result.Body|ConvertTo-Json -Compress)
+                    continue
+                }
+                if($request.Method-ne'GET'){Send-Response $stream 404 'text/plain' 'Not found';continue}
+                if($path -eq ($base+'certificate') -and $mobileIdentity){
+                    $payload=[IO.File]::ReadAllBytes($mobileIdentity.PublicPath)
+                    $headers=[Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK`r`nContent-Type: application/pkix-cert`r`nContent-Disposition: attachment; filename=AlienGamerMode-Local-CA.cer`r`nCache-Control: no-store`r`nReferrer-Policy: no-referrer`r`nX-Content-Type-Options: nosniff`r`nContent-Length: $($payload.Length)`r`nConnection: close`r`n`r`n")
+                    $stream.Write($headers,0,$headers.Length);$stream.Write($payload,0,$payload.Length);$stream.Flush()
+                }elseif($path-in@(($base+'examples/https-secure.jpg'),($base+'examples/https-untrusted.jpg'))){
+                    $example=if($path-eq($base+'examples/https-secure.jpg')){'https-secure.jpg'}else{'https-untrusted.jpg'}
+                    $payload=[IO.File]::ReadAllBytes((Join-Path $PSScriptRoot ('mobile\help\'+$example)))
+                    $headers=[Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK`r`nContent-Type: image/jpeg`r`nCache-Control: no-store`r`nReferrer-Policy: no-referrer`r`nX-Content-Type-Options: nosniff`r`nContent-Length: $($payload.Length)`r`nConnection: close`r`n`r`n")
+                    $stream.Write($headers,0,$headers.Length);$stream.Write($payload,0,$payload.Length);$stream.Flush()
+                }elseif($path -eq ($base+'setup/') -and $mobileIdentity){
+                    Send-Response $stream 200 'text/html' (Get-AGMobileSetupHtml -Fingerprint $mobileIdentity.Fingerprint -Name $mobileIdentity.Name -SecureUrl ("https://$($mobileBinding.ip):$mobilePort$base"))
+                }elseif($path -eq $base){
                     $html=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'mobile\index.html') -Raw -Encoding UTF8
                     Send-Response $stream 200 'text/html' $html
                 }elseif($path -eq ($base+'status')){
@@ -217,15 +288,9 @@ try {
                         $status.ramTotalMB=[Math]::Round($memory.TotalPhysicalMemory/1MB,1)
                     }catch{$status.ramUsedMB=-1;$status.ramTotalMB=-1}
                     $status.modules=@($mobileModules)
-                    $timerPath=Join-Path $StateDirectory ('session-timer-'+($mobileTimerView -replace '[^A-Za-z0-9_-]','-')+'.txt')
-                    $timer=@{}
-                    if(Test-Path -LiteralPath $timerPath){
-                        foreach($line in @(Get-Content -LiteralPath $timerPath -ErrorAction SilentlyContinue)){
-                            if($line -match '^([A-Za-z]+)=(.*)$'){$timer[$Matches[1]]=$Matches[2]}
-                        }
-                    }
-                    $remaining=if($timer.status -eq 'running' -and [long]$timer.deadline -gt 0){[Math]::Max(0,[long]$timer.deadline-[DateTimeOffset]::UtcNow.ToUnixTimeSeconds())}elseif($timer.remaining){[long]$timer.remaining}else{0}
-                    $status.timer=[ordered]@{remaining=$remaining;configured=($timer.configured -eq '1');status=if($timer.status){[string]$timer.status}else{'idle'}}
+                    $status.timer=Invoke-AGSharedTimer -Directory $StateDirectory
+                    $settings=(Get-Content -LiteralPath $configFile -Raw -Encoding UTF8|ConvertFrom-Json).mobileView
+                    $status.timerControl=[bool]($mobileTls-and$settings.allowTimerControl-eq$true-and'timer'-in@($settings.modules))
                     Send-Response $stream 200 'application/json' ($status|ConvertTo-Json -Depth 6 -Compress)
                 }else{Send-Response $stream 404 'text/plain' 'Not found'}
                 continue
@@ -248,6 +313,7 @@ try {
             "$(Get-Date -Format o) Solicitud interrumpida: $($_.Exception.Message)" | Add-Content -LiteralPath $logFile -Encoding UTF8
         } finally {
             if ($reader) { $reader.Dispose() }
+            if ($stream) { $stream.Dispose();$stream=$null }
             if ($client) { $client.Dispose() }
         }
     }

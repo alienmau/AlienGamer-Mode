@@ -36,6 +36,8 @@ Select Case mode
         If WScript.Arguments.Count > 1 Then rainmeterConfig = WScript.Arguments(1)
         command = Quote(powershell) & " -NoProfile -STA -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File " & Quote(appRoot & "\Configure-SessionTimer.ps1") & " -RainmeterConfig " & Quote(rainmeterConfig)
         windowStyle = 0
+    Case "timer-toggle", "timer-extra", "timer-reset"
+        command = PsCommand(appRoot & "\Invoke-SessionTimer.ps1", "-Action " & Mid(mode, 7))
     Case Else
         command = PsCommand(appRoot & "\AlienGamerModeAgent.ps1", "")
 End Select

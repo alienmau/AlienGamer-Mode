@@ -4,7 +4,7 @@
 
 **Adaptive Windows hardware and sensor monitoring for gamers.**
 
-**October 10 update:** [verified improvements, fixes and new screenshots](docs/UPDATE-2026-10-10.md) · [Mobile HTTPS and timer guide](docs/MOBILE-HTTPS-GUIDE.md). Implemented in development; awaiting the next public installer.
+**Version 1.8.0:** [Download installer](https://github.com/alienmau/AlienGamer-Mode/releases/tag/v1.8.0) · [improvements, fixes and screenshots](docs/RELEASE-1.8.0.md) · [Mobile HTTPS and timer guide](docs/MOBILE-HTTPS-GUIDE.md). Includes optional local HTTPS, native screen-awake support where available and one shared timer with authorized mobile controls.
 
 Version **1.7.0** adds a [QR-based local mobile dashboard](docs/MOBILE-LAN.md) and refreshed [Display layout](docs/DESKTOP-STUDIO.md): rounded display cards above a centered preview, vertical options below, and a unified dark theme with an orange accent. [Detailed bilingual notes and screenshots](docs/RELEASE-1.7.0.md). GUI process launchers prevent console allocation while retaining dialogs and diagnostics; final installed-startup confirmation remains open. [Roadmap](docs/ROADMAP.md) includes a fan module, pending real RPM sensor availability.
 
@@ -72,7 +72,7 @@ On the development system, with 24 logical processors, all sensors, 48 fireflies
 
 1. Install Rainmeter and HWiNFO from their official sites.
 2. Enable sensors and **Shared Memory Support** in HWiNFO.
-3. Download and run `AlienGamerMode-Setup-1.7.0.exe` as administrator.
+3. Download and run `AlienGamerMode-Setup-1.8.0.exe` as administrator.
 4. Choose **English** or **Español**, then select the target display, GPU and primary drive.
 5. Finish installation; the dashboard starts automatically and remains available from the tray icon.
 
@@ -123,9 +123,9 @@ The LAN service is off by default. It binds to a private address on port 27844, 
 
 The mobile view includes a matrix clock, individual RAM/VRAM/CPU/GPU rings, grouped temperatures, and decorative fireflies. **Edit (Editar)** supports ordering, visibility, and three sizes: **Minimum (Mínimo)** uses one column unit, **Normal** uses the module's base width, and **Extended (Extendido)** fills the entire row. A responsive masonry layout packs natural-height cards without row-height gaps or fixed heights, preserves column units across rotation, and treats Extended cards as full-width separators. FPS and frame time form one module; both that module and alerts use 2 units at Normal size. Cards have a translucent glass effect and centered titles. Edit also lets you choose the firefly color. Preferences are stored on each device. **Expand (Expandir)** and **Exit (Salir)** control fullscreen; Chrome's entry notification cannot be modified by the page.
 
-**Edit → Keep screen awake (Mantener pantalla encendida)** requests native screen wake lock only in a supported secure context. The current HTTP LAN link disables the option with an explanation; no manual certificates or security changes are required. “Active” appears only after an actual grant, and denial/release is reflected in the control. Manual locking remains possible. The video workaround was removed; local HTTPS is not implemented and universal device support is not promised. See [Mobile dashboard documentation](docs/MOBILE-LAN.md).
+Since **1.8.0**, **Configure HTTPS** prepares encrypted LAN access using an installation-specific local certificate. Install the public certificate as a **CA**, not as a Wi-Fi certificate, compare its fingerprint and verify that the browser reports “Connection is secure”. Do not bypass certificate warnings. **Edit → Keep screen awake** requests native wake lock on trusted HTTPS where supported; HTTP leaves it disabled. “Active” appears only after a real grant, and manual locking remains possible. [Step-by-step guide](docs/MOBILE-HTTPS-GUIDE.md).
 
-The user confirmed LAN access from Chrome over Wi-Fi and supplied portrait, landscape and mobile-editor screenshots of the revised design. Automated tests cover the server, QR, eight resolutions, saved editing, dragging, and rotation. Physical tablet/iOS coverage and final installed-console confirmation remain open; no universal device or wake-lock support is claimed.
+One shared timer serves all displays. Mobile controls require **HTTPS and explicit PC permission**; otherwise they remain read-only. Configure, start/pause, extra minutes and reset synchronize across screens. Colors turn amber at 70% elapsed and red at 85%, with fixed red GAME OVER at completion. The user confirmed trusted HTTPS, wake lock and timer controls on Samsung S26 Ultra / One UI 9 / Chrome, plus console-free startup. Physical tablet/iOS testing remains open; universal device support is not claimed.
 
 ## Changing the language
 

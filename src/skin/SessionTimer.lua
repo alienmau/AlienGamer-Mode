@@ -1,4 +1,4 @@
--- Per-display timer: wall-clock state survives Rainmeter refreshes.
+-- Shared timer: all screens read one authoritative wall-clock state.
 local state={baseDuration=0,extraStep=5,extraCount=0,duration=0,remaining=0,deadline=0,status="idle",configured=false}
 local statePath,enabled,language
 local frame,noticeUntil,lastZone=0,0,-1
@@ -36,69 +36,26 @@ local function readState()
         duration=math.floor(duration),remaining=clamp(math.floor(tonumber(loaded.remaining) or duration),0,duration),
         deadline=math.floor(tonumber(loaded.deadline) or 0),
         status=({idle=true,running=true,paused=true,finished=true})[loaded.status] and loaded.status or "idle",
-        configured=configured}
-end
-local function saveState()
-    local file=io.open(statePath,"w")
-    if not file then return end
-    file:write(string.format("baseDuration=%d\nextraStep=%d\nextraCount=%d\nduration=%d\nremaining=%d\ndeadline=%d\nstatus=%s\nconfigured=%d\n",
-        state.baseDuration,state.extraStep,state.extraCount,state.duration,state.remaining,state.deadline,state.status,
-        state.configured and 1 or 0))
-    file:close()
+        configured=configured,revision=tonumber(loaded.revision) or 0}
 end
 function Initialize()
-    local id=SELF:GetOption("ConfigId","principal"):gsub("[^%w_-]","-")
-    statePath=(os.getenv("LOCALAPPDATA") or ".").."\\AlienGamerMode\\session-timer-"..id..".txt"
+    statePath=(os.getenv("LOCALAPPDATA") or ".").."\\AlienGamerMode\\session-timer-shared.txt"
     enabled=tonumber(SELF:GetOption("Enabled","0"))==1
     language=SELF:GetOption("Language","es-MX")
     local loaded=readState()
     if loaded then
         state=loaded
-        -- A Rainmeter refresh or a fresh monitor launch starts a new session,
-        -- while the chosen duration and extra-step remain available.
-        state.status,state.deadline,state.extraCount="idle",0,0
-        state.duration,state.remaining=state.baseDuration,state.baseDuration
-        saveState()
+        -- Refreshing one screen must not reset the shared session.
     end
 end
 function StartPause()
-    state=readState() or state
-    if not state.configured then return end
-    if state.status=="running" then
-        state.remaining=clamp(state.deadline-os.time(),0,state.duration)
-        state.status=state.remaining>0 and "paused" or "finished"
-        state.deadline=0
-    else
-        if state.status=="finished" then
-            state.duration,state.remaining,state.extraCount=state.baseDuration,state.baseDuration,0
-            displayProgress,progressVelocity=0,0
-            resetDigits()
-        end
-        state.deadline=os.time()+state.remaining
-        state.status="running"
-    end
-    saveState()
+    SKIN:Bang('"C:\\Windows\\System32\\wscript.exe" //B //NoLogo "'..SKIN:GetVariable('LauncherPath')..'" "timer-toggle"')
 end
 function EndTimer()
-    state.status,state.deadline,state.extraCount="idle",0,0
-    state.duration,state.remaining=state.baseDuration,state.baseDuration
-    noticeUntil=0
-    displayProgress,progressVelocity=0,0
-    resetDigits()
-    saveState()
+    SKIN:Bang('"C:\\Windows\\System32\\wscript.exe" //B //NoLogo "'..SKIN:GetVariable('LauncherPath')..'" "timer-reset"')
 end
 function AddTime()
-    state=readState() or state
-    if not state.configured then return end
-    if state.extraCount>=3 then return end
-    local seconds=state.extraStep*60
-    if state.duration+seconds>359999 then return end
-    state.extraCount=state.extraCount+1
-    state.duration,state.remaining=state.duration+seconds,state.remaining+seconds
-    if state.status=="running" then state.deadline=state.deadline+seconds end
-    if state.status=="finished" then state.status="paused" end
-    noticeUntil=frame+24
-    saveState()
+    SKIN:Bang('"C:\\Windows\\System32\\wscript.exe" //B //NoLogo "'..SKIN:GetVariable('LauncherPath')..'" "timer-extra"')
 end
 local function updateDigits(rgb,zone)
     local r,g,b=rgb:match("(%d+),(%d+),(%d+)")
@@ -299,10 +256,11 @@ function Update()
     frame=frame+1
     if frame%5==0 then
         local latest=readState()
-        if latest and (latest.baseDuration~=state.baseDuration or latest.extraStep~=state.extraStep or
+        if latest and (latest.revision~=state.revision or latest.baseDuration~=state.baseDuration or latest.extraStep~=state.extraStep or
             latest.extraCount~=state.extraCount or latest.duration~=state.duration or
             latest.status~=state.status or latest.deadline~=state.deadline or
             latest.configured~=state.configured) then
+            if latest.extraCount>state.extraCount then noticeUntil=frame+20 end
             state=latest
             resetDigits()
         end
@@ -311,7 +269,7 @@ function Update()
         state.remaining=clamp(state.deadline-os.time(),0,state.duration)
         if state.remaining==0 then
             state.status,state.deadline="finished",0
-            saveState()
+            -- The bridge/command handler commits completion under its lock.
         end
     end
     local targetProgress=state.duration>0 and clamp((state.duration-state.remaining)*100/state.duration,0,100) or 0

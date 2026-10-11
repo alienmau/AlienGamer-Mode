@@ -4,6 +4,7 @@ $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.UI.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.SharedTimer.psm1') -Force
 Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
@@ -17,7 +18,8 @@ if($consoleHandle-ne[IntPtr]::Zero){[void][AlienGamerTimerConsole]::ShowWindow($
 $dataRoot=Join-Path $env:LOCALAPPDATA 'AlienGamerMode'
 if(-not(Test-Path -LiteralPath $dataRoot)){New-Item -ItemType Directory -Path $dataRoot -Force|Out-Null}
 $safeId=$RainmeterConfig -replace '[^A-Za-z0-9_-]','-'
-$statePath=Join-Path $dataRoot "session-timer-$safeId.txt"
+$statePath=Join-Path $dataRoot 'session-timer-shared.txt'
+$shared=Invoke-AGSharedTimer -Directory $dataRoot
 $duration=0
 $extraStep=5
 if(Test-Path -LiteralPath $statePath){
@@ -39,7 +41,7 @@ $form.BackColor=[Drawing.Color]::FromArgb(17,23,32)
 $form.ForeColor=[Drawing.Color]::White
 $form.Font=New-Object Drawing.Font('Segoe UI',10)
 $intro=New-Object Windows.Forms.Label
-$intro.Text=if($english){'Set a duration, then press Play on the monitor.'}else{'Define la duración y pulsa Iniciar en el monitor.'}
+$intro.Text=if($english){'Shared timer. Saving replaces the time on all screens.'}else{'Temporizador compartido. Guardar reemplaza el tiempo en todas las pantallas.'}
 $intro.SetBounds(24,18,342,44);$form.Controls.Add($intro)
 $labels=if($english){@('Hours','Minutes','Seconds')}else{@('Horas','Minutos','Segundos')}
 $values=@([int][Math]::Floor($duration/3600),([int][Math]::Floor($duration/60)%60),($duration%60))
@@ -73,10 +75,8 @@ $save.Add_Click({
         Show-AGMessage -Owner $form -Text $limitMessage -English:$english | Out-Null
         return
     }
-    $content="baseDuration=$seconds`nextraStep=$increment`nextraCount=0`nduration=$seconds`nremaining=$seconds`ndeadline=0`nstatus=idle`nconfigured=1`n"
-    $tempPath="$statePath.$PID.tmp"
-    [IO.File]::WriteAllText($tempPath,$content,(New-Object Text.UTF8Encoding($false)))
-    Move-Item -LiteralPath $tempPath -Destination $statePath -Force
+    try{Invoke-AGSharedTimer -Directory $dataRoot -Action configure -Seconds $seconds -ExtraStep $increment -Revision $shared.revision|Out-Null}
+    catch{Show-AGMessage -Owner $form -Text $_.Exception.Message -English:$english|Out-Null;$shared=Invoke-AGSharedTimer -Directory $dataRoot;return}
     $form.Close()
 })
 [void]$form.ShowDialog()

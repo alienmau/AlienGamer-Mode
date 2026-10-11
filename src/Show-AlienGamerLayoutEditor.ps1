@@ -5,7 +5,8 @@
     [switch]$SelfTest,
     [switch]$AutoSaveTest,
     [string]$ExportScreenshotPath,
-    [switch]$UiTest
+    [switch]$UiTest,
+    [string]$MobileProbeResultPath
 )
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -32,24 +33,25 @@ $discovery=Get-Content -LiteralPath $DiscoveryPath -Raw -Encoding UTF8|ConvertFr
 $language=Resolve-AGLanguage ([string]$config.language)
 $ui=Get-AGTranslations -Language $language
 function T([string]$Name){Get-AGText -Translations $ui -Path ('layoutEditor.'+$Name)}
-$editorErrorPath=Join-Path (Join-Path $env:LOCALAPPDATA 'AlienGamerMode') 'layout-editor.error.log'
-$editorTracePath=Join-Path (Join-Path $env:LOCALAPPDATA 'AlienGamerMode') 'layout-editor.trace.log'
+$script:editorConfigFile=[IO.Path]::GetFullPath($ConfigPath)
+$script:editorErrorPath=Join-Path (Split-Path -Parent $script:editorConfigFile) 'layout-editor.error.log'
+$script:editorTracePath=Join-Path (Split-Path -Parent $script:editorConfigFile) 'layout-editor.trace.log'
 function Write-EditorTrace([string]$Message){
     try{
-        $directory=Split-Path -Parent $editorTracePath
+        $directory=Split-Path -Parent $script:editorTracePath
         if(-not(Test-Path -LiteralPath $directory)){New-Item -ItemType Directory -Path $directory -Force|Out-Null}
         $line=(Get-Date).ToString('o')+' '+$Message+"`r`n"
-        [IO.File]::AppendAllText($editorTracePath,$line,(New-Object Text.UTF8Encoding($false)))
+        [IO.File]::AppendAllText($script:editorTracePath,$line,(New-Object Text.UTF8Encoding($false)))
     }catch{}
 }
 function Write-EditorError($ErrorRecord){
     try{
-        $directory=Split-Path -Parent $editorErrorPath
+        $directory=Split-Path -Parent $script:editorErrorPath
         if(-not(Test-Path -LiteralPath $directory)){New-Item -ItemType Directory -Path $directory -Force|Out-Null}
         $message=if($ErrorRecord-and$ErrorRecord.Exception){$ErrorRecord.Exception.ToString()}elseif($ErrorRecord){[string]$ErrorRecord}else{'Error desconocido del editor.'}
         $stack=if($ErrorRecord-and$ErrorRecord.ScriptStackTrace){[string]$ErrorRecord.ScriptStackTrace}else{''}
         $text=(Get-Date).ToString('o')+"`r`n"+$message+"`r`n"+$stack+"`r`n---`r`n"
-        [IO.File]::AppendAllText($editorErrorPath,$text,(New-Object Text.UTF8Encoding($false)))
+        [IO.File]::AppendAllText($script:editorErrorPath,$text,(New-Object Text.UTF8Encoding($false)))
     }catch{}
 }
 function Set-Property($Object,[string]$Name,$Value){
@@ -493,19 +495,33 @@ function Save-Configuration {
         if($view.enabled){$issue=Get-GeometryIssue $view;if($issue){throw ((T 'invalidPlacement')+' ['+$issue+']')}}
     }
     if($config.PSObject.Properties['displayViews']){$config.displayViews=[object[]]$views.ToArray()}else{$config|Add-Member NoteProperty displayViews ([object[]]$views.ToArray())}
-    $config.schemaVersion=3;$json=$config|ConvertTo-Json -Depth 24;$utf8=New-Object Text.UTF8Encoding($false);[IO.File]::WriteAllText($ConfigPath,$json,$utf8)
+    # Mobile access is saved independently by its dialog/wizard. Never replace
+    # a newer token or TLS preference with the main editor's older snapshot.
+    $latest=Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8|ConvertFrom-Json
+    if($latest.PSObject.Properties['mobileView']){Set-Property $config 'mobileView' $latest.mobileView}
+    elseif($config.PSObject.Properties['mobileView']){$config.PSObject.Properties.Remove('mobileView')}
+    $config.schemaVersion=3;$json=$config|ConvertTo-Json -Depth 24;$utf8=New-Object Text.UTF8Encoding($false)
+    $temporary="$ConfigPath.layout-$PID.tmp"
+    [IO.File]::WriteAllText($temporary,$json,$utf8)
+    Move-Item -LiteralPath $temporary -Destination $ConfigPath -Force
     Write-EditorTrace ('SAVE written '+$ConfigPath)
 }
 
 function Show-MobileDialog {
+    # Resolve from the editor script, not from a menu callback's dynamic scope.
+    $ConfigPath=$script:editorConfigFile
     $dialog=New-Object Windows.Forms.Form
     $dialog.Font=New-Object Drawing.Font('Segoe UI',10)
     $dialog.Text=if($language-eq'en-US'){'Mobile monitor · local network'}else{'Monitor móvil · red local'}
     $dialog.ClientSize=New-Object Drawing.Size(530,495)
     $dialog.FormBorderStyle='FixedDialog';$dialog.MaximizeBox=$false;$dialog.StartPosition='CenterParent';$dialog.TopMost=$true
-    $mobile=if($config.PSObject.Properties['mobileView']){$config.mobileView}else{$null}
+    # Refresh on every opening, including an editor kept open during repairs.
+    $currentDisk=Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8|ConvertFrom-Json
+    $mobile=if($currentDisk.PSObject.Properties['mobileView']){$currentDisk.mobileView}else{$null}
+    Write-EditorTrace ('MOBILE open: config='+$ConfigPath+'; enabled='+[bool]$mobile.enabled+'; tokenPresent='+[bool]$mobile.token)
+    if($mobile){Set-Property $config 'mobileView' $mobile}
     $check=New-Object Windows.Forms.CheckBox;$check.Text=if($language-eq'en-US'){'Enable web monitor on my local network'}else{'Activar monitor web en mi red local'};$check.Checked=[bool]$mobile.enabled;$check.SetBounds(18,14,490,27);$dialog.Controls.Add($check)
-    $notice=New-Object Windows.Forms.Label;$notice.Text=if($language-eq'en-US'){'Turn on to start the local web service and show its QR. Phone on Wi-Fi and laptop on Ethernet must share the same router.'}else{'Activa esta opción para iniciar el servicio web y mostrar su QR. Celular por Wi-Fi y laptop por Ethernet deben usar el mismo router.'};$notice.SetBounds(18,43,493,42);$dialog.Controls.Add($notice)
+    $notice=New-Object Windows.Forms.Label;$notice.Text=if($language-eq'en-US'){'1. Enable the web monitor above. 2. Scan the QR on your phone. Both devices must share the same router. HTTPS is optional: configure it below to enable screen-awake support where available.'}else{'1. Activa el monitor web arriba. 2. Escanea el QR con tu celular. Ambos equipos deben usar el mismo router. HTTPS es opcional: configúralo abajo para habilitar pantalla encendida cuando sea compatible.'};$notice.SetBounds(18,43,493,42);$dialog.Controls.Add($notice)
     $items=New-Object Windows.Forms.CheckedListBox;$items.CheckOnClick=$true;$items.SetBounds(18,90,205,237)
     $mobileNames=@('ram','vram','system','temperatures','fps','alerts','clock','timer','processors')
     $savedModules=if($mobile){@($mobile.modules)}else{@('ram','vram','system','temperatures','performance','clock')}
@@ -519,19 +535,24 @@ function Show-MobileDialog {
     $apply=New-Object AlienGamer.Desktop.RoundedButton;$apply.Text=if($language-eq'en-US'){'Apply modules'}else{'Aplicar módulos'};$apply.SetBounds(252,443,116,33);$dialog.Controls.Add($apply)
     $close=New-Object AlienGamer.Desktop.RoundedButton;$close.Text=if($language-eq'en-US'){'Close'}else{'Cerrar'};$close.SetBounds(379,443,116,33);$close.Add_Click({$dialog.Close()});$dialog.Controls.Add($close)
     $copy=New-Object AlienGamer.Desktop.RoundedButton;$copy.Text=if($language-eq'en-US'){'Copy link'}else{'Copiar enlace'};$copy.Enabled=$false;$copy.SetBounds(18,443,116,33);$copy.Add_Click({if($urlBox.Text){[Windows.Forms.Clipboard]::SetText($urlBox.Text);$state.Text=if($language-eq'en-US'){'Link copied. Open it on a device on the same network.'}else{'Enlace copiado. Ábrelo desde un dispositivo en la misma red.'}}});$dialog.Controls.Add($copy)
-    $mobileState=[pscustomobject]@{Current=$mobile;Regenerate=$false;Busy=$false;LastUrl='';WaitingSince=(Get-Date)}
+    $mobileState=[pscustomobject]@{Current=$mobile;Regenerate=$false;Busy=$false;LastUrl='';WaitingSince=(Get-Date);SaveError='';LastWaitReason='';ConfigFile=$ConfigPath;EndpointFile=(Join-Path (Split-Path -Parent $ConfigPath) 'mobile-endpoint.json')}
     $renew=New-Object AlienGamer.Desktop.RoundedButton;$renew.Text=if($language-eq'en-US'){'New QR'}else{'Nuevo QR'};$renew.Enabled=$false;$renew.SetBounds(143,443,99,33);$dialog.Controls.Add($renew)
     $clearQr={
         $urlBox.Text='';$copy.Enabled=$false;$renew.Enabled=$false;$mobileState.LastUrl=''
         if($qr.Image){$qr.Image.Dispose();$qr.Image=$null}
     }
     $paintQr={
+        if($mobileState.SaveError){$state.Text=$mobileState.SaveError;return}
         $items.Enabled=$check.Checked;$apply.Enabled=$check.Checked -and -not $mobileState.Busy
         if(-not $check.Checked){& $clearQr;$state.Text=if($language-eq'en-US'){'Web service is off. Turn it on above to generate a QR.'}else{'Servicio web apagado. Actívalo arriba para generar el QR.'};return}
-        $endpointPath=Join-Path (Split-Path -Parent $ConfigPath) 'mobile-endpoint.json'
+        $endpointPath=$mobileState.EndpointFile
         try{
+            $waitReason='Endpoint file missing'
             if(-not(Test-Path -LiteralPath $endpointPath)){throw 'WAIT_ENDPOINT'}
             $endpoint=Get-Content -LiteralPath $endpointPath -Raw -Encoding UTF8|ConvertFrom-Json
+            $currentAccess=Get-Content -LiteralPath $mobileState.ConfigFile -Raw -Encoding UTF8|ConvertFrom-Json
+            $mobileState.Current=$currentAccess.mobileView
+            $waitReason=if(-not $endpoint.url){'Endpoint URL missing'}elseif(-not $mobileState.Current.token){'Configuration token missing'}else{'Endpoint token differs from current configuration'}
             if(-not $endpoint.url -or -not $mobileState.Current.token -or -not ([string]$endpoint.url).Contains([string]$mobileState.Current.token)){throw 'WAIT_ENDPOINT'}
             if($mobileState.LastUrl -eq [string]$endpoint.url){return}
             $urlBox.Text=[string]$endpoint.url
@@ -549,19 +570,23 @@ function Show-MobileDialog {
         }catch{
             & $clearQr
             if($_.Exception.Message -eq 'WAIT_ENDPOINT'){
+                if($mobileState.LastWaitReason -ne $waitReason){Write-EditorTrace ('MOBILE QR waiting: '+$waitReason+'; file='+$endpointPath);$mobileState.LastWaitReason=$waitReason}
                 $state.Text=if(((Get-Date)-$mobileState.WaitingSince).TotalSeconds -lt 10){if($language-eq'en-US'){'Starting local web service…'}else{'Iniciando servicio web local…'}}else{if($language-eq'en-US'){'No web service response. Activate the monitor and check the local network.'}else{'El servicio no responde. Activa el monitor y comprueba la conexión a la red local.'}}
+                if($mobileState.Current.tls.enabled -and (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $ConfigPath) 'mobile-error.json'))){$state.Text=if($language-eq'en-US'){'HTTPS could not start. Open secure connection setup to retry or return to HTTP.'}else{'No pudo iniciar HTTPS. Abre Configurar conexión segura para reintentar o volver a HTTP.'}}
             }else{$state.Text=$_.Exception.Message}
         }
     }
     $saveMobile={
         if($mobileState.Busy){return}
+        $mobileState.SaveError=''
         $mobileState.Busy=$true
         try{
             $selected=@(for($i=0;$i -lt $mobileNames.Count;$i++){if($items.GetItemChecked($i)){$mobileNames[$i]}})
             if($check.Checked -and -not $selected.Count){throw 'Selecciona al menos un módulo.'}
             $token=if(-not $mobileState.Regenerate -and $mobileState.Current -and [string]$mobileState.Current.token -match '^[a-fA-F0-9]{32,64}$'){[string]$mobileState.Current.token}else{''}
             if(-not $token){$bytes=New-Object byte[] 24;[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes);$token=([BitConverter]::ToString($bytes)).Replace('-','').ToLowerInvariant()}
-            $value=[pscustomobject]@{enabled=[bool]$check.Checked;port=27844;token=$token;modules=$selected}
+            $value=[pscustomobject]@{enabled=[bool]$check.Checked;port=27844;token=$token;modules=$selected;allowTimerControl=[bool]$timerPermission.Checked}
+            if($mobileState.Current -and $mobileState.Current.PSObject.Properties['tls']){Set-Property $value 'tls' $mobileState.Current.tls}
             $mobileState.Regenerate=$false
             $mobileState.Current=$value
             Set-Property $config 'mobileView' $value
@@ -574,7 +599,12 @@ function Show-MobileDialog {
             Move-Item -LiteralPath $temp -Destination $ConfigPath -Force
             $mobileState.WaitingSince=Get-Date
             & $clearQr
-        }catch{$state.Text=$_.Exception.Message}
+        }catch{
+            $caught=$_;Write-EditorError $caught
+            $state.Text=if($language-eq'en-US'){'Could not save mobile access: '+$caught.Exception.Message}else{'No se pudo guardar el acceso móvil: '+$caught.Exception.Message}
+            $mobileState.SaveError=$state.Text
+            return
+        }
         finally{$mobileState.Busy=$false}
         & $paintQr
     }
@@ -592,10 +622,47 @@ function Show-MobileDialog {
     $urlBox.SetBounds(18,386,544,28);$state.SetBounds(18,430,544,45)
     $copy.SetBounds(18,484,116,36);$renew.SetBounds(146,484,100,36)
     $apply.SetBounds(258,484,140,36);$close.SetBounds(414,484,148,36)
+    $https=New-Object AlienGamer.Desktop.RoundedButton
+    $https.Text=if($language-eq'en-US'){'Set up HTTPS · keep screen awake…'}else{'Configurar HTTPS · pantalla encendida…'}
+    $https.SetBounds(18,536,544,44);$https.Enabled=$check.Checked;$dialog.Controls.Add($https)
+    Set-AGPrimaryButton $https
+    $httpsHint=New-Object Windows.Forms.Label;$httpsHint.SetBounds(18,590,544,48);$dialog.Controls.Add($httpsHint)
+    $updateHttpsHint={
+        $https.Enabled=$check.Checked
+        $tlsConfigured=$mobileState.Current -and $mobileState.Current.PSObject.Properties['tls'] -and $mobileState.Current.tls.enabled
+        $https.Text=if($tlsConfigured){if($language-eq'en-US'){'HTTPS enabled · View connection'}else{'HTTPS activo · Ver conexión'}}else{if($language-eq'en-US'){'Set up HTTPS · keep screen awake…'}else{'Configurar HTTPS · pantalla encendida…'}}
+        $httpsHint.Text=if(-not$check.Checked){if($language-eq'en-US'){'Enable the web monitor above first. You do not need to turn it off and on again.'}else{'Primero activa el monitor web arriba. No necesitas desactivarlo y activarlo de nuevo.'}}else{if($language-eq'en-US'){'Optional: the assistant guides you through permission, certificate installation on your phone and the secure QR. HTTP remains available.'}else{'Opcional: el asistente te guía por el permiso, la instalación del certificado en tu celular y el QR seguro. Puedes conservar HTTP.'}}
+        if($check.Checked -and $tlsConfigured){$httpsHint.Text=if($language-eq'en-US'){'HTTPS is configured. View the secure QR and certificate details. You do not need to reinstall the certificate already trusted by this device.'}else{'HTTPS está configurado. Consulta el QR seguro y el certificado. No necesitas reinstalar el certificado que este dispositivo ya reconoce.'}}
+    }
+    $https.Add_Click({
+        # Nested modal dialogs pump the parent's timers too. Pause this timer
+        # so its callbacks cannot resolve controls in the assistant's scope.
+        $refresh.Stop()
+        try{
+            & (Join-Path $PSScriptRoot 'Show-MobileHttpsWizard.ps1') -ConfigPath $ConfigPath -Owner $dialog -Language $language
+            $disk=Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8|ConvertFrom-Json
+            $mobileState.Current=$disk.mobileView;Set-Property $config 'mobileView' $disk.mobileView
+            & $clearQr;& $paintQr
+        }catch{$state.Text=$_.Exception.Message}
+        finally{if(-not$dialog.IsDisposed){& $updateHttpsHint;$refresh.Start()}}
+    })
+    $check.Add_CheckedChanged({& $updateHttpsHint})
+    & $updateHttpsHint
+    & $updateHttpsHint
+    $timerPermission=New-Object Windows.Forms.CheckBox
+    $timerPermission.Text=if($language-eq'en-US'){'Allow shared timer control from phones (HTTPS only)'}else{'Permitir controlar el temporizador compartido desde el celular (HTTPS)'}
+    $timerPermission.SetBounds(18,646,544,40)
+    $timerPermission.Checked=[bool]($mobile -and $mobile.PSObject.Properties['allowTimerControl'] -and $mobile.allowTimerControl)
+    $dialog.Controls.Add($timerPermission)
+    $timerHint=New-Object Windows.Forms.Label
+    $timerHint.Text=if($language-eq'en-US'){'Optional. Anyone with this secure QR can change the timer on all screens. Off: read-only. Apply modules to save.'}else{'Opcional. Quien tenga este QR seguro podrá cambiar el tiempo en todas las pantallas. Desactivado: sólo lectura. Pulsa Aplicar módulos para guardar.'}
+    $timerHint.SetBounds(18,692,544,52);$dialog.Controls.Add($timerHint)
+    $dialog.ClientSize=New-Object Drawing.Size(580,758)
     $dialog.AcceptButton=$apply;$dialog.CancelButton=$close
-    [void]$dialog.ShowDialog($form)
-    $refresh.Stop();$refresh.Dispose()
-    if($qr.Image){$qr.Image.Dispose()};$dialog.Dispose()
+    try{[void]$dialog.ShowDialog($form)}finally{
+        $refresh.Stop();$refresh.Dispose()
+        if($qr.Image){$qr.Image.Dispose()};$dialog.Dispose()
+    }
 }
 
 if($SelfTest){
@@ -670,6 +737,23 @@ $threadExceptionHandler=[Threading.ThreadExceptionEventHandler]{param($sender,$e
 [Windows.Forms.Application]::add_ThreadException($threadExceptionHandler)
 try{
     Write-EditorTrace 'EDITOR dialog open'
+    if($MobileProbeResultPath){
+        $script:mobileProbe=[pscustomobject]@{opened=$false;ticks=0}
+        $script:mobileProbeTimer=New-Object Windows.Forms.Timer;$script:mobileProbeTimer.Interval=800
+        $script:mobileProbeTimer.Add_Tick({
+            $probeDialog=@([Windows.Forms.Application]::OpenForms|Where-Object Text -like 'Monitor*red local')[0]
+            if($probeDialog){
+                $script:mobileProbe.ticks++
+                $probeUrl=@($probeDialog.Controls|Where-Object {$_ -is [Windows.Forms.TextBox]})[0]
+                $probeQr=@($probeDialog.Controls|Where-Object {$_ -is [Windows.Forms.PictureBox]})[0]
+                if(($probeUrl.Text -and $probeQr.Image) -or $script:mobileProbe.ticks -ge 4){
+                    @{qrVisible=[bool]$probeQr.Image;urlPresent=[bool]$probeUrl.Text;messages=@($probeDialog.Controls|Where-Object {$_ -is [Windows.Forms.Label]}|ForEach-Object Text)}|ConvertTo-Json|Set-Content -LiteralPath $MobileProbeResultPath -Encoding UTF8
+                    $script:mobileProbeTimer.Stop();$probeDialog.Close();$form.Close()
+                }
+            }elseif(-not $script:mobileProbe.opened){$script:mobileProbe.opened=$true;$mobileButton.PerformClick()}
+        })
+        $script:mobileProbeTimer.Start()
+    }
     [void]$form.ShowDialog()
 }catch{
     $caught=$_;Write-EditorError $caught;Write-EditorTrace ('DIALOG failure '+$caught.Exception.Message)
@@ -678,6 +762,7 @@ try{
 }finally{
     [Windows.Forms.Application]::remove_ThreadException($threadExceptionHandler)
     $form.Dispose()
+    if($script:mobileProbeTimer){$script:mobileProbeTimer.Dispose()}
 }
 if($form.DialogResult-eq'OK'){Write-EditorTrace 'EDITOR exit 0';exit 0}
 Write-EditorTrace 'EDITOR exit 1';exit 1

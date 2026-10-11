@@ -29,6 +29,17 @@
 .fly-setting{display:flex;align-items:center;gap:10px;font-size:12px;margin:10px 0 14px}.fly-setting input{width:44px;height:30px;padding:2px;border:1px solid #568582;border-radius:7px;background:transparent}
 @media(min-width:560px){.grid{--columns:4}}
 @media(min-width:1000px){.grid{--columns:6}}
+.timer-value{transition:color .3s ease}
+.timer-controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;justify-content:center}.timer-controls button{min-height:44px;padding:8px 12px}.timer-form{margin-top:12px}.timer-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.timer-fields label{font-size:14px}.timer-fields input{width:100%;min-width:0;min-height:44px;box-sizing:border-box}.timer-error{color:#ffb6bd;font-size:14px;margin-top:8px}.timer-form button{min-height:44px;margin-top:12px}
+@media(prefers-reduced-motion:reduce){.timer-value{transition:none}}
+.timer-controls{--timer-action:#dbe7ee;--timer-start:#66e4b4;--timer-extra:#86c8ee;--timer-reset:#ee9aa5;--timer-hover:rgba(255,255,255,.08)}
+.timer-controls .timer-icon-button{display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;padding:10px;border-radius:50%;color:var(--timer-action);border-color:currentColor;background:transparent;transition:background-color .18s ease,opacity .18s ease}
+.timer-icon-button svg{display:block;width:22px;height:22px;flex-shrink:0;pointer-events:none}
+#timerPlay{color:var(--timer-start)}#timerExtra{color:var(--timer-extra)}#timerReset{color:var(--timer-reset)}
+@media(hover:hover){.timer-icon-button:not(:disabled):hover{background:var(--timer-hover)}}
+.timer-icon-button:not(:disabled):active{background:var(--timer-hover)}.timer-icon-button:focus-visible{outline-color:currentColor}
+.timer-error:empty{display:none}
+@media(prefers-reduced-motion:reduce){.timer-controls .timer-icon-button{transition:none}}
 </style></head><body>
 <canvas id="fireflies" aria-hidden="true"></canvas><main class="shell">
 <header><div><div class="brand">ALIENGAMER MODE</div><div class="sub">MONITOR EN VIVO · RED LOCAL</div></div><div class="actions"><button id="edit" aria-expanded="false">Editar</button><button id="full">Expandir</button><button id="exit" hidden>Salir</button></div></header>
@@ -77,16 +88,28 @@ function loadLayout(){
 function saveLayout(){try{localStorage.setItem(storageKey(),JSON.stringify(layout));$('storageWarning').hidden=true}catch(e){$('storageWarning').hidden=false}}
 const allowed=d=>lastStatus&&Array.isArray(lastStatus.modules)&&(lastStatus.modules.includes(d.module)||(d.id==='fps'&&lastStatus.modules.includes('frameTime'))||(['fps','alerts'].includes(d.module)&&lastStatus.modules.includes('performance')));
 function gaugeMarkup(id){return `<div class="gauge" id="${id}Gauge"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="track" cx="50" cy="50" r="45"/><circle class="arc" cx="50" cy="50" r="45"/></svg><div class="center"><span class="reading" id="${id}Value">N/D</span><span class="sensor-name">${id.toUpperCase()}</span></div></div>`}
+const timerIcons={
+ play:'<path fill="currentColor" stroke="none" d="M8 5.5a1 1 0 0 1 1.5-.86l10 6a1.6 1.6 0 0 1 0 2.72l-10 6A1 1 0 0 1 8 18.5z"/>',
+ pause:'<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/>',
+ extra:'<path d="M12 5v14M5 12h14"/>',
+ reset:'<path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/>',
+ configure:'<path d="M5 4v4m0 4v8m7-16v9m0 4v3m7-16v2m0 4v10"/><circle cx="5" cy="10" r="2"/><circle cx="12" cy="15" r="2"/><circle cx="19" cy="8" r="2"/>'
+};
+function timerIcon(icon){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${timerIcons[icon]}</svg>`}
+function timerButton(id,icon,label){return `<button id="${id}" class="timer-icon-button" type="button" aria-label="${label}" title="${label}"${id==='timerConfigure'?' aria-expanded="false" aria-controls="timerForm"':''}>${timerIcon(icon)}</button>`}
+function updateTimerIcon(id,icon,label){const button=$(id);if(button.dataset.icon!==icon){button.innerHTML=timerIcon(icon);button.dataset.icon=icon}button.setAttribute('aria-label',label);button.title=label}
 function content(d){
  if(['ram','vram','cpu','gpu'].includes(d.id))return gaugeMarkup(d.id)+(['ram','vram'].includes(d.id)?`<div class="meta" id="${d.id}Meta">N/D</div>`:'');
  if(d.id==='clock')return '<canvas class="matrix" id="clockCanvas" role="img" aria-label="Reloj"></canvas>';
  if(d.id==='fps')return '<div class="performance"><div class="fps-line"><span class="label">FPS</span><span class="fps-value" id="fps">N/D</span></div><div><div class="label">FRAME TIME</div><div class="frame-value" id="frameTime">N/D</div><div class="quality" id="quality">SIN DATOS</div></div></div>';
  if(d.id==='alerts')return '<div class="alerts">'+[['cpuThermal','CPU THERMAL'],['gpuThermal','GPU THERMAL'],['power','POWER LIMIT']].map(([id,label])=>`<div><span class="label">${label}</span><span class="led" id="${id}Led" role="img" aria-label="${label}: sin datos"></span></div>`).join('')+'</div>';
  if(d.id==='temperatures')return '<h2>Temperaturas</h2><div class="temperatures">'+[['nvmeTemp','NVME'],['cpuTemp','CPU'],['gpuTemp','GPU'],['coreTemp','CORE MAX']].map(([id,label])=>`<div class="temperature"><strong id="${id}">N/D</strong><small>${label}</small></div>`).join('')+'</div>';
- if(d.id==='timer')return '<h2>Temporizador de sesión</h2><div class="timer-value" id="timer">00:00:00</div><div class="timer-note" id="timerState">Configura el tiempo desde la laptop</div>';
+ if(d.id==='timer')return '<div class="timer-value" id="timer">00:00:00</div><div class="timer-note" id="timerState">Conectando…</div><div id="timerControls" hidden><div class="timer-controls">'+timerButton('timerPlay','play','Iniciar')+timerButton('timerExtra','extra','Añadir minutos')+timerButton('timerReset','reset','Restablecer')+timerButton('timerConfigure','configure','Configurar')+'</div><form id="timerForm" class="timer-form" hidden><div class="timer-fields"><label>Horas<input id="timerHours" type="number" min="0" max="99" step="1" required></label><label>Minutos<input id="timerMinutes" type="number" min="0" max="59" step="1" required></label><label>Segundos<input id="timerSeconds" type="number" min="0" max="59" step="1" required></label><label>Minutos extra (máximo 3)<input id="timerStep" type="number" min="1" max="30" step="1" required></label></div><button type="submit">Guardar tiempo</button></form></div><div class="timer-error" id="timerError" role="status" aria-live="polite"></div>';
  return '<h2>Procesadores / carga</h2><div class="cores" id="cores"></div>';
 }
-for(const d of definitions){const card=document.createElement('article');card.className='card'+(['ram','vram','cpu','gpu'].includes(d.id)?' sensor-card':'')+(d.id==='clock'?' clock-card':'')+(['fps','frameTime'].includes(d.id)?' metric-card':'');card.dataset.id=d.id;card.dataset.module=d.module;card.setAttribute('aria-label',d.name);card.innerHTML=`<div class="edit-tools"><button class="drag-handle" aria-label="Mover ${d.name}">Mover</button><button class="hide-card" aria-label="Ocultar ${d.name}">Ocultar</button></div>`+content(d);card.querySelector('.hide-card').addEventListener('click',()=>{layout.hidden.push(d.id);commit()});card.querySelector('.drag-handle').addEventListener('pointerdown',e=>startDrag(e,d.id));cards.set(d.id,card)}
+for(const d of definitions){const card=document.createElement('article');card.className='card'+(['ram','vram','cpu','gpu'].includes(d.id)?' sensor-card':'')+(d.id==='clock'?' clock-card':'')+(['fps','frameTime'].includes(d.id)?' metric-card':'');card.dataset.id=d.id;card.dataset.module=d.module;card.setAttribute('aria-label',d.name);card.innerHTML=`<div class="edit-tools"><button class="drag-handle" aria-label="Mover ${d.name}">Mover</button><button class="hide-card" aria-label="Ocultar ${d.name}">Ocultar</button></div>`+content(d);card.querySelector('.hide-card').addEventListener('click',()=>{layout.hidden.push(d.id);commit()});card.querySelector('.drag-handle').addEventListener('pointerdown',e=>startDrag(e,d.id));cards.set(d.id,card);card.hidden=true;$('grid').append(card)}
+// Attach the cards before document-wide lookups bind the timer controls.
+// arrange() later restores the saved order and module visibility.
 function arrange(){for(const id of layout.order){const d=definitions.find(x=>x.id===id),card=cards.get(id);card.dataset.size=layout.sizes[id];card.hidden=!allowed(d)||layout.hidden.includes(id);$('grid').append(card)}if(editing)renderSettings();$('flyColor').value=layout.flyColor;packCards();drawClock()}
 // Shortest contiguous lane group; a full-width card is a barrier for later cards.
 // DOM/tab order remains the saved order, rather than column-first ordering.
@@ -109,6 +132,41 @@ $('edit').addEventListener('click',()=>{editing=!editing;document.body.classList
 const numeric=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0,number=(v,d=0)=>numeric(v)?v.toFixed(d):'N/D',text=(id,value)=>{$(id).textContent=value};
 function color(v,w,c,low){return !numeric(v)?'#5b6273':v>=c?'#ff263b':v>=w?'#ffaa23':low}
 function setGauge(id,value,tint){const el=$(id+'Gauge');el.style.setProperty('--color',tint);el.querySelector('.arc').style.strokeDasharray=`${Math.max(0,Math.min(100,numeric(value)?value:0))*2.82743} 283`;el.setAttribute('aria-label',id.toUpperCase()+': '+number(value,1)+(numeric(value)?'%':''));text(id+'Value',numeric(value)?number(value,['ram','vram'].includes(id)?0:1)+'%':'N/D')}
+function timerColor(timer){
+ if(timer?.status==='finished')return '#ff2b39';
+ const duration=Number(timer?.duration),remaining=Math.max(0,Number(timer?.remaining)||0);
+ const elapsed=timer?.configured&&duration>0?Math.max(0,Math.min(1,(duration-remaining)/duration)):0;
+ return elapsed>=.85?'#ff2b39':elapsed>=.70?'#ff9e1c':'#19e88b';
+}
+let timerBusy=false;
+function updateTimerControls(s){
+ const t=s.timer||{},can=s.timerControl===true;
+ $('timerControls').hidden=!can;
+ updateTimerIcon('timerPlay',t.status==='running'?'pause':'play',t.status==='running'?'Pausar':'Iniciar');
+ updateTimerIcon('timerExtra','extra',`Añadir ${t.extraStep||5} minutos (${t.extraCount||0} de 3 usados)`);
+ $('timerControls').setAttribute('aria-busy',String(timerBusy));
+ for(const id of ['timerPlay','timerExtra','timerReset','timerConfigure'])$(id).disabled=timerBusy||!can||(id!=='timerConfigure'&&!t.configured)||(id==='timerExtra'&&(t.extraCount>=3||t.duration+(t.extraStep||5)*60>359999));
+ $('timerForm').querySelector('button').disabled=timerBusy||!can;
+ if(!can){$('timerForm').hidden=true;$('timerConfigure').setAttribute('aria-expanded','false')}
+}
+async function timerCommand(action,values={}){
+ if(timerBusy||lastStatus?.timerControl!==true)return;
+ timerBusy=true;updateTimerControls(lastStatus);text('timerError','');
+ try{
+  const response=await fetch(location.pathname+'timer',{method:'POST',headers:{'Content-Type':'application/json','X-AlienGamer-Timer':'1'},body:JSON.stringify({action,revision:lastStatus.timer.revision,...values}),signal:AbortSignal.timeout(5000)});
+  const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo aplicar.');
+  lastStatus={...lastStatus,timer:result};render(lastStatus);text('timerError','');if(action==='configure'){$('timerForm').hidden=true;$('timerConfigure').setAttribute('aria-expanded','false')}
+ }catch(e){text('timerError',e.message||'Sin respuesta. Comprueba la conexión antes de volver a intentar.');await poll()}
+ finally{timerBusy=false;updateTimerControls(lastStatus)}
+}
+$('timerPlay').addEventListener('click',()=>timerCommand(lastStatus.timer.status==='running'?'pause':'start'));
+$('timerExtra').addEventListener('click',()=>timerCommand('extra'));
+$('timerReset').addEventListener('click',()=>{if(confirm('¿Restablecer el temporizador en todas las pantallas?'))timerCommand('reset')});
+$('timerConfigure').addEventListener('click',()=>{
+ const form=$('timerForm');form.hidden=!form.hidden;$('timerConfigure').setAttribute('aria-expanded',String(!form.hidden));if(form.hidden)return;
+ const t=lastStatus.timer,n=t.baseDuration||0;$('timerHours').value=Math.floor(n/3600);$('timerMinutes').value=Math.floor(n/60)%60;$('timerSeconds').value=n%60;$('timerStep').value=t.extraStep||5;$('timerHours').focus();queuePack();
+});
+$('timerForm').addEventListener('submit',e=>{e.preventDefault();const seconds=Number($('timerHours').value)*3600+Number($('timerMinutes').value)*60+Number($('timerSeconds').value),extraStep=Number($('timerStep').value);if(seconds<60||seconds+3*extraStep*60>359999){text('timerError','Define al menos 1 minuto y deja espacio para los 3 incrementos.');return}if(['running','paused'].includes(lastStatus.timer.status)&&!confirm('Guardar reemplazará la cuenta actual en todas las pantallas. ¿Continuar?'))return;timerCommand('configure',{seconds,extraStep})});
 function render(s){
  lastStatus=s;const modules=JSON.stringify(s.modules);if(modules!==lastModules){lastModules=modules;arrange()}
  const rp=numeric(s.ramUsedMB)&&s.ramTotalMB>0?s.ramUsedMB/s.ramTotalMB*100:-1,vp=numeric(s.vramUsed)&&numeric(s.vramFree)&&s.vramUsed+s.vramFree>0?s.vramUsed/(s.vramUsed+s.vramFree)*100:-1;
@@ -118,7 +176,8 @@ function render(s){
  text('fps',number(s.fps,1));text('frameTime',numeric(s.frameTime)?number(s.frameTime,1)+' ms':'N/D');const ft=s.frameTime,quality=!numeric(ft)?'SIN DATOS':ft>33.3?'BAJA FLUIDEZ':ft>16.7?'ATENCIÓN':'FLUIDO',tint=!numeric(ft)?'#aab4be':ft>33.3?'#ff263b':ft>16.7?'#ffaa23':'#28ff80';text('quality',quality);$('quality').style.color=tint;$('frameTime').style.color=tint;
  const power=numeric(s.cpuPower)||numeric(s.gpuPower)?Math.max(numeric(s.cpuPower)?s.cpuPower:0,numeric(s.gpuPower)?s.gpuPower:0):-1;
  for(const [id,v,label]of [['cpuThermal',s.cpuThermal,'CPU THERMAL'],['gpuThermal',s.gpuThermal,'GPU THERMAL'],['power',power,'POWER LIMIT']]){const led=$(id+'Led');led.classList.toggle('active',numeric(v)&&v>0);led.classList.toggle('unknown',!numeric(v));led.setAttribute('aria-label',label+': '+(!numeric(v)?'sin datos':v>0?'activo':'normal'))}
- const seconds=Math.floor(Math.max(0,Number(s.timer?.remaining)||0));text('timer',s.timer?.status==='finished'?'GAME OVER':[Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':'));text('timerState',!s.timer?.configured?'Configura el tiempo desde la laptop':s.timer.status==='finished'?'Tiempo finalizado':s.timer.status==='running'?'En curso':'Listo para iniciar desde la laptop');
+ const seconds=Math.floor(Math.max(0,Number(s.timer?.remaining)||0));text('timer',s.timer?.status==='finished'?'GAME OVER':[Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':'));$('timer').style.color=timerColor(s.timer);text('timerState',!s.timer?.configured?'Configura el tiempo desde la laptop':s.timer.status==='finished'?'Tiempo finalizado':s.timer.status==='running'?'En curso':s.timer.status==='paused'?'Pausado':'Listo para iniciar desde la laptop');
+ updateTimerControls(s);if(s.timerControl===true&&!s.timer?.configured)text('timerState','Pulsa Configurar para definir el tiempo');else if(s.timerControl===true&&s.timer?.status==='idle')text('timerState','Listo para iniciar');else if(s.timerControl!==true)text('timerState',$('timerState').textContent+' · Sólo lectura');
  const cores=$('cores');cores.replaceChildren();for(const core of(Array.isArray(s.cores)?s.cores:[])){const cell=document.createElement('div');cell.className='core';const value=document.createElement('strong');value.textContent=number(core.value,1)+'%';cell.append(value,document.createTextNode('CPU '+core.logicalIndex));cores.append(cell)}text('status',s.source==='Unavailable'?'Sin datos · revisa HWiNFO':'En vivo · '+new Date(s.timestamp).toLocaleTimeString('es-MX',{hour12:false}));$('status').classList.toggle('warning',s.source==='Unavailable');
 }
 async function poll(){try{const response=await fetch(location.pathname+'status',{cache:'no-store'});if(!response.ok)throw new Error();render(await response.json())}catch(e){text('status','Sin conexión · comprueba la laptop y tu red');$('status').classList.add('warning')}}
