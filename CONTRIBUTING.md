@@ -27,3 +27,10 @@ Incluye:
 4. Describe qué cambió, cómo se validó y qué hardware se utilizó.
 
 Las modificaciones visuales deben conservar el diseño a distintas resoluciones y escalas DPI.
+
+## Documentación de cada publicación / Release documentation
+
+- Mantén `README.md` y `README.en.md` como presentación del producto actual: sólo la versión vigente, funciones disponibles, capturas representativas, requisitos y guías. Actualiza ambos idiomas al publicar mejoras principales; no acumules apartados de versiones anteriores ni listas de fixes en la portada.
+- Detalla cambios, correcciones, validaciones y limitaciones por versión en GitHub Releases, `CHANGELOG.md` y sus notas en `docs/`. Conserva allí el historial.
+- Usa el enlace `releases/latest` para la descarga principal. No muestres funciones planificadas como disponibles ni capturas de prueba como validación en equipos reales.
+- Keep both READMEs focused on the current product: current version, available features, representative screenshots, requirements and guides. Refresh them for major feature changes; place version-by-version fixes, validation and history in Releases, CHANGELOG and release notes instead.
