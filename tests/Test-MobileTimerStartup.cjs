@@ -19,7 +19,8 @@ async function main(){
   await page.waitForTimeout(1200);
   assert.deepEqual(errors,[],'No JavaScript exception during startup');
   await page.waitForFunction(()=>document.querySelector('#status').textContent.startsWith('En vivo'),{},{timeout:5000});
-  assert(await page.locator('[data-id="ram"]').isVisible());assert(await page.locator('#timerControls').isHidden());
+  assert(await page.locator('[data-id="ram"]').isVisible());assert(await page.locator('#timerPlay').isHidden());assert(await page.locator('#timerConfigure').isVisible());
+  await page.locator('#timerConfigure').click();assert(await page.locator('#timerForm').isHidden());assert(await page.locator('#alarmSound').isVisible());assert(await page.locator('#alarmOutput').isDisabled());await page.locator('#timerConfigure').click();
   state.timerControl=true;await page.reload();
   await page.waitForFunction(()=>!document.querySelector('#timerControls').hidden,{},{timeout:5000});
   const card=page.locator('[data-id="timer"]');
@@ -34,6 +35,7 @@ async function main(){
    const r=await button.boundingBox();assert(r.width>=44&&r.height>=44,'Touch target at least 44px');
   }
   await page.getByRole('button',{name:'Configurar',exact:true}).click();
+  assert(await page.locator('#alarmSound').isVisible(),'Same configuration button opens audio and time');assert.equal(await page.locator('.timer-sound summary').count(),0,'No separate sound disclosure');
   await page.locator('#timerMinutes').fill('3');await page.locator('#timerStep').fill('2');
   await page.getByRole('button',{name:'Guardar tiempo',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('#timer').textContent==='00:03:00');
@@ -53,7 +55,7 @@ async function main(){
    await page.getByRole('button',{name:'Configurar',exact:true}).click();
    await card.screenshot({path:path.join(output,`shared-timer-icons-${label}.png`)});
   }
-  state.timerControl=false;await page.waitForFunction(()=>document.querySelector('#timerControls').hidden);
+  state.timerControl=false;await page.waitForFunction(()=>document.querySelector('#timerPlay').hidden);assert(await page.locator('#timerConfigure').isEnabled());
   assert.deepEqual(errors,[],'No errors through permission changes');
   console.log('PASS: startup, permissions, configure/start/pause, flat accessible icons, 44px targets, removed legends, portrait/landscape.');
   await context.close();

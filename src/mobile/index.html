@@ -39,6 +39,7 @@
 @media(hover:hover){.timer-icon-button:not(:disabled):hover{background:var(--timer-hover)}}
 .timer-icon-button:not(:disabled):active{background:var(--timer-hover)}.timer-icon-button:focus-visible{outline-color:currentColor}
 .timer-error:empty{display:none}
+.timer-settings{margin-top:12px;padding-top:12px;border-top:1px solid var(--edge);max-height:65dvh;overflow-y:auto;overscroll-behavior:contain;padding-right:4px}.setting-title{font-size:14px;font-weight:650;margin:0 0 10px;color:#dbe7ee}.timer-settings .timer-form{margin-top:0}.timer-sound{margin-top:16px;padding-top:16px;border-top:1px solid var(--edge);font-size:14px}.timer-sound select,.timer-sound button{min-height:44px;max-width:100%;margin-top:8px}.timer-sound select{width:100%}.timer-sound input[type=file]{max-width:100%;margin-top:8px}.timer-sound label{display:block;margin-top:8px}.sound-note{color:#afbdc9;font-size:12px;margin-top:8px;line-height:1.45}
 @media(prefers-reduced-motion:reduce){.timer-controls .timer-icon-button{transition:none}}
 </style></head><body>
 <canvas id="fireflies" aria-hidden="true"></canvas><main class="shell">
@@ -96,7 +97,7 @@ const timerIcons={
  configure:'<path d="M5 4v4m0 4v8m7-16v9m0 4v3m7-16v2m0 4v10"/><circle cx="5" cy="10" r="2"/><circle cx="12" cy="15" r="2"/><circle cx="19" cy="8" r="2"/>'
 };
 function timerIcon(icon){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${timerIcons[icon]}</svg>`}
-function timerButton(id,icon,label){return `<button id="${id}" class="timer-icon-button" type="button" aria-label="${label}" title="${label}"${id==='timerConfigure'?' aria-expanded="false" aria-controls="timerForm"':''}>${timerIcon(icon)}</button>`}
+function timerButton(id,icon,label){return `<button id="${id}" class="timer-icon-button" type="button" aria-label="${label}" title="${label}"${id==='timerConfigure'?' aria-expanded="false" aria-controls="timerSettings"':''}>${timerIcon(icon)}</button>`}
 function updateTimerIcon(id,icon,label){const button=$(id);if(button.dataset.icon!==icon){button.innerHTML=timerIcon(icon);button.dataset.icon=icon}button.setAttribute('aria-label',label);button.title=label}
 function content(d){
  if(['ram','vram','cpu','gpu'].includes(d.id))return gaugeMarkup(d.id)+(['ram','vram'].includes(d.id)?`<div class="meta" id="${d.id}Meta">N/D</div>`:'');
@@ -104,12 +105,60 @@ function content(d){
  if(d.id==='fps')return '<div class="performance"><div class="fps-line"><span class="label">FPS</span><span class="fps-value" id="fps">N/D</span></div><div><div class="label">FRAME TIME</div><div class="frame-value" id="frameTime">N/D</div><div class="quality" id="quality">SIN DATOS</div></div></div>';
  if(d.id==='alerts')return '<div class="alerts">'+[['cpuThermal','CPU THERMAL'],['gpuThermal','GPU THERMAL'],['power','POWER LIMIT']].map(([id,label])=>`<div><span class="label">${label}</span><span class="led" id="${id}Led" role="img" aria-label="${label}: sin datos"></span></div>`).join('')+'</div>';
  if(d.id==='temperatures')return '<h2>Temperaturas</h2><div class="temperatures">'+[['nvmeTemp','NVME'],['cpuTemp','CPU'],['gpuTemp','GPU'],['coreTemp','CORE MAX']].map(([id,label])=>`<div class="temperature"><strong id="${id}">N/D</strong><small>${label}</small></div>`).join('')+'</div>';
- if(d.id==='timer')return '<div class="timer-value" id="timer">00:00:00</div><div class="timer-note" id="timerState">Conectando…</div><div id="timerControls" hidden><div class="timer-controls">'+timerButton('timerPlay','play','Iniciar')+timerButton('timerExtra','extra','Añadir minutos')+timerButton('timerReset','reset','Restablecer')+timerButton('timerConfigure','configure','Configurar')+'</div><form id="timerForm" class="timer-form" hidden><div class="timer-fields"><label>Horas<input id="timerHours" type="number" min="0" max="99" step="1" required></label><label>Minutos<input id="timerMinutes" type="number" min="0" max="59" step="1" required></label><label>Segundos<input id="timerSeconds" type="number" min="0" max="59" step="1" required></label><label>Minutos extra (máximo 3)<input id="timerStep" type="number" min="1" max="30" step="1" required></label></div><button type="submit">Guardar tiempo</button></form></div><div class="timer-error" id="timerError" role="status" aria-live="polite"></div>';
+ if(d.id==='timer')return '<div class="timer-value" id="timer">00:00:00</div><div class="timer-note" id="timerState">Conectando…</div><div id="timerControls" hidden><div class="timer-controls">'+timerButton('timerPlay','play','Iniciar')+timerButton('timerExtra','extra','Añadir minutos')+timerButton('timerReset','reset','Restablecer')+timerButton('timerConfigure','configure','Configurar')+'</div></div><div id="timerSettings" class="timer-settings" role="region" aria-label="Ajustes de tiempo y sonido" hidden><form id="timerForm" class="timer-form" hidden><div class="setting-title">Tiempo</div><div class="timer-fields"><label>Horas<input id="timerHours" type="number" min="0" max="99" step="1" required></label><label>Minutos<input id="timerMinutes" type="number" min="0" max="59" step="1" required></label><label>Segundos<input id="timerSeconds" type="number" min="0" max="59" step="1" required></label><label>Minutos extra (máximo 3)<input id="timerStep" type="number" min="1" max="30" step="1" required></label></div><button type="submit">Guardar tiempo</button></form></div><div class="timer-error" id="timerError" role="status" aria-live="polite"></div>';
  return '<h2>Procesadores / carga</h2><div class="cores" id="cores"></div>';
 }
 for(const d of definitions){const card=document.createElement('article');card.className='card'+(['ram','vram','cpu','gpu'].includes(d.id)?' sensor-card':'')+(d.id==='clock'?' clock-card':'')+(['fps','frameTime'].includes(d.id)?' metric-card':'');card.dataset.id=d.id;card.dataset.module=d.module;card.setAttribute('aria-label',d.name);card.innerHTML=`<div class="edit-tools"><button class="drag-handle" aria-label="Mover ${d.name}">Mover</button><button class="hide-card" aria-label="Ocultar ${d.name}">Ocultar</button></div>`+content(d);card.querySelector('.hide-card').addEventListener('click',()=>{layout.hidden.push(d.id);commit()});card.querySelector('.drag-handle').addEventListener('pointerdown',e=>startDrag(e,d.id));cards.set(d.id,card);card.hidden=true;$('grid').append(card)}
 // Attach the cards before document-wide lookups bind the timer controls.
 // arrange() later restores the saved order and module visibility.
+$('timerSettings').insertAdjacentHTML('beforeend','<section class="timer-sound" aria-label="Sonido al finalizar"><div class="setting-title">Sonido al finalizar</div><label><input id="alarmEnabled" type="checkbox" checked> Aviso sonoro en este dispositivo</label><label for="alarmSound">Sonido de alarma</label><select id="alarmSound"><option value="timer-1">Sonido 1</option><option value="timer-2">Sonido 2</option><option value="timer-3">Sonido 3</option><option value="timer-4" selected>Sonido 4 · predeterminado</option><option value="custom">Mi archivo MP3</option></select><input id="alarmFile" type="file" accept=".mp3,audio/mpeg" aria-label="Elegir mi archivo MP3" hidden><button id="alarmPreview" type="button">Activar y probar</button><div id="alarmStatus" class="sound-note" role="status" aria-live="polite">Pulsa Activar y probar para permitir audio. Mantén esta página abierta; el volumen y modo silencio dependen de tu dispositivo.</div></section>');
+// Timer audio preferences belong to this browser, not to the shared countdown.
+class TimerAlarm {
+ constructor(audio,notify){this.audio=audio;this.notify=notify;this.enabled=true;this.sound='timer-4';this.previous=null;this.blobUrl=null;this.armed=false;this.playing=false;this.generation=0}
+ stop(){this.generation++;this.playing=false;this.audio.pause();this.audio.currentTime=0}
+ async play(){
+  if(!this.enabled)return;
+  if(this.sound==='custom'&&!this.blobUrl){this.notify('Elige tu MP3 en este dispositivo.');return}
+  const source=this.sound==='custom'?this.blobUrl:new URL('sounds/'+this.sound+'.mp3',location.href).href;
+  if(this.audio.src!==source)this.audio.src=source;
+  this.stop();const generation=this.generation;this.audio.loop=false;this.playing=true;
+  try{await this.audio.play();if(generation!==this.generation)return;this.armed=true;this.notify('Sonido habilitado mientras esta página permanezca abierta.')}catch(e){if(generation!==this.generation)return;this.playing=false;this.armed=false;this.notify('No se pudo reproducir. Pulsa Activar y probar y comprueba el volumen y los permisos de audio.')}
+ }
+ observe(timer,output='both'){const phase=timer?.status;if(output==='pc')this.audio.pause();if(output!=='pc'&&phase==='finished'&&this.previous==='running'&&this.enabled){if(this.armed)this.play();else this.notify('Tiempo finalizado. Pulsa Activar y probar para habilitar el sonido.')}this.previous=phase}
+}
+document.querySelector('.timer-sound .setting-title').insertAdjacentHTML('afterend','<label for="alarmOutput">Reproducir alarma en</label><select id="alarmOutput" disabled><option value="mobile">Sólo móvil</option><option value="pc">Sólo PC</option><option value="both">Ambos: PC y móvil</option></select><div id="alarmOutputNote" class="sound-note"></div><label>Sonido en este móvil</label>');
+const alarm=new TimerAlarm(new Audio(),message=>{text('alarmStatus',message);queuePack()});
+function resetAlarmPreview(){alarm.playing=false;$('alarmPreview').textContent='Activar y probar'}
+function stopAlarmPreview(){alarm.stop();resetAlarmPreview()}
+alarm.audio.addEventListener('playing',()=>{if(!alarm.audio.paused){alarm.playing=true;$('alarmPreview').textContent='Detener'}});
+for(const event of ['ended','error'])alarm.audio.addEventListener(event,resetAlarmPreview);
+alarm.audio.addEventListener('pause',()=>{if(alarm.audio.paused)resetAlarmPreview()});
+addEventListener('pagehide',stopAlarmPreview);
+const alarmKey='aliengamer.timer.audio.v1';
+try{const saved=JSON.parse(localStorage.getItem(alarmKey)||'{}');alarm.enabled=saved.enabled!==false;if(['timer-1','timer-2','timer-3','timer-4','custom'].includes(saved.sound))alarm.sound=saved.sound}catch{}
+$('alarmEnabled').checked=alarm.enabled;$('alarmSound').value=alarm.sound;$('alarmFile').hidden=alarm.sound!=='custom';
+function saveAlarm(){try{localStorage.setItem(alarmKey,JSON.stringify({enabled:alarm.enabled,sound:alarm.sound}))}catch{text('alarmStatus','El navegador no permite guardar esta preferencia. Se mantendrá durante esta visita.')}}
+function customAlarmStore(blob){return new Promise((resolve,reject)=>{
+ if(!globalThis.indexedDB){reject(new Error('Storage unavailable'));return}
+ const request=indexedDB.open('AlienGamerTimerAudio',1);
+ request.onupgradeneeded=()=>request.result.createObjectStore('sounds');request.onerror=()=>reject(request.error);
+ request.onsuccess=()=>{const db=request.result,write=blob!==undefined,tx=db.transaction('sounds',write?'readwrite':'readonly'),store=tx.objectStore('sounds'),item=write?store.put(blob,'custom'):store.get('custom');let value;
+  item.onsuccess=()=>{value=item.result};tx.oncomplete=()=>{db.close();resolve(value)};tx.onerror=()=>{db.close();reject(tx.error)};tx.onabort=()=>{db.close();reject(tx.error)};
+ };
+})}
+function setCustomAlarm(blob){if(alarm.blobUrl)URL.revokeObjectURL(alarm.blobUrl);alarm.blobUrl=URL.createObjectURL(blob)}
+customAlarmStore().then(blob=>{if(blob instanceof Blob){setCustomAlarm(blob);if(alarm.sound==='custom')text('alarmStatus','Tu MP3 está guardado aquí. Pulsa Activar y probar para habilitar audio.')}}).catch(()=>{});
+$('alarmEnabled').addEventListener('change',()=>{alarm.enabled=$('alarmEnabled').checked;if(!alarm.enabled)stopAlarmPreview();saveAlarm()});
+$('alarmOutput').addEventListener('change',()=>timerCommand('alarm',{output:$('alarmOutput').value,alarmRevision:lastStatus.timerAlarm?.revision||0}));
+$('alarmSound').addEventListener('change',()=>{stopAlarmPreview();alarm.sound=$('alarmSound').value;$('alarmFile').hidden=alarm.sound!=='custom';saveAlarm();queuePack()});
+$('alarmPreview').addEventListener('click',()=>{if(alarm.playing||!alarm.audio.paused){stopAlarmPreview();return}alarm.enabled=true;$('alarmEnabled').checked=true;saveAlarm();$('alarmPreview').textContent='Detener';alarm.play().finally(()=>{if(alarm.audio.paused)resetAlarmPreview()})});
+$('alarmFile').addEventListener('change',async()=>{
+ const file=$('alarmFile').files[0];if(!file)return;
+ if(!/\.mp3$/i.test(file.name)||file.size===0||file.size>10*1024*1024){text('alarmStatus','Elige un archivo MP3 de hasta 10 MB.');return}
+ setCustomAlarm(file);alarm.sound='custom';saveAlarm();
+ try{await customAlarmStore(file);text('alarmStatus','MP3 guardado sólo en este navegador. Pulsa Activar y probar.')}catch{text('alarmStatus','MP3 listo para esta visita; no se pudo guardar. Pulsa Activar y probar.')}
+ queuePack();
+});
 function arrange(){for(const id of layout.order){const d=definitions.find(x=>x.id===id),card=cards.get(id);card.dataset.size=layout.sizes[id];card.hidden=!allowed(d)||layout.hidden.includes(id);$('grid').append(card)}if(editing)renderSettings();$('flyColor').value=layout.flyColor;packCards();drawClock()}
 // Shortest contiguous lane group; a full-width card is a barrier for later cards.
 // DOM/tab order remains the saved order, rather than column-first ordering.
@@ -141,13 +190,15 @@ function timerColor(timer){
 let timerBusy=false;
 function updateTimerControls(s){
  const t=s.timer||{},can=s.timerControl===true;
- $('timerControls').hidden=!can;
+ $('alarmOutput').value=s.timerAlarm?.output||'mobile';$('alarmOutput').disabled=!can||timerBusy;
+ text('alarmOutputNote',!can?'Cambia la salida desde la PC o autoriza el control móvil con HTTPS.':$('alarmOutput').value==='pc'?'La PC sonará incluso sin pantallas físicas activas.':'En móvil: mantén la página abierta y pulsa Activar y probar.');
+ $('timerControls').hidden=false;$('timerForm').hidden=!can;
  updateTimerIcon('timerPlay',t.status==='running'?'pause':'play',t.status==='running'?'Pausar':'Iniciar');
  updateTimerIcon('timerExtra','extra',`Añadir ${t.extraStep||5} minutos (${t.extraCount||0} de 3 usados)`);
  $('timerControls').setAttribute('aria-busy',String(timerBusy));
- for(const id of ['timerPlay','timerExtra','timerReset','timerConfigure'])$(id).disabled=timerBusy||!can||(id!=='timerConfigure'&&!t.configured)||(id==='timerExtra'&&(t.extraCount>=3||t.duration+(t.extraStep||5)*60>359999));
+ for(const id of ['timerPlay','timerExtra','timerReset']){$(id).hidden=!can;$(id).disabled=timerBusy||!can||!t.configured||(id==='timerExtra'&&(t.extraCount>=3||t.duration+(t.extraStep||5)*60>359999))}
+ $('timerConfigure').disabled=timerBusy;
  $('timerForm').querySelector('button').disabled=timerBusy||!can;
- if(!can){$('timerForm').hidden=true;$('timerConfigure').setAttribute('aria-expanded','false')}
 }
 async function timerCommand(action,values={}){
  if(timerBusy||lastStatus?.timerControl!==true)return;
@@ -155,7 +206,7 @@ async function timerCommand(action,values={}){
  try{
   const response=await fetch(location.pathname+'timer',{method:'POST',headers:{'Content-Type':'application/json','X-AlienGamer-Timer':'1'},body:JSON.stringify({action,revision:lastStatus.timer.revision,...values}),signal:AbortSignal.timeout(5000)});
   const result=await response.json();if(!response.ok)throw new Error(result.error||'No se pudo aplicar.');
-  lastStatus={...lastStatus,timer:result};render(lastStatus);text('timerError','');if(action==='configure'){$('timerForm').hidden=true;$('timerConfigure').setAttribute('aria-expanded','false')}
+  lastStatus={...lastStatus,timer:result};if(action==='alarm')await poll();else render(lastStatus);text('timerError','');if(action==='configure'){$('timerSettings').hidden=true;$('timerConfigure').setAttribute('aria-expanded','false');queuePack()}
  }catch(e){text('timerError',e.message||'Sin respuesta. Comprueba la conexión antes de volver a intentar.');await poll()}
  finally{timerBusy=false;updateTimerControls(lastStatus)}
 }
@@ -163,10 +214,11 @@ $('timerPlay').addEventListener('click',()=>timerCommand(lastStatus.timer.status
 $('timerExtra').addEventListener('click',()=>timerCommand('extra'));
 $('timerReset').addEventListener('click',()=>{if(confirm('¿Restablecer el temporizador en todas las pantallas?'))timerCommand('reset')});
 $('timerConfigure').addEventListener('click',()=>{
- const form=$('timerForm');form.hidden=!form.hidden;$('timerConfigure').setAttribute('aria-expanded',String(!form.hidden));if(form.hidden)return;
- const t=lastStatus.timer,n=t.baseDuration||0;$('timerHours').value=Math.floor(n/3600);$('timerMinutes').value=Math.floor(n/60)%60;$('timerSeconds').value=n%60;$('timerStep').value=t.extraStep||5;$('timerHours').focus();queuePack();
+ const panel=$('timerSettings');panel.hidden=!panel.hidden;$('timerConfigure').setAttribute('aria-expanded',String(!panel.hidden));queuePack();if(panel.hidden){stopAlarmPreview();return}
+ const t=lastStatus?.timer||{},n=t.baseDuration||0;$('timerHours').value=Math.floor(n/3600);$('timerMinutes').value=Math.floor(n/60)%60;$('timerSeconds').value=n%60;$('timerStep').value=t.extraStep||5;panel.scrollTop=0;(lastStatus?.timerControl===true?$('timerHours'):$('alarmSound')).focus({preventScroll:true});
 });
-$('timerForm').addEventListener('submit',e=>{e.preventDefault();const seconds=Number($('timerHours').value)*3600+Number($('timerMinutes').value)*60+Number($('timerSeconds').value),extraStep=Number($('timerStep').value);if(seconds<60||seconds+3*extraStep*60>359999){text('timerError','Define al menos 1 minuto y deja espacio para los 3 incrementos.');return}if(['running','paused'].includes(lastStatus.timer.status)&&!confirm('Guardar reemplazará la cuenta actual en todas las pantallas. ¿Continuar?'))return;timerCommand('configure',{seconds,extraStep})});
+$('timerForm').addEventListener('submit',e=>{e.preventDefault();stopAlarmPreview();const seconds=Number($('timerHours').value)*3600+Number($('timerMinutes').value)*60+Number($('timerSeconds').value),extraStep=Number($('timerStep').value);if(seconds<60||seconds+3*extraStep*60>359999){text('timerError','Define al menos 1 minuto y deja espacio para los 3 incrementos.');return}if(['running','paused'].includes(lastStatus.timer.status)&&!confirm('Guardar reemplazará la cuenta actual en todas las pantallas. ¿Continuar?'))return;timerCommand('configure',{seconds,extraStep})});
+$('timerForm').querySelector('button').addEventListener('click',stopAlarmPreview);
 function render(s){
  lastStatus=s;const modules=JSON.stringify(s.modules);if(modules!==lastModules){lastModules=modules;arrange()}
  const rp=numeric(s.ramUsedMB)&&s.ramTotalMB>0?s.ramUsedMB/s.ramTotalMB*100:-1,vp=numeric(s.vramUsed)&&numeric(s.vramFree)&&s.vramUsed+s.vramFree>0?s.vramUsed/(s.vramUsed+s.vramFree)*100:-1;
@@ -177,7 +229,7 @@ function render(s){
  const power=numeric(s.cpuPower)||numeric(s.gpuPower)?Math.max(numeric(s.cpuPower)?s.cpuPower:0,numeric(s.gpuPower)?s.gpuPower:0):-1;
  for(const [id,v,label]of [['cpuThermal',s.cpuThermal,'CPU THERMAL'],['gpuThermal',s.gpuThermal,'GPU THERMAL'],['power',power,'POWER LIMIT']]){const led=$(id+'Led');led.classList.toggle('active',numeric(v)&&v>0);led.classList.toggle('unknown',!numeric(v));led.setAttribute('aria-label',label+': '+(!numeric(v)?'sin datos':v>0?'activo':'normal'))}
  const seconds=Math.floor(Math.max(0,Number(s.timer?.remaining)||0));text('timer',s.timer?.status==='finished'?'GAME OVER':[Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(v=>String(v).padStart(2,'0')).join(':'));$('timer').style.color=timerColor(s.timer);text('timerState',!s.timer?.configured?'Configura el tiempo desde la laptop':s.timer.status==='finished'?'Tiempo finalizado':s.timer.status==='running'?'En curso':s.timer.status==='paused'?'Pausado':'Listo para iniciar desde la laptop');
- updateTimerControls(s);if(s.timerControl===true&&!s.timer?.configured)text('timerState','Pulsa Configurar para definir el tiempo');else if(s.timerControl===true&&s.timer?.status==='idle')text('timerState','Listo para iniciar');else if(s.timerControl!==true)text('timerState',$('timerState').textContent+' · Sólo lectura');
+ alarm.observe(s.timer,s.timerAlarm?.output||'mobile');updateTimerControls(s);if(s.timerControl===true&&!s.timer?.configured)text('timerState','Pulsa Configurar para definir el tiempo');else if(s.timerControl===true&&s.timer?.status==='idle')text('timerState','Listo para iniciar');else if(s.timerControl!==true)text('timerState',$('timerState').textContent+' · Sólo lectura');
  const cores=$('cores');cores.replaceChildren();for(const core of(Array.isArray(s.cores)?s.cores:[])){const cell=document.createElement('div');cell.className='core';const value=document.createElement('strong');value.textContent=number(core.value,1)+'%';cell.append(value,document.createTextNode('CPU '+core.logicalIndex));cores.append(cell)}text('status',s.source==='Unavailable'?'Sin datos · revisa HWiNFO':'En vivo · '+new Date(s.timestamp).toLocaleTimeString('es-MX',{hour12:false}));$('status').classList.toggle('warning',s.source==='Unavailable');
 }
 async function poll(){try{const response=await fetch(location.pathname+'status',{cache:'no-store'});if(!response.ok)throw new Error();render(await response.json())}catch(e){text('status','Sin conexión · comprueba la laptop y tu red');$('status').classList.add('warning')}}

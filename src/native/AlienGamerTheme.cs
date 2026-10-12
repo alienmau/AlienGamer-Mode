@@ -85,26 +85,33 @@ namespace AlienGamer.Desktop {
             using(var dialog=new Form()) {
                 dialog.Text=english ? "Firefly color" : "Color de las luciérnagas";
                 dialog.Font=new Font("Segoe UI",10f);
-                dialog.ClientSize=new Size(390,266); dialog.FormBorderStyle=FormBorderStyle.FixedDialog;
+                dialog.AutoScaleMode=AutoScaleMode.Dpi;
+                dialog.ClientSize=new Size(440,350); dialog.FormBorderStyle=FormBorderStyle.FixedDialog;
                 dialog.StartPosition=FormStartPosition.CenterParent;dialog.MaximizeBox=false;dialog.MinimizeBox=false;
-                var preview=new Panel { Left=24,Top=24,Width=342,Height=52 };
+                var preview=new Panel { Name="ColorPreview",Left=24,Top=24,Width=392,Height=52,AccessibleName=english ? "Selected color" : "Color seleccionado" };
                 dialog.Controls.Add(preview);
-                var values=new NumericUpDown[3];
-                int[] channels={initial.R,initial.G,initial.B};
-                string[] names=english ? new[]{"Red","Green","Blue"} : new[]{"Rojo","Verde","Azul"};
-                for(int i=0;i<3;i++) {
-                    var label=new Label { Left=24+i*118,Top=96,Width=104,Height=24,Text=names[i] };
-                    values[i]=new NumericUpDown { Left=24+i*118,Top=124,Width=104,Minimum=0,Maximum=255,Value=channels[i] };
-                    values[i].ValueChanged += delegate { preview.BackColor=Color.FromArgb((int)values[0].Value,(int)values[1].Value,(int)values[2].Value); };
-                    dialog.Controls.Add(label);dialog.Controls.Add(values[i]);
-                }
-                var hint=new Label { Left=24,Top=165,Width=342,Height=28,Text=english ? "RGB · values from 0 to 255" : "RGB · valores de 0 a 255" };
+                var label=new Label { Left=24,Top=92,Width=392,Height=24,Text=english ? "Choose a color" : "Elige un color" };
+                var spectrum=new HueSlider { Name="ColorSpectrum",Left=24,Top=120,Width=392,Height=48,Hue=initial.GetHue(),TabIndex=0,
+                    AccessibleName=english ? "Color spectrum" : "Barra de colores",
+                    AccessibleDescription=english ? "Use Left and Right arrows to choose a color." : "Usa las flechas izquierda y derecha para elegir el color." };
+                var hint=new Label { Left=24,Top=176,Width=392,Height=24,Text=english ? "Click or drag along the rainbow." : "Haz clic o arrastra sobre el arcoíris." };
+                var brightnessLabel=new Label { Left=24,Top=212,Width=392,Height=24,Text=english ? "Brightness" : "Brillo" };
+                var brightness=new TrackBar { Name="ColorBrightness",Left=16,Top=240,Width=408,Height=40,Minimum=0,Maximum=100,TickStyle=TickStyle.None,
+                    Value=(int)Math.Round(Math.Max(initial.R,Math.Max(initial.G,initial.B))*100.0/255),TabIndex=1,AccessibleName=brightnessLabel.Text };
+                Color selected=initial;
+                double saturation=initial.GetSaturation();
+                // HSV saturation differs from Color.GetSaturation (HSL).
+                double maximum=Math.Max(initial.R,Math.Max(initial.G,initial.B));
+                saturation=maximum==0 ? 0 : 1-Math.Min(initial.R,Math.Min(initial.G,initial.B))/maximum;
+                spectrum.HueChanged += delegate { saturation=1;selected=HueSlider.ToColor(spectrum.Hue,saturation,brightness.Value/100.0);preview.BackColor=selected; };
+                brightness.ValueChanged += delegate { selected=HueSlider.ToColor(spectrum.Hue,saturation,brightness.Value/100.0);preview.BackColor=selected; };
+                dialog.Controls.Add(label);dialog.Controls.Add(spectrum);dialog.Controls.Add(brightnessLabel);dialog.Controls.Add(brightness);
                 dialog.Controls.Add(hint);
-                var ok=new RoundedButton { Left=254,Top=214,Width=112,Height=36,Text=english ? "Apply" : "Aplicar",DialogResult=DialogResult.OK };
-                var cancel=new RoundedButton { Left=134,Top=214,Width=112,Height=36,Text=english ? "Cancel" : "Cancelar",DialogResult=DialogResult.Cancel };
+                var ok=new RoundedButton { Name="ApplyColor",Left=304,Top=294,Width=112,Height=40,TabIndex=3,Text=english ? "Apply" : "Aplicar",DialogResult=DialogResult.OK };
+                var cancel=new RoundedButton { Name="CancelColor",Left=184,Top=294,Width=112,Height=40,TabIndex=2,Text=english ? "Cancel" : "Cancelar",DialogResult=DialogResult.Cancel };
                 dialog.Controls.Add(ok);dialog.Controls.Add(cancel);dialog.AcceptButton=ok;dialog.CancelButton=cancel;
                 Apply(dialog);Primary(ok);preview.BackColor=initial;
-                return dialog.ShowDialog(owner)==DialogResult.OK ? (Color?)preview.BackColor : null;
+                return dialog.ShowDialog(owner)==DialogResult.OK ? (Color?)selected : null;
             }
         }
         public static DialogResult Message(IWin32Window owner,string text,string title,MessageBoxButtons buttons,MessageBoxIcon icon,bool english) {
@@ -140,6 +147,50 @@ namespace AlienGamer.Desktop {
                 if(icon==MessageBoxIcon.Error) body.ForeColor=Danger;
                 return owner==null ? dialog.ShowDialog() : dialog.ShowDialog(owner);
             }
+        }
+    }
+    public class HueSlider : Control {
+        double hue;
+        public event EventHandler HueChanged;
+        public double Hue {
+            get { return hue; }
+            set { hue=Math.Max(0,Math.Min(359,value));Invalidate();if(HueChanged!=null) HueChanged(this,EventArgs.Empty); }
+        }
+        public HueSlider() {
+            SetStyle(ControlStyles.UserPaint|ControlStyles.AllPaintingInWmPaint|ControlStyles.OptimizedDoubleBuffer|ControlStyles.Selectable,true);
+            TabStop=true;AccessibleRole=AccessibleRole.Slider;
+        }
+        public static Color ToColor(double h,double s,double v) {
+            h=((h%360)+360)%360;s=Math.Max(0,Math.Min(1,s));v=Math.Max(0,Math.Min(1,v));
+            double c=v*s,x=c*(1-Math.Abs((h/60)%2-1)),m=v-c,r=0,g=0,b=0;
+            if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}
+            else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+            return Color.FromArgb((int)Math.Round((r+m)*255),(int)Math.Round((g+m)*255),(int)Math.Round((b+m)*255));
+        }
+        Rectangle Bar { get { return new Rectangle(8,8,Math.Max(1,Width-16),Math.Max(1,Height-16)); } }
+        void Pick(int x) { Hue=Math.Max(0,Math.Min(1,(x-Bar.Left)/(double)Math.Max(1,Bar.Width-1)))*359; }
+        protected override void OnMouseDown(MouseEventArgs e) { base.OnMouseDown(e);if(e.Button==MouseButtons.Left){Focus();Capture=true;Pick(e.X);} }
+        protected override void OnMouseMove(MouseEventArgs e) { base.OnMouseMove(e);if(Capture && e.Button==MouseButtons.Left) Pick(e.X); }
+        protected override void OnMouseUp(MouseEventArgs e) { base.OnMouseUp(e);Capture=false; }
+        protected override bool IsInputKey(Keys key) { return key==Keys.Left||key==Keys.Right||key==Keys.Home||key==Keys.End||base.IsInputKey(key); }
+        protected override void OnKeyDown(KeyEventArgs e) {
+            base.OnKeyDown(e);
+            if(e.KeyCode==Keys.Left) Hue-=e.Shift ? 10 : 1;else if(e.KeyCode==Keys.Right) Hue+=e.Shift ? 10 : 1;
+            else if(e.KeyCode==Keys.Home) Hue=0;else if(e.KeyCode==Keys.End) Hue=359;else return;
+            e.Handled=true;
+        }
+        protected override void OnGotFocus(EventArgs e) { base.OnGotFocus(e);Invalidate(); }
+        protected override void OnLostFocus(EventArgs e) { base.OnLostFocus(e);Invalidate(); }
+        protected override void OnPaint(PaintEventArgs e) {
+            base.OnPaint(e);var bar=Bar;
+            using(var brush=new LinearGradientBrush(bar,Color.Red,Color.Red,0f)) {
+                brush.InterpolationColors=new ColorBlend { Colors=new[]{Color.Red,Color.Yellow,Color.Lime,Color.Cyan,Color.Blue,Color.Magenta,Color.Red},Positions=new[]{0f,1f/6,2f/6,3f/6,4f/6,5f/6,1f} };
+                e.Graphics.FillRectangle(brush,bar);
+            }
+            int x=bar.Left+(int)Math.Round(hue/359*(bar.Width-1));
+            using(var dark=new Pen(Color.Black,5)) e.Graphics.DrawLine(dark,x,bar.Top-3,x,bar.Bottom+3);
+            using(var light=new Pen(Color.White,2)) e.Graphics.DrawLine(light,x,bar.Top-3,x,bar.Bottom+3);
+            if(Focused) ControlPaint.DrawFocusRectangle(e.Graphics,ClientRectangle,SystemInformation.HighContrast ? SystemColors.WindowText : Theme.Text,BackColor);
         }
     }
     public static class Shapes {

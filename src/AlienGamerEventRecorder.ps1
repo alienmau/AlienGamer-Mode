@@ -35,7 +35,7 @@ $ui = Get-AGTranslations -Language $language
 function T([string]$Path) { return Get-AGText -Translations $ui -Path $Path }
 
 function Set-RainmeterRecordingState([bool]$Recording) {
-    if (-not (Test-Path -LiteralPath $Rainmeter)) { return }
+    if (-not $RainmeterConfig -or -not (Test-Path -LiteralPath $Rainmeter)) { return }
     if ($Recording) {
         & $Rainmeter '!SetVariable' 'RecordingActive' '1' $RainmeterConfig
         & $Rainmeter '!SetOption' 'MeterRecordLabel' 'Text' (T 'skin.finishRecording') $RainmeterConfig

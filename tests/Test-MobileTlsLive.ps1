@@ -75,6 +75,18 @@ try{
     if($paused-notmatch'HTTP/1.1 200'-or(($paused-split"`r`n`r`n",2)[1]|ConvertFrom-Json).status-ne'paused'){throw 'HTTPS timer pause failed.'}
     $duplicate=[AGTlsTestClient]::Request($uri.Host,$uri.Port,($uri.AbsolutePath+'timer'),$record.server,$command,$origin)
     if($duplicate-notmatch'HTTP/1.1 409'){throw 'Duplicate timer command accepted.'}
+    foreach($number in 1..4){
+        $audio=[AGTlsTestClient]::Get($uri.Host,$uri.Port,($uri.AbsolutePath+'sounds/timer-'+$number+'.mp3'),$record.server)
+        if($audio-notmatch'HTTP/1.1 200 OK'-or$audio-notmatch'Content-Type: audio/mpeg'){throw 'Bundled audio not served over authenticated TLS route.'}
+    }
+    $outside=[AGTlsTestClient]::Get($uri.Host,$uri.Port,($uri.AbsolutePath+'sounds/private.mp3'),$record.server)
+    if($outside-notmatch'HTTP/1.1 404'){throw 'Audio allowlist bypassed.'}
+    $alarmCommand=@{action='alarm';revision=$timerStatus.timer.revision;alarmRevision=0;output='both'}|ConvertTo-Json -Compress
+    $alarmResult=[AGTlsTestClient]::Request($uri.Host,$uri.Port,($uri.AbsolutePath+'timer'),$record.server,$alarmCommand,$origin)
+    if($alarmResult-notmatch'HTTP/1.1 200'){throw 'Protected alarm output change failed.'}
+    $alarmStatus=[AGTlsTestClient]::Get($uri.Host,$uri.Port,($uri.AbsolutePath+'status'),$record.server)
+    $alarmState=($alarmStatus-split"`r`n`r`n",2)[1]|ConvertFrom-Json
+    if($alarmState.timerAlarm.output-ne'both'-or$alarmState.timer.status-ne'paused'-or$alarmState.timerAlarm.PSObject.Properties['deviceId']){throw 'Alarm change reset countdown or exposed device information.'}
     $image=[AGTlsTestClient]::Get($uri.Host,$uri.Port,($uri.AbsolutePath+'examples/https-secure.jpg'),$record.server)
     if($image-notmatch'Content-Type: image/jpeg'){throw 'Setup example image unavailable.'}
     $bad=[AGTlsTestClient]::Get($uri.Host,$uri.Port,($uri.AbsolutePath-replace$token,('0'*32)),$record.server)

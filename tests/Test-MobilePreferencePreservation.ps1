@@ -3,7 +3,7 @@ $root=Split-Path -Parent $PSScriptRoot
 $tokens=$null;$errors=$null
 $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $root 'src\Show-AlienGamerLayoutEditor.ps1'),[ref]$tokens,[ref]$errors)
 if($errors.Count){throw 'Editor parse errors.'}
-foreach($name in @('Set-Property','Save-Configuration')){
+foreach($name in @('Set-Property','Test-MobileOutputEnabled','Save-Configuration')){
     $node=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
     Invoke-Expression $node.Extent.Text
 }

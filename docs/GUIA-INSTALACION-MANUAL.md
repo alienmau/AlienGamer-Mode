@@ -13,13 +13,15 @@ El instalador sustituye las ediciones anteriores, migra la selección de monitor
 
 ## Instalación
 
-1. Instala Rainmeter y HWiNFO64 desde sus sitios oficiales.
+1. Instala HWiNFO64 desde su sitio oficial. Rainmeter también se necesita para vistas de escritorio, pero es opcional en modo sólo móvil.
 2. Cierra HWiNFO para que su archivo de configuración no sea reescrito mientras se prepara.
 3. Ejecuta `installer\Install-AlienGamerMode.ps1`.
-4. Selecciona monitor, GPU y unidad principal.
+4. Selecciona **Pantallas del equipo**, **Sólo celular/tablet** o **Ambos**, GPU y unidad principal. El monitor físico sólo se elige para vistas de escritorio.
 5. Elige Escritorio, menú Inicio e inicio con Windows.
 6. Pulsa **Instalar y configurar**.
 7. Espera la ventana de preparación. El primer arranque descubre sensores, genera el perfil y adapta el diseño.
+
+En modo móvil se abre el acceso por QR al finalizar. PC y celular/tablet deben compartir router; Ethernet y Wi-Fi pueden funcionar juntos. La instalación completa respalda y reinicia el diseño de escritorio/temporizador, conservando reportes, grabaciones, preferencias móviles e identidad HTTPS de la misma cuenta.
 
 El instalador registra `AlienGamerMode-HWiNFO`, una tarea que inicia HWiNFO con privilegios suficientes para publicar Shared Memory sin solicitar UAC en cada arranque. Las tareas obsoletas se retiran durante la migración.
 
@@ -29,7 +31,10 @@ Mientras el agente está abierto, el logotipo aparece en los iconos ocultos de W
 
 - Activar monitor / Detener monitor, según el estado real;
 - Grabar evento / Finalizar grabación / Finalizando reporte, según la captura;
-- Configuración avanzada;
+- Configurar hardware (GPU/almacenamiento);
+- Pantallas y distribución (vistas físicas y móvil);
+- Temporizador de sesión (tiempo, alarma, MP3 y salida de audio);
+- Herramientas → Editar archivo de configuración, con advertencia y respaldo;
 - Abrir registros y reportes;
 - Cerrar AlienGamer Mode.
 
@@ -41,13 +46,15 @@ Usa **Grabar evento** justo cuando notes tirones, congelamientos, saltos, teletr
 
 La versión 1.3.0 incluye automáticamente los 60 segundos previos. Si el síntoma vuelve a ocurrir durante la captura, abre el icono de bandeja y selecciona **Marcar incidente ahora**. Puedes crear varias marcas. Al finalizar, elige si deseas un reporte protegido para compartir y después selecciona dónde guardar el libro.
 
-### Fondo térmico 1.3.1
+### Fondo personalizado o térmico
 
-Desde el icono de bandeja abre **Fondo** y selecciona **Dinámico térmico**. El modo personalizado conserva y habilita cantidad, velocidad, tamaño y color manuales. El modo térmico usa parámetros automáticos propios, temperaturas válidas de CPU/Core Max y GPU, y reduce su carga si detecta saturación de GPU o pérdida de fluidez. Mientras esté activo, los controles manuales permanecen deshabilitados.
+Desde **Pantallas y distribución**, selecciona la pantalla y el panel **Fondo**. El modo personalizado permite cantidad, velocidad, tamaño y color mediante arcoíris, vista previa y brillo. El modo térmico usa temperaturas válidas de CPU/Core Max y GPU, y reduce su carga si detecta saturación de GPU o pérdida de fluidez; sus controles manuales permanecen deshabilitados.
 
 ### Cambiar equipo o pantalla sin reinstalar
 
-Abre el icono de bandeja y selecciona **Configurar equipo y pantalla...**. Puedes cambiar el monitor de destino, la GPU supervisada y la unidad principal. La pantalla se guarda mediante su identidad física para resistir cambios de numeración de Windows.
+Usa **Configurar hardware** para GPU y unidad principal, y **Pantallas y distribución** para las salidas físicas/móviles. La pantalla se guarda mediante su identidad física para resistir cambios de numeración de Windows. Puedes desactivar todas las vistas físicas si el monitor móvil está activo.
+
+Consulta la [guía HTTPS móvil](MOBILE-HTTPS-GUIDE.md) y la [guía del temporizador y sus alarmas](MOBILE-TIMER-AUDIO.md). En móvil, un mismo icono **Configurar** reúne tiempo y sonido. No ignores avisos rojos del certificado; verifica que la conexión sea segura.
 
 Conserva juntos el archivo `-visual.html`, el `.xlsx` y el archivo `-datos-brutos.csv`. Puedes analizarlos manualmente, enviarlos a un técnico o pedir a una IA que busque correlaciones, recordando que el resumen es preliminar y no representa una verdad absoluta.
 

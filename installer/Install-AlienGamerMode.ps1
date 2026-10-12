@@ -17,6 +17,7 @@ $packageRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $packageRoot 'src'
 Import-Module (Join-Path $sourceRoot 'AlienGamer.Localization.psm1') -Force
 Import-Module (Join-Path $sourceRoot 'AlienGamer.UI.psm1') -Force
+Import-Module (Join-Path $sourceRoot 'AlienGamer.Output.psm1') -Force
 $Language = Resolve-AGLanguage $Language
 $ui = Get-AGTranslations -Language $Language -LocalesRoot (Join-Path $sourceRoot 'locales')
 function T([string]$Path) { return Get-AGText -Translations $ui -Path $Path }
@@ -220,12 +221,12 @@ $requirements.SetBounds(30,72,350,62)
 $form.Controls.Add($requirements)
 $links = New-Object Windows.Forms.LinkLabel
 $links.Text = T 'installer.officialDownloads'
-$links.SetBounds(385,91,270,28)
+$links.SetBounds(385,91,270,44)
 $links.Add_LinkClicked({ Start-Process 'https://www.rainmeter.net/'; Start-Process 'https://www.hwinfo.com/download/' })
 $form.Controls.Add($links)
 
 function Add-Label([string]$Text,[int]$Y) { $l=New-Object Windows.Forms.Label; $l.Text=$Text; $l.SetBounds(30,$Y,625,22); $form.Controls.Add($l); return $l }
-[void](Add-Label (T 'installer.monitor') 155)
+$desktopMonitorLabel=Add-Label (T 'installer.monitor') 155
 $monitorBox = New-Object Windows.Forms.ComboBox
 $monitorBox.DropDownStyle = 'DropDownList'; $monitorBox.SetBounds(30,178,625,29)
 foreach ($m in @($discovery.monitors)) { [void]$monitorBox.Items.Add("$($m.friendlyName) · $($m.deviceName) · $($m.width)x$($m.height) · $(if($m.primary){T 'installer.primary'}else{T 'installer.secondary'})") }
@@ -259,7 +260,27 @@ $cancelButton = New-Object AlienGamer.Desktop.RoundedButton
 $cancelButton.Text = T 'installer.cancel'; $cancelButton.SetBounds(565,525,90,42); $cancelButton.Add_Click({$form.Close()}); $form.Controls.Add($cancelButton)
 $status = New-Object Windows.Forms.Label; $status.Text=''; $status.SetBounds(30,505,300,65); $form.Controls.Add($status)
 
+# Make destination choice explicit, keeping hardware selection independent.
+foreach($control in $form.Controls){if($control.Top -ge 155){$control.Top+=96}}
+$form.Height+=96;$form.AutoScroll=$true;$form.AutoScaleMode='Dpi'
+[void](Add-Label (T 'installer.destination') 155)
+$destinationBox=New-Object Windows.Forms.ComboBox
+$destinationBox.DropDownStyle='DropDownList';$destinationBox.SetBounds(30,178,625,29)
+foreach($key in @('desktopDestination','mobileDestination','bothDestination')){[void]$destinationBox.Items.Add((T ('installer.'+$key)))}
+$destinationBox.SelectedIndex=0;$destinationBox.AccessibleName=T 'installer.destination';$form.Controls.Add($destinationBox)
+$destinationHint=Add-Label (T 'installer.destinationHint') 214
+$destinationHint.Height=32
+$updateDestination={
+    $useDesktop=$destinationBox.SelectedIndex -ne 1
+    $monitorBox.Enabled=$useDesktop;$desktopMonitorLabel.Enabled=$useDesktop
+    $installButton.Enabled=$hwOk -and (-not $useDesktop -or ($rainOk -and $monitorBox.SelectedIndex -ge 0))
+    $destinationHint.Text=if($useDesktop){T 'installer.destinationHint'}else{T 'installer.mobileOnlyHint'}
+    $rainStatus=if(-not $useDesktop){T 'installer.optionalMobileRainmeter'}elseif($rainOk){'OK'}else{(T 'installer.requiresOrLater') -f '4.5'}
+    $requirements.Text="$(T 'installer.requirements')`r`nRainmeter ${rainVersion}: $rainStatus`r`nHWiNFO64 ${hwVersion}: $(if($hwOk){'OK'}else{((T 'installer.requiresOrLater') -f '7.34')})"
+}
+$destinationBox.Add_SelectedIndexChanged({& $updateDestination})
 Set-AGWindowTheme $form;Set-AGPrimaryButton $installButton
+& $updateDestination
 $title.Font=New-Object Drawing.Font('Segoe UI Semibold',18)
 if(-not[Windows.Forms.SystemInformation]::HighContrast){$note.ForeColor=[AlienGamer.Desktop.Theme]::Secondary}
 $installButton.Add_Click({
@@ -301,13 +322,12 @@ $installButton.Add_Click({
         $config = Get-Content $configPath -Raw | ConvertFrom-Json
         if($previousMobile){$config|Add-Member NoteProperty mobileView $previousMobile -Force}
         $config.language = $Language
-        $selectedMonitor = @($discovery.monitors)[$monitorBox.SelectedIndex]
+        $destinationMode=@('desktop','mobile','both')[$destinationBox.SelectedIndex]
+        $selectedMonitor=if($destinationMode -ne 'mobile' -and $monitorBox.SelectedIndex -ge 0){@($discovery.monitors)[$monitorBox.SelectedIndex]}else{$null}
+        Set-AGOutputDestination -Config $config -Mode $destinationMode -Monitor $selectedMonitor
         $selectedGpu = @($discovery.gpus)[$gpuBox.SelectedIndex]
         $selectedStorage = @($discovery.storage)[$storageBox.SelectedIndex]
-        $config.display.targetMonitor = $selectedMonitor.deviceName
-        if ($config.display.PSObject.Properties['targetMonitorId']) { $config.display.targetMonitorId = $selectedMonitor.pnpDeviceId }
-        else { $config.display | Add-Member NoteProperty targetMonitorId ([string]$selectedMonitor.pnpDeviceId) }
-        if (@($config.displayViews).Count -gt 0) {
+        if ($selectedMonitor -and @($config.displayViews).Count -gt 0) {
             $primaryView = @($config.displayViews)[0]
             $primaryView.monitorId = [string]$selectedMonitor.pnpDeviceId
             $primaryView.monitorDeviceName = [string]$selectedMonitor.deviceName
@@ -413,10 +433,10 @@ $installButton.Add_Click({
         $script:openLayoutAfterClose = $true
         $script:launchAfterClose = -not $NoLaunch
         $script:launchProgram = $wscript
-        $script:launchArguments = if($script:openLayoutAfterClose){"//B //NoLogo `"$launcher`" activate-layout"}else{$args}
+        $script:launchArguments = if($destinationMode -ne 'desktop'){"//B //NoLogo `"$launcher`" activate-mobile"}elseif($script:openLayoutAfterClose){"//B //NoLogo `"$launcher`" activate-layout"}else{$args}
         $form.Close()
     } catch {
-        $installButton.Enabled=$true; $status.Text=T 'installer.notCompleted'
+        & $updateDestination; $status.Text=T 'installer.notCompleted'
         (Show-AGMessage -Owner $form -Text $_.Exception.ToString() -Title (T 'installer.errorTitle') -Buttons OK -Icon Error) | Out-Null
     }
 })

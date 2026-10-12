@@ -6,7 +6,8 @@
     [switch]$AutoSaveTest,
     [string]$ExportScreenshotPath,
     [switch]$UiTest,
-    [string]$MobileProbeResultPath
+    [string]$MobileProbeResultPath,
+    [switch]$OpenMobileSetup
 )
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Windows.Forms
@@ -480,16 +481,25 @@ function Get-GeometryIssue($View){
     return ''
 }
 function Validate-View($View){return [string]::IsNullOrWhiteSpace((Get-GeometryIssue $View))}
+function Test-MobileOutputEnabled {
+    # The mobile dialog persists independently; use its latest saved state.
+    try{
+        $current=Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8|ConvertFrom-Json
+        return [bool]($current.PSObject.Properties['mobileView'] -and $current.mobileView.enabled)
+    }catch{return [bool]($config.PSObject.Properties['mobileView'] -and $config.mobileView.enabled)}
+}
 function Update-SaveAvailability {
     $enabledViews=@($views|Where-Object enabled)
-    if(-not$enabledViews.Count){$save.Enabled=$false;Set-Status (T 'enableOne');return}
+    if(-not$enabledViews.Count -and -not(Test-MobileOutputEnabled)){$save.Enabled=$false;Set-Status (T 'enableOne');return}
     foreach($view in $enabledViews){$issue=Get-GeometryIssue $view;if($issue){$save.Enabled=$false;Set-Status ((T 'invalidPlacement')+' ['+$issue+']');return}}
     $save.Enabled=$true
+    if(-not $enabledViews.Count){Set-Status (T 'mobileOnlyActive') $false;return}
+    if($status.Text-eq(T 'mobileOnlyActive')){Set-Status '' $false}
     if($status.Text-like((T 'invalidPlacement')+'*')-or$status.Text-eq(T 'enableOne')){Set-Status '' $false}
 }
 function Save-Configuration {
     Write-EditorTrace 'SAVE begin'
-    if(-not@($views|Where-Object enabled).Count){throw (T 'enableOne')}
+    if(-not@($views|Where-Object enabled).Count -and -not(Test-MobileOutputEnabled)){throw (T 'enableOne')}
     foreach($view in $views){
         $header=Get-Module $view 'header';if($header){$header.visible=$true}
         if($view.enabled){$issue=Get-GeometryIssue $view;if($issue){throw ((T 'invalidPlacement')+' ['+$issue+']')}}
@@ -662,6 +672,7 @@ function Show-MobileDialog {
     try{[void]$dialog.ShowDialog($form)}finally{
         $refresh.Stop();$refresh.Dispose()
         if($qr.Image){$qr.Image.Dispose()};$dialog.Dispose()
+        Update-SaveAvailability
     }
 }
 
@@ -737,6 +748,11 @@ $threadExceptionHandler=[Threading.ThreadExceptionEventHandler]{param($sender,$e
 [Windows.Forms.Application]::add_ThreadException($threadExceptionHandler)
 try{
     Write-EditorTrace 'EDITOR dialog open'
+    if($OpenMobileSetup){
+        $mobileSetupTimer=New-Object Windows.Forms.Timer;$mobileSetupTimer.Interval=500
+        $mobileSetupTimer.Add_Tick({$mobileSetupTimer.Stop();Show-MobileDialog})
+        $mobileSetupTimer.Start()
+    }
     if($MobileProbeResultPath){
         $script:mobileProbe=[pscustomobject]@{opened=$false;ticks=0}
         $script:mobileProbeTimer=New-Object Windows.Forms.Timer;$script:mobileProbeTimer.Interval=800
@@ -762,6 +778,7 @@ try{
 }finally{
     [Windows.Forms.Application]::remove_ThreadException($threadExceptionHandler)
     $form.Dispose()
+    if($mobileSetupTimer){$mobileSetupTimer.Dispose()}
     if($script:mobileProbeTimer){$script:mobileProbeTimer.Dispose()}
 }
 if($form.DialogResult-eq'OK'){Write-EditorTrace 'EDITOR exit 0';exit 0}

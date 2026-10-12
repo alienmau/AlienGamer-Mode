@@ -1,5 +1,5 @@
 ﻿#define MyAppName "AlienGamer Mode"
-#define MyAppVersion "1.8.0"
+#define MyAppVersion "1.9.0"
 #define MyAppPublisher "Alienmau"
 
 [Setup]
@@ -13,15 +13,15 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\build\installer
-OutputBaseFilename=AlienGamerMode-Setup-1.8.0
+OutputBaseFilename=AlienGamerMode-Setup-{#MyAppVersion}
 SetupIconFile=..\assets\AlienGamerMode.ico
 WizardStyle=modern
 ShowLanguageDialog=yes
 Compression=lzma2
 SolidCompression=yes
 Uninstallable=no
-VersionInfoVersion=1.8.0.0
-VersionInfoProductVersion=1.8.0.0
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoProductVersion={#MyAppVersion}.0
 VersionInfoProductName={#MyAppName}
 VersionInfoDescription=Instalador adaptable del monitor AlienGamer Mode
 VersionInfoCompany={#MyAppPublisher}
@@ -38,7 +38,7 @@ spanish.Configuring=Configurando AlienGamer Mode...
 [Files]
 Source: "..\assets\*"; DestDir: "{tmp}\AlienGamerMode\assets"; Flags: ignoreversion recursesubdirs createallsubdirs deleteafterinstall
 Source: "..\config\*"; DestDir: "{tmp}\AlienGamerMode\config"; Flags: ignoreversion recursesubdirs createallsubdirs deleteafterinstall
-Source: "..\docs\*"; DestDir: "{tmp}\AlienGamerMode\docs"; Excludes: "images\concepts\*,RELEASE-*.md"; Flags: ignoreversion recursesubdirs createallsubdirs deleteafterinstall
+Source: "..\docs\*"; DestDir: "{tmp}\AlienGamerMode\docs"; Excludes: "images\concepts\*,RELEASE-*.md,FORUMS-*.md"; Flags: ignoreversion recursesubdirs createallsubdirs deleteafterinstall
 Source: "..\README.md"; DestDir: "{tmp}\AlienGamerMode"; Flags: ignoreversion deleteafterinstall
 Source: "..\README.en.md"; DestDir: "{tmp}\AlienGamerMode"; Flags: ignoreversion deleteafterinstall
 Source: "..\src\*"; DestDir: "{tmp}\AlienGamerMode\src"; Flags: ignoreversion recursesubdirs createallsubdirs deleteafterinstall

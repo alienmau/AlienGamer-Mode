@@ -50,13 +50,14 @@
     "language": "Language",
     "spanish": "Español",
     "english": "English",
-    "hardwareConfiguration": "Configure hardware and display...",
+    "hardwareConfiguration": "Configure hardware...",
     "displayLayout": "Displays and layout...",
-    "advancedConfiguration": "Advanced configuration",
+    "advancedConfiguration": "Edit configuration file...",
     "openLogs": "Open logs and reports",
     "closeApp": "Close AlienGamer Mode",
     "active": "AlienGamer Mode - active",
-    "stopped": "AlienGamer Mode - stopped"
+    "stopped": "AlienGamer Mode - stopped",
+    "tools": "Tools"
   },
   "dialog": {
     "backgroundTitle": "Dynamic background - AlienGamer Mode",
@@ -68,8 +69,8 @@
     "chooseColor": "Choose color...",
     "apply": "Apply",
     "cancel": "Cancel",
-    "hardwareTitle": "Hardware and display - AlienGamer Mode",
-    "hardwareNote": "The selection is saved permanently. If the monitor is active, it will restart briefly to validate sensors again.",
+    "hardwareTitle": "Hardware - AlienGamer Mode",
+    "hardwareNote": "Select GPU and storage. Manage displays in Displays and layout. If active, the monitor restarts sensors when applying.",
     "hardwareApplied": "The hardware configuration was saved and applied successfully.",
     "noMonitors": "Windows did not report any available display.",
     "waitApply": "Please wait... Applying the selection to the monitor.",
@@ -84,7 +85,8 @@
     "missingRainmeter": "Rainmeter is not installed.",
     "sharedMemory": "HWiNFO did not publish shared memory. Enable Shared Memory Support in its settings.",
     "invalidProfile": "The sensor profile does not contain prior validation.",
-    "bridgeError": "AlienGamer Bridge did not respond."
+    "bridgeError": "AlienGamer Bridge did not respond.",
+    "editConfigurationWarning": "This opens the technical file in Notepad. Incorrect edits may prevent startup. Use Displays and layout or Configure hardware for normal settings. A backup will be created before opening. Continue?"
   },
   "layoutEditor": {
     "title": "AlienGamer Mode - Displays and layout",
@@ -120,10 +122,11 @@
     "saveApply": "Save and apply",
     "cancel": "Cancel",
     "invalidPlacement": "That position or size overlaps another module, the safety margin, or the display boundary.",
-    "enableOne": "Enable at least one display.",
+    "enableOne": "Enable at least one display or the mobile monitor.",
     "saveError": "The layout could not be saved.",
     "unknownError": "Unknown error.",
-    "saved": "Valid layout. Applying changes..."
+    "saved": "Valid layout. Applying changes...",
+    "mobileOnlyActive": "Mobile monitor only is active."
   },
   "recorder": {
     "saved": "Report saved successfully to:",
@@ -159,13 +162,20 @@
     "completeTitle": "Installation complete",
     "errorTitle": "Installation error",
     "complete": "AlienGamer Mode was installed successfully.",
-    "launchNotice": "After you accept, the monitor will start and appear. The first launch may take a moment while sensors are discovered and validated.",
+    "launchNotice": "After you accept, sensors start and your selected destination setup opens. The first start may take a moment.",
     "pinNotice": "To pin it: open Start, search for AlienGamer Mode, right-click it and choose Pin to taskbar.",
     "backup": "Previous edition backup:",
     "hwinfoOpen": "HWiNFO is open. It must close briefly to save the sensor configuration. Continue?",
     "prepareHWiNFO": "Prepare HWiNFO",
     "installCancelled": "Installation cancelled: HWiNFO must be closed while it is configured.",
     "hwinfoTaskFailed": "The elevated HWiNFO task could not start",
-    "uninstallShortcut": "Uninstall AlienGamer Mode"
+    "uninstallShortcut": "Uninstall AlienGamer Mode",
+    "optionalMobileRainmeter": "OPTIONAL IN MOBILE-ONLY MODE",
+    "destination": "Where do you want to view the dashboard?",
+    "desktopDestination": "Desktop displays",
+    "mobileDestination": "Phone / tablet only",
+    "bothDestination": "Both: desktop and phone / tablet",
+    "destinationHint": "You can change destinations later in Displays and layout.",
+    "mobileOnlyHint": "No desktop dashboard will be shown. Setup finishes with a QR for connecting your phone on the same network."
   }
 }

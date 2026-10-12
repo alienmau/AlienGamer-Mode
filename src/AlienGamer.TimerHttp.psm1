@@ -24,13 +24,23 @@ function Invoke-AGTimerRequest($Request,[bool]$Tls,[string]$Origin,$Settings,[st
     if($Request.Method-ne'POST'-or$Request.Headers['content-type']-notmatch '^application/json(?:;|$)'){return @{Code=400;Body=@{error='Solicitud no válida.'}}}
     try{
         $v=$Request.Body|ConvertFrom-Json -ErrorAction Stop
-        if(($v.action-notin@('configure','start','pause','extra','reset'))-or($v.revision-isnot[long]-and$v.revision-isnot[int])-or($v.revision-lt0)){throw 'Invalid action or revision.'}
+        if(($v.action-notin@('configure','start','pause','extra','reset','alarm'))-or($v.revision-isnot[long]-and$v.revision-isnot[int])-or($v.revision-lt0)){throw 'Invalid action or revision.'}
+        if($v.action-eq'alarm'){
+            if($v.output-notin@('mobile','pc','both')-or($v.alarmRevision-isnot[int]-and$v.alarmRevision-isnot[long])-or$v.alarmRevision-lt0){throw 'Invalid alarm output.'}
+            $change=@{Directory=$Directory;Output=[string]$v.output;Revision=[long]$v.alarmRevision}
+        }
         $args=@{Directory=$Directory;Action=[string]$v.action;Revision=[long]$v.revision}
         if($v.action-eq'configure'){
             if($v.seconds-isnot[int]-or$v.extraStep-isnot[int]){throw 'Invalid duration.'}
             $args.Seconds=$v.seconds;$args.ExtraStep=$v.extraStep
         }
     }catch{return @{Code=400;Body=@{error='Revisa la duración y los minutos extra.'}}}
-    try{return @{Code=200;Body=(Invoke-AGSharedTimer @args)}}catch{return @{Code=409;Body=@{error='El temporizador cambió o la acción no está disponible. Actualiza y vuelve a intentar.'}}}
+    try{
+        if($v.action-eq'alarm'){
+            Set-AGTimerAlarmSettings @change|Out-Null
+            return @{Code=200;Body=(Invoke-AGSharedTimer -Directory $Directory)}
+        }
+        return @{Code=200;Body=(Invoke-AGSharedTimer @args)}
+    }catch{return @{Code=409;Body=@{error='El temporizador o sus opciones cambiaron. Actualiza y vuelve a intentar.'}}}
 }
 Export-ModuleMember -Function Read-AGHttpRequest,Invoke-AGTimerRequest

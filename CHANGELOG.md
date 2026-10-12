@@ -1,5 +1,29 @@
 # Historial de cambios
 
+## 1.9.0 — 2026-10-11
+
+- Agrupa tiempo, destino de alarma, presets/MP3 propio y Probar/Detener bajo el mismo botón Configurar del temporizador móvil. Panel con desplazamiento interno para pantallas pequeñas; sonido local accesible en sólo lectura sin habilitar cambios de tiempo o salida compartida. Cerrar ajustes detiene la prueba.
+- Mobile timer uses one Configure button for time, shared alarm output, preset/custom MP3 and Test/Stop. Internally scrolling panel supports small screens; read-only clients retain local sound settings without gaining timer/shared-output permissions. Closing settings stops preview.
+
+- La prueba de sonido alterna Probar/Detener en PC y móvil, vuelve a Probar al terminar y se detiene automáticamente al guardar/cerrar (PC), guardar el tiempo o salir de la página (móvil). Sólo detiene el proceso de prueba de esa ventana, no las alarmas reales. Corrige la ruta vacía de `Probar en PC` al conservar la raíz de la aplicación fuera del callback del botón.
+- Sound preview toggles Test/Stop on PC and mobile, resets on completion and stops on save/close (PC), timer save or page exit (mobile). Stops only the dialog's own preview worker, not real alarms. Fixes the empty-path PC preview error by capturing the application root before the UI callback runs.
+
+- Destino compartido de alarma: Sólo móvil (predeterminado), Sólo PC o Ambos. PC sigue la salida actual de Windows al sonar o permite fijar una salida avanzada; dispositivo desconectado vuelve a Windows con aviso. Sonido en PC incluso sin skins de escritorio; cuatro presets/MP3 propio y prueba sin guardar. Cambiar sólo audio no reinicia la sesión; cambio de duración en curso pide confirmación. El cambio de destino por web conserva HTTPS, permiso explícito, origen y revisión; no transmite rutas ni dispositivos de PC.
+- Shared alarm output: Mobile only (default), PC only or Both. PC follows Windows' current output at playback or uses an advanced pinned device; missing devices fall back with a tray notice. PC alarms work without desktop skins; four presets/custom MP3 and non-saving preview. Audio-only changes preserve countdown; active duration changes require confirmation. Web output changes remain protected by HTTPS, explicit permission, origin and revision, without exposing PC paths/device IDs. Tests: `Test-TimerAlarm.ps1`, `Test-TimerAlarmUI.ps1`, `Test-MobileTimerAudio.cjs`.
+
+- Alarma del temporizador móvil: cuatro MP3 incluidos (Sonido 4 predeterminado), MP3 propio de hasta 10 MB guardado sólo en ese navegador, selección y prueba independientes de permisos de control del temporizador. Aviso único al pasar de en curso a finalizado; requiere permitir audio y mantener la página abierta. Audio proporcionado por el autor desde Pixabay bajo su Content License, separado de MIT. Pruebas: `tests/Test-MobileTimerAudio.cjs`.
+- Mobile timer alarm: four bundled MP3 presets (Sound 4 default), a custom MP3 up to 10 MB stored only in that browser, independent audio selection/preview in read-only mode, and a one-shot completion alert. Requires browser audio permission and an open page. Owner-supplied Pixabay audio retains its Content License, separate from MIT.
+
+- Selector de color de luciérnagas con barra horizontal arcoíris, vista previa y brillo, sin introducir valores RGB. Permite arrastrar o usar flechas del teclado; Aplicar confirma y Cancelar conserva el color anterior. Pruebas ES/EN: `tests/Test-ColorSpectrum.ps1`.
+- Firefly color picker replaces RGB inputs with a horizontal rainbow, live preview and brightness slider. Supports dragging and arrow keys; Apply confirms and Cancel preserves the previous color. ES/EN tests: `tests/Test-ColorSpectrum.ps1`.
+
+- Instalación con destinos Pantallas del equipo, Sólo celular/tablet o Ambos; abre el QR al finalizar los modos móviles y no exige seleccionar monitor físico en modo sólo móvil. Configurar hardware administra únicamente GPU y almacenamiento; las pantallas quedan en su editor. Herramientas → Editar archivo de configuración muestra advertencia y respalda antes de abrir Bloc de notas.
+- Setup offers Desktop displays, Phone/tablet only or Both; mobile modes open QR setup after installation, and mobile-only does not require a physical display selection. Hardware configuration handles GPU/storage only. Tools → Edit configuration file warns and backs up before opening Notepad.
+
+- Permite usar exclusivamente el monitor móvil, sin una vista de escritorio activa. El editor valida pantalla física **o** móvil, genera el perfil de sensores sin crear skins y no inicia Rainmeter en un arranque sólo móvil. Conserva HTTPS, permisos y temporizador compartido. Mantiene el rechazo cuando todas las salidas están desactivadas.
+- Allows mobile-only monitoring with no active desktop view. Layout validation accepts desktop **or** mobile output; sensor profiles do not require skins or Rainmeter startup. Preserves HTTPS, permissions and the shared timer; rejects configurations with no enabled output.
+- Pruebas / Tests: `tests/Test-MobileOnly.ps1` cubre guardado con estado móvil reciente, arranque sin skin, reutilización del perfil, manifiesto vacío sin fallback heredado y validación de salida desactivada / covers latest mobile-state saving, skin-free startup, profile reuse, an empty manifest without legacy fallback and no-output rejection.
+
 ## 1.8.0 — 2026-10-10
 
 - HTTPS local opcional con asistente guiado, identidad conservada al actualizar y resumen «HTTPS activo · Ver conexión».

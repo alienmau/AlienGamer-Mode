@@ -30,7 +30,7 @@ $tlsUistatus=New-Object Windows.Forms.Label;$tlsUistatus.AutoSize=$true;$tlsUist
 $tlsUistate=[pscustomobject]@{Phase=0;Waiting=$false;Started=Get-Date;Endpoint=$null;QrUrl=''}
 $tlsUipersist={param([bool]$Enable,[bool]$Prepare)
     $tlsUidisk=Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8|ConvertFrom-Json
-    if(-not $tlsUidisk.mobileView.enabled){throw (& $wizardText 'Primero activa el monitor web y el monitor de la laptop.' 'First enable the web monitor and the laptop monitor.')}
+    if(-not $tlsUidisk.mobileView.enabled){throw (& $wizardText 'Primero activa el monitor web.' 'First enable the web monitor.')}
     $tlsUidisk.mobileView|Add-Member NoteProperty tls ([pscustomobject]@{enabled=$Enable;prepared=$Prepare}) -Force
     $tlsUitemp=$ConfigPath+'.https.tmp'
     [IO.File]::WriteAllText($tlsUitemp,($tlsUidisk|ConvertTo-Json -Depth 24),(New-Object Text.UTF8Encoding($false)))

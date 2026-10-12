@@ -6,11 +6,19 @@
 
 AlienGamer Mode combina Rainmeter y HWiNFO para mostrar sensores, personalizar cada pantalla y registrar eventos de rendimiento. Trabaja localmente, sin telemetría, y no presenta sensores ausentes como valores reales de cero.
 
-**Versión actual: 1.8.0** · [Descargar instalador](https://github.com/alienmau/AlienGamer-Mode/releases/latest) · [Notas de la versión](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
+**Versión actual: 1.9.0** · [Descargar instalador](https://github.com/alienmau/AlienGamer-Mode/releases/latest) · [Notas de la versión](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
 
 [![Última versión](https://img.shields.io/github/v/release/alienmau/AlienGamer-Mode?style=for-the-badge&color=ff7a00)](https://github.com/alienmau/AlienGamer-Mode/releases/latest)
 [![Descargas](https://img.shields.io/github/downloads/alienmau/AlienGamer-Mode/total?style=for-the-badge&color=22d3ee)](https://github.com/alienmau/AlienGamer-Mode/releases)
 [![Licencia MIT](https://img.shields.io/github/license/alienmau/AlienGamer-Mode?style=for-the-badge&color=84cc16)](LICENSE)
+
+## Tu celular o tablet, una pantalla para monitorear tu PC
+
+¿Sólo tienes un monitor? Mantén el juego en tu pantalla principal y consulta temperaturas, uso de CPU/GPU, RAM, VRAM y los datos de FPS disponibles en tu smartphone o tablet, en tiempo real y sin salir del juego. **No necesitas un segundo monitor ni una vista de escritorio activa.** La PC por Ethernet y el móvil por Wi-Fi pueden compartir el mismo router.
+
+Personaliza las tarjetas, gira el dispositivo y usa pantalla completa. Con **HTTPS local confiable**, el certificado generado en tu propia PC y un navegador compatible puedes activar **Mantener pantalla encendida**. El asistente explica cómo verificar e instalar la CA; no se deben ignorar avisos de seguridad.
+
+**Controla tu tiempo para jugar o trabajar:** utiliza el temporizador para recordar levantarte, estirarte o alejarte un rato de la PC. **Elige tu sonido de alarma** entre cuatro efectos o tu propio MP3, y decide si sonará en **Sólo móvil, Sólo PC o Ambos**. Sonido 4 es el predeterminado; en móvil hay que permitir el audio y mantener la página abierta.
 
 ## Así se ve
 
@@ -18,22 +26,24 @@ AlienGamer Mode combina Rainmeter y HWiNFO para mostrar sensores, personalizar c
 
 Tema oscuro, acento naranja, tarjetas de pantallas y opciones laterales para organizar cada vista.
 
-![Editor de Pantallas y distribución](docs/images/release-1.7.0/display-editor.png)
+![Editor de Pantallas y distribución](docs/images/release-1.9.0/display-editor.png)
 
 El editor mostrado utiliza datos de pantallas de prueba.
 
 ### Monitor móvil
 
+¿Sólo tienes un monitor? Juega en tu pantalla principal y consulta el estado de tu PC en tiempo real desde un smartphone o tablet conectado a la misma red local, sin salir del juego ni necesitar otro monitor.
+
 Tarjetas translúcidas que se adaptan a la orientación y al espacio disponible.
 
-![Monitor móvil en horizontal](docs/images/release-1.7.0/mobile-landscape.jpg)
+![Monitor móvil en horizontal](docs/images/release-1.9.0/mobile-landscape.png)
 
 <p align="center">
-  <img src="docs/images/release-1.7.0/mobile-portrait.jpg" alt="Monitor móvil en vertical" width="320">
-  <img src="docs/images/update-2026-10-10/timer-icons.png" alt="Temporizador móvil con controles por iconos" width="320">
+  <img src="docs/images/release-1.9.0/mobile-portrait.png" alt="Monitor móvil en vertical" width="320">
+  <img src="docs/images/release-1.9.0/mobile-timer-settings.png" alt="Tiempo y sonido en un mismo panel" width="320">
 </p>
 
-Las vistas de distribución son capturas reales de Chrome compartidas desde un teléfono. La captura del temporizador usa datos de prueba.
+Capturas de las interfaces implementadas con datos de prueba, no maquetas ni sensores reales del equipo del usuario. No contienen QR privados ni claves.
 
 ## Qué puedes hacer
 
@@ -61,6 +71,8 @@ El editor evita solapamientos y salidas del lienzo, conserva el encabezado fijo 
 
 La configuración usa grises oscuros, botones redondeados y acento naranja. El menú de bandeja permite iniciar/detener, grabar, marcar incidentes, cambiar idioma, configurar hardware, consultar registros y cerrar la aplicación.
 
+**Configurar hardware** administra GPU y almacenamiento. Pantallas y móvil se organizan en **Pantallas y distribución**; **Herramientas → Editar archivo de configuración** es una opción avanzada con aviso y respaldo, no necesaria para el uso habitual.
+
 ### Usar el monitor desde un celular o tablet
 
 En **Pantallas y distribución → Celular o tablet**, activa **Activar monitor web en mi red local** y escanea el QR. Ambos equipos deben usar el mismo router; Ethernet en la PC y Wi-Fi en el móvil funcionan juntos.
@@ -72,6 +84,7 @@ En **Pantallas y distribución → Celular o tablet**, activa **Activar monitor 
 - Preferencias guardadas en cada dispositivo y conservadas al girar.
 - Tarjetas de vidrio, títulos centrados y luciérnagas decorativas con color configurable.
 - **Expandir** y **Salir** controlan sólo la pantalla completa del navegador, no el monitor de la PC.
+- Puedes usar **sólo celular/tablet** sin activar pantallas físicas; en ese modo Rainmeter es opcional.
 
 El servicio es opcional y está desactivado por defecto. Usa una dirección privada y el puerto 27844, un enlace secreto y firewall limitado a la subred local. **Nuevo QR** revoca el enlace anterior. No requiere nube ni abrir puertos a Internet.
 
@@ -91,17 +104,27 @@ Consulta la [guía paso a paso de HTTPS móvil](docs/MOBILE-HTTPS-GUIDE.md), con
 
 PC y móvil muestran la misma sesión: configura la duración, inicia/pausa, añade hasta tres incrementos de minutos extra o restablece.
 
+Organiza tu tiempo para jugar o trabajar y utiliza el temporizador como recordatorio para levantarte, estirarte o alejarte un rato de la PC.
+
 - Sin configuración muestra ceros; al volver a abrir el monitor recupera la duración guardada lista para iniciar.
 - Progreso suavizado y transición de colores: verde antes del 70% consumido, ámbar desde 70% y rojo desde 85%.
 - Al terminar, **GAME OVER** queda fijo en rojo, sin zoom.
 - Controles móviles por iconos con nombres accesibles y áreas táctiles de 44 px.
 - Control móvil desactivado por defecto: requiere **HTTPS y autorización explícita en la PC**. Sin permiso, sólo muestra el estado.
+- El mismo icono **Configurar** reúne tiempo y sonido. Hay cuatro efectos (Sonido 4 predeterminado) o MP3 propio de hasta 10 MB. **Probar** cambia a **Detener**; guardar o cerrar ajustes detiene la prueba.
+- Destino compartido de alarma: **Sólo móvil** (predeterminado), **Sólo PC** o **Ambos**. La PC puede sonar incluso con únicamente la vista móvil activa.
+- PC sigue la salida que Windows tenga seleccionada al comenzar la alarma. En **Avanzado** puedes fijar un dispositivo; si está desconectado, se usa Windows y se avisa. No cambia volumen ni silencio.
+- El MP3 del celular se guarda sólo en ese navegador. Sonido local sigue disponible en modo sólo lectura, pero cambiar tiempo/destino compartido requiere permiso. Audio móvil depende de permiso, volumen y página abierta; no sustituye una alarma del sistema.
 
 La visibilidad es independiente por pantalla; la sesión y sus cambios son compartidos.
 
+[Guía de alarmas PC/móvil y MP3 propios](docs/MOBILE-TIMER-AUDIO.md).
+
+![Configuración de alarma y salida de audio en PC, datos de prueba](docs/images/release-1.9.0/timer-pc-settings.png)
+
 ### Personalizar el fondo
 
-Cada monitor puede usar **Desactivado**, **Personalizado** o **Dinámico térmico**. El personalizado permite elegir cantidad, velocidad, tamaño y color de luciérnagas. El térmico responde a temperaturas/actividad válidas, suaviza transiciones y reduce movimiento ante saturación o peor tiempo de cuadro.
+Cada monitor puede usar **Desactivado**, **Personalizado** o **Dinámico térmico**. El personalizado permite elegir cantidad, velocidad, tamaño y color de luciérnagas con una barra arcoíris, vista previa y brillo, sin introducir RGB. El térmico responde a temperaturas/actividad válidas, suaviza transiciones y reduce movimiento ante saturación o peor tiempo de cuadro.
 
 Las luciérnagas móviles son decorativas, independientes de la temperatura. El escritorio también usa pequeños desplazamientos periódicos para reducir elementos estáticos prolongados en OLED; no garantiza evitar desgaste.
 
@@ -120,14 +143,14 @@ Los reportes relacionan FPS, tiempo de cuadro, temperaturas, memoria, carga y al
 - Windows 10/11 de 64 bits y procesador x64 de dos núcleos como mínimo.
 - 4 GB de RAM mínimo; 8 GB recomendados, o 16 GB si se juega en el mismo equipo.
 - Aproximadamente 100 MB libres, sin contar reportes.
-- [Rainmeter 4.5 o posterior](https://www.rainmeter.net/).
+- [Rainmeter 4.5 o posterior](https://www.rainmeter.net/) para vistas de escritorio; opcional en modo sólo móvil.
 - [HWiNFO 7.34 o posterior](https://www.hwinfo.com/download/), con sensores y memoria compartida habilitados.
 
-Rainmeter y HWiNFO son requisitos externos, no vienen incluidos. La compatibilidad depende de los sensores del equipo; el consumo varía con hardware, sensores, pantallas y efectos.
+Rainmeter y HWiNFO se obtienen por separado; HWiNFO se necesita para sensores, Rainmeter sólo para vistas de escritorio. La compatibilidad depende de los sensores del equipo; el consumo varía con hardware, sensores, pantallas y efectos.
 
 1. Instala los requisitos desde sus sitios oficiales y habilita la memoria compartida de HWiNFO.
 2. Descarga el instalador de la [última versión](https://github.com/alienmau/AlienGamer-Mode/releases/latest).
-3. Ejecuta y elige **Español** o **English**, pantalla, GPU y almacenamiento principal.
+3. Ejecuta y elige **Español** o **English**, destino **Pantallas del equipo**, **Sólo celular/tablet** o **Ambos**, GPU y almacenamiento principal. Sólo móvil no exige elegir un monitor físico y abre el acceso por QR al finalizar.
 4. Finaliza y personaliza las vistas desde el icono de bandeja.
 
 La instalación completa respalda y reinicia ajustes visuales de escritorio y temporizadores; conserva grabaciones, reportes y configuración móvil existente. La identidad HTTPS se conserva en la misma cuenta. No es una actualización silenciosa.

@@ -1,4 +1,4 @@
-param([ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Tag='v1.8.0')
+param([ValidatePattern('^v\d+\.\d+\.\d+$')][string]$Tag='v1.9.0')
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 $version=$Tag.Substring(1)
@@ -9,6 +9,9 @@ foreach($file in @($notes,$installer,$checksum)){if(-not(Test-Path -LiteralPath 
 $hash=(Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
 if((Get-Content -LiteralPath $checksum -Raw)-notmatch[regex]::Escape($hash)){throw 'Installer checksum mismatch.'}
 Write-Host 'Release inputs and checksum verified. Checking GitHub session...'
+$commit=(git -C $root rev-parse HEAD).Trim()
+$remoteHead=git -C $root ls-remote origin refs/heads/main
+if($LASTEXITCODE-ne0-or-not$remoteHead-or($remoteHead-split'\s+')[0]-ne$commit){throw 'Commit must be pushed to main before publishing its installer.'}
 $api='https://api.github.com/repos/alienmau/AlienGamer-Mode'
 # Reuse the existing Git credential helper for this same GitHub destination.
 # Credentials stay in memory, never in a file, log, command argument or output.
@@ -32,7 +35,7 @@ try{
     $release=$null
     try{$release=Request-GitHub GET "$api/releases/tags/$Tag" $null}catch{if([int]$_.Exception.Response.StatusCode-ne404){throw}}
     $body=Get-Content -LiteralPath $notes -Raw -Encoding UTF8
-    if(-not$release){$release=Request-GitHub POST "$api/releases" @{tag_name=$Tag;name="AlienGamer Mode $version - Local HTTPS and shared timer / HTTPS local y temporizador";body=$body;draft=$true;prerelease=$false}}
+    if(-not$release){$release=Request-GitHub POST "$api/releases" @{tag_name=$Tag;target_commitish=$commit;name="AlienGamer Mode $version - Your mobile as a PC dashboard / Tu móvil como monitor de PC";body=$body;draft=$true;prerelease=$false}}
     else{$release=Request-GitHub PATCH "$api/releases/$($release.id)" @{body=$body}}
     $uploadBase=($release.upload_url-split'\{')[0]
     if(-not$uploadBase.StartsWith('https://uploads.github.com/repos/alienmau/AlienGamer-Mode/releases/')){throw 'Unexpected upload destination.'}

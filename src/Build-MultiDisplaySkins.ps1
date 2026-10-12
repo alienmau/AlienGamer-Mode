@@ -16,7 +16,9 @@ function Set-ObjectProperty($Object,[string]$Name,$Value){
 $config=Get-Content -LiteralPath $ConfigPath -Raw|ConvertFrom-Json
 $discovery=Get-Content -LiteralPath $DiscoveryPath -Raw|ConvertFrom-Json
 $views=@(Get-AGDisplayViews -Config $config|Where-Object enabled)
-if(-not $views.Count){throw 'Debe existir al menos una pantalla habilitada.'}
+if(-not $views.Count -and -not($config.PSObject.Properties['mobileView'] -and $config.mobileView.enabled)){
+    throw 'Activa al menos una pantalla o el monitor móvil.'
+}
 $baseProfile=$null
 if($ReuseValidatedProfile){
     if(-not(Test-Path -LiteralPath $PrimaryProfilePath)){throw 'No existe un perfil validado que se pueda reutilizar.'}
@@ -24,6 +26,21 @@ if($ReuseValidatedProfile){
     if(-not $baseProfile.validation){throw 'El perfil existente no contiene una validación de sensores.'}
 }
 New-Item -ItemType Directory -Path $ProfilesDirectory,$OutputDirectory -Force|Out-Null
+if(-not $views.Count){
+    # Sensor acquisition needs a profile, not a visible Rainmeter skin.
+    if(-not $ReuseValidatedProfile){
+        $sensorConfig=($config|ConvertTo-Json -Depth 24|ConvertFrom-Json)
+        $sensorConfig.display.targetMonitor='auto'
+        Set-ObjectProperty $sensorConfig.display 'targetMonitorId' 'auto'
+        $sensorConfigPath=Join-Path $ProfilesDirectory 'config-mobile-only.json'
+        $sensorConfig|ConvertTo-Json -Depth 24|Set-Content -LiteralPath $sensorConfigPath -Encoding UTF8
+        & (Join-Path $PSScriptRoot 'Resolve-AlienGamerProfile.ps1') -DiscoveryPath $DiscoveryPath -ConfigPath $sensorConfigPath -OutputPath $PrimaryProfilePath|Out-Null
+    }
+    # Explicit empty manifest prevents legacy skin fallback on restart.
+    $manifestPath=Join-Path (Split-Path -Parent $PrimaryProfilePath) 'display-manifest.json'
+    [IO.File]::WriteAllText($manifestPath,'[]',(New-Object Text.UTF8Encoding($false)))
+    return
+}
 $viewsOutput=Join-Path $OutputDirectory 'Views'
 if(Test-Path -LiteralPath $viewsOutput){Remove-Item -LiteralPath $viewsOutput -Recurse -Force}
 New-Item -ItemType Directory -Path $viewsOutput -Force|Out-Null

@@ -4,11 +4,12 @@
 
 - Windows 10 u 11 de 64 bits.
 - PowerShell 5.1 o posterior.
-- Un monitor con resolución mínima recomendada de 1280 × 720.
+- Para vistas de escritorio, un monitor con resolución mínima recomendada de 1280 × 720. La vista móvil puede usarse sola, sin activar un monitor físico.
 - Microsoft Excel sólo es necesario para generar el libro opcional `.xlsx` de **Grabar evento**. El reporte visual HTML y el CSV bruto no dependen de Excel.
 
 ## Rainmeter
 
+- Necesario sólo para vistas de escritorio; opcional en **Sólo celular/tablet**.
 - Mínimo previsto: Rainmeter 4.5.
 - Recomendado: la versión estable más reciente publicada por el proyecto.
 - Descarga oficial: <https://www.rainmeter.net/>.
@@ -41,7 +42,7 @@ El instalador crea una copia de seguridad del INI antes de aplicar estas opcione
 
 El asistente obtiene automáticamente el hardware, pero solicita una selección cuando hay alternativas:
 
-1. monitor de destino;
+1. destino **Pantallas del equipo**, **Sólo celular/tablet** o **Ambos**; monitor físico sólo si se usarán vistas de escritorio;
 2. GPU a monitorizar si hay varias;
 3. unidad SSD/HDD principal si hay varias;
 4. accesos directos e inicio con Windows;
@@ -49,4 +50,4 @@ El asistente obtiene automáticamente el hardware, pero solicita una selección 
 
 No es necesario editar la skin. La configuración personal queda en `%LOCALAPPDATA%\AlienGamerMode\AlienGamerMode.json` y se conserva durante actualizaciones.
 
-El fondo dinámico no escucha, captura ni procesa audio. No requiere complementos de visualización adicionales.
+El fondo dinámico no escucha ni captura audio. La alarma opcional del temporizador reproduce los sonidos incluidos o un MP3 elegido por el usuario; no utiliza micrófono. No requiere complementos de visualización adicionales.

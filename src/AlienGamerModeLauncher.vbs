@@ -17,6 +17,8 @@ Select Case mode
         command = PsCommand(appRoot & "\AlienGamerModeAgent.ps1", "-Activate")
     Case "activate-layout"
         command = PsCommand(appRoot & "\AlienGamerModeAgent.ps1", "-Activate -OpenLayoutEditor")
+    Case "activate-mobile"
+        command = PsCommand(appRoot & "\AlienGamerModeAgent.ps1", "-Activate -OpenLayoutEditor -OpenMobileSetup")
     Case "stop"
         command = PsCommand(appRoot & "\AlienGamerModeCommand.ps1", "-Stop")
     Case "record-toggle"

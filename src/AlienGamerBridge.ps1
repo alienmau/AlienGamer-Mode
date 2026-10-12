@@ -9,6 +9,7 @@ Import-Module (Join-Path $PSScriptRoot 'AlienGamer.HWiNFO.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.MobileTls.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.SharedTimer.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'AlienGamer.TimerHttp.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'AlienGamer.TimerAlarm.psm1') -Force
 $culture = [Globalization.CultureInfo]::InvariantCulture
 if (-not (Test-Path $ProfilePath)) { throw "No existe el perfil resuelto: $ProfilePath" }
 $profile = Get-Content -LiteralPath $ProfilePath -Raw | ConvertFrom-Json
@@ -274,6 +275,12 @@ try {
                     $payload=[IO.File]::ReadAllBytes((Join-Path $PSScriptRoot ('mobile\help\'+$example)))
                     $headers=[Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK`r`nContent-Type: image/jpeg`r`nCache-Control: no-store`r`nReferrer-Policy: no-referrer`r`nX-Content-Type-Options: nosniff`r`nContent-Length: $($payload.Length)`r`nConnection: close`r`n`r`n")
                     $stream.Write($headers,0,$headers.Length);$stream.Write($payload,0,$payload.Length);$stream.Flush()
+                }elseif($path -cin @((1..4|ForEach-Object {$base+'sounds/timer-'+$_+'.mp3'}))){
+                    # Exact allowlist: never expose arbitrary local files or uploads.
+                    $filename=$path.Substring(($base+'sounds/').Length)
+                    $payload=[IO.File]::ReadAllBytes((Join-Path $PSScriptRoot ('mobile\sounds\'+$filename)))
+                    $headers=[Text.Encoding]::ASCII.GetBytes("HTTP/1.1 200 OK`r`nContent-Type: audio/mpeg`r`nCache-Control: private, max-age=3600`r`nReferrer-Policy: no-referrer`r`nX-Content-Type-Options: nosniff`r`nContent-Length: $($payload.Length)`r`nConnection: close`r`n`r`n")
+                    $stream.Write($headers,0,$headers.Length);$stream.Write($payload,0,$payload.Length);$stream.Flush()
                 }elseif($path -eq ($base+'setup/') -and $mobileIdentity){
                     Send-Response $stream 200 'text/html' (Get-AGMobileSetupHtml -Fingerprint $mobileIdentity.Fingerprint -Name $mobileIdentity.Name -SecureUrl ("https://$($mobileBinding.ip):$mobilePort$base"))
                 }elseif($path -eq $base){
@@ -289,6 +296,9 @@ try {
                     }catch{$status.ramUsedMB=-1;$status.ramTotalMB=-1}
                     $status.modules=@($mobileModules)
                     $status.timer=Invoke-AGSharedTimer -Directory $StateDirectory
+                    $alarm=Get-AGTimerAlarmSettings $StateDirectory
+                    # No local paths or hardware device IDs leave the PC.
+                    $status.timerAlarm=@{output=$alarm.output;revision=$alarm.revision}
                     $settings=(Get-Content -LiteralPath $configFile -Raw -Encoding UTF8|ConvertFrom-Json).mobileView
                     $status.timerControl=[bool]($mobileTls-and$settings.allowTimerControl-eq$true-and'timer'-in@($settings.modules))
                     Send-Response $stream 200 'application/json' ($status|ConvertTo-Json -Depth 6 -Compress)

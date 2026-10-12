@@ -50,13 +50,14 @@
     "language": "Idioma",
     "spanish": "Español",
     "english": "English",
-    "hardwareConfiguration": "Configurar equipo y pantalla...",
+    "hardwareConfiguration": "Configurar hardware...",
     "displayLayout": "Pantallas y distribución...",
-    "advancedConfiguration": "Configuración avanzada",
+    "advancedConfiguration": "Editar archivo de configuración...",
     "openLogs": "Abrir registros y reportes",
     "closeApp": "Cerrar AlienGamer Mode",
     "active": "AlienGamer Mode - activo",
-    "stopped": "AlienGamer Mode - detenido"
+    "stopped": "AlienGamer Mode - detenido",
+    "tools": "Herramientas"
   },
   "dialog": {
     "backgroundTitle": "Fondo dinámico - AlienGamer Mode",
@@ -68,8 +69,8 @@
     "chooseColor": "Elegir color...",
     "apply": "Aplicar",
     "cancel": "Cancelar",
-    "hardwareTitle": "Equipo y pantalla - AlienGamer Mode",
-    "hardwareNote": "La selección se guarda de forma permanente. Si el monitor está activo, se reiniciará brevemente para validar nuevamente los sensores.",
+    "hardwareTitle": "Hardware - AlienGamer Mode",
+    "hardwareNote": "Selecciona GPU y almacenamiento. Las pantallas se administran en Pantallas y distribución. Si está activo, el monitor reiniciará los sensores al aplicar.",
     "hardwareApplied": "La configuración del equipo se guardó y aplicó correctamente.",
     "noMonitors": "Windows no informó ningún monitor disponible.",
     "waitApply": "Espera un momento... Aplicando la selección al monitor.",
@@ -84,7 +85,8 @@
     "missingRainmeter": "Rainmeter no está instalado.",
     "sharedMemory": "HWiNFO no publicó la memoria compartida. Activa Shared Memory Support en sus ajustes.",
     "invalidProfile": "El perfil de sensores no contiene una validación previa.",
-    "bridgeError": "El puente AlienGamer no respondió."
+    "bridgeError": "El puente AlienGamer no respondió.",
+    "editConfigurationWarning": "Esta opción abre el archivo técnico en Bloc de notas. Una edición incorrecta puede impedir el arranque. Para ajustes normales usa Pantallas y distribución o Configurar hardware. Se creará un respaldo antes de abrirlo. ¿Deseas continuar?"
   },
   "layoutEditor": {
     "title": "AlienGamer Mode - Pantallas y distribución",
@@ -120,10 +122,11 @@
     "saveApply": "Guardar y aplicar",
     "cancel": "Cancelar",
     "invalidPlacement": "Esa posición o tamaño invade otro módulo, el margen de seguridad o el límite de la pantalla.",
-    "enableOne": "Activa al menos una pantalla.",
+    "enableOne": "Activa al menos una pantalla o el monitor móvil.",
     "saveError": "No se pudo guardar la distribución.",
     "unknownError": "Error desconocido.",
-    "saved": "Distribución válida. Aplicando cambios..."
+    "saved": "Distribución válida. Aplicando cambios...",
+    "mobileOnlyActive": "Sólo monitor móvil activo."
   },
   "recorder": {
     "saved": "Reporte guardado correctamente en:",
@@ -159,13 +162,20 @@
     "completeTitle": "Instalación completa",
     "errorTitle": "Error de instalación",
     "complete": "AlienGamer Mode quedó instalado correctamente.",
-    "launchNotice": "Al aceptar se iniciará y mostrará el monitor. El primer arranque puede tardar mientras descubre y valida los sensores.",
+    "launchNotice": "Al aceptar se iniciarán los sensores y la configuración del destino elegido. El primer arranque puede tardar.",
     "pinNotice": "Para fijarlo: abre Inicio, busca AlienGamer Mode, haz clic derecho y elige Fijar a la barra de tareas.",
     "backup": "Respaldo de la edición anterior:",
     "hwinfoOpen": "HWiNFO está abierto. Es necesario cerrarlo brevemente para guardar la configuración de sensores. ¿Continuar?",
     "prepareHWiNFO": "Preparar HWiNFO",
     "installCancelled": "Instalación cancelada: HWiNFO debe estar cerrado durante su configuración.",
     "hwinfoTaskFailed": "La tarea elevada de HWiNFO no pudo iniciar",
-    "uninstallShortcut": "Desinstalar AlienGamer Mode"
+    "uninstallShortcut": "Desinstalar AlienGamer Mode",
+    "optionalMobileRainmeter": "OPCIONAL EN MODO SÓLO MÓVIL",
+    "destination": "¿Dónde quieres ver el monitor?",
+    "desktopDestination": "Pantallas del equipo",
+    "mobileDestination": "Sólo celular / tablet",
+    "bothDestination": "Ambos: pantallas y celular / tablet",
+    "destinationHint": "Puedes cambiar los destinos después en Pantallas y distribución.",
+    "mobileOnlyHint": "No se mostrará un panel en la PC. Al finalizar se abrirá el QR para conectar el celular en la misma red."
   }
 }

@@ -10,6 +10,7 @@ $definition=$ast.Find({param($node) $node -is [Management.Automation.Language.Fu
 Invoke-Expression ($definition.Extent.Text.Replace('$PSScriptRoot',("'"+(Join-Path $root 'src').Replace("'","''")+"'")))
 function Set-Property($object,[string]$name,$value){$object|Add-Member NoteProperty $name $value -Force}
 function Write-EditorTrace($Message){}
+function Update-SaveAvailability {$script:parentValidationRefreshed=$true}
 $language='es-MX'
 $moduleLabels=@{ram='RAM';vram='VRAM';system='CPU/GPU';temperatures='Temperaturas';performance='FPS';clock='Reloj';timer='Timer';processors='Procesadores'}
 $config=[pscustomobject]@{mobileView=[pscustomobject]@{enabled=$false;port=27844;token='';modules=@('ram')}}
