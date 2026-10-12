@@ -1,8 +1,16 @@
 # Publicación 1.9.0 / Publication preparation
 
-Estado: instalador compilado y pruebas completadas. El autor confirmó la procedencia Pixabay de los cuatro MP3 bajo su Content License; registro en `src/mobile/sounds/README.txt`. Publicación GitHub/foros en curso; los enlaces de confirmación se añadirán después del envío verificado.
+Estado: **publicado en GitHub y en los tres hilos**, con envío verificado en Edge el 2026-10-11 (hora de México). El autor confirmó la procedencia Pixabay de los cuatro MP3 bajo su Content License; registro en `src/mobile/sounds/README.txt`.
 
-Se publicará primero GitHub y después respuestas en los mismos hilos, sin duplicarlos. Rainmeter/HWiNFO en inglés, Reddit r/PC_Gamer en español. Sesiones abiertas verificadas en Edge; no se necesitan contraseñas.
+## Enlaces de publicación verificados
+
+- GitHub: https://github.com/alienmau/AlienGamer-Mode/releases/tag/v1.9.0 — Latest, instalador y SHA-256; código de versión `85fa995`.
+- Rainmeter (inglés): https://forum.rainmeter.net/viewtopic.php?p=246109#p246109 — respuesta nueva, capturas incorporadas.
+- HWiNFO (inglés): https://www.hwinfo.com/forum/posts/53426/ — respuesta #8, capturas incorporadas.
+- Reddit r/PC_Gamer (español): https://www.reddit.com/r/PC_Gamer/comments/1we2ksb/comment/pfdkv2c/ — comentario nuevo, enlaces a capturas.
+- Confirmaciones visuales locales en `build/rainmeter-1.9.0-published.png`, `build/hwinfo-1.9.0-published.png` y `build/reddit-1.9.0-published.png`; no se publican estas capturas de sesión.
+
+Se publicó primero GitHub y después una respuesta en cada hilo existente, sin crear hilos duplicados. Rainmeter/HWiNFO en inglés, Reddit r/PC_Gamer en español.
 
 ## Paquete local
 
